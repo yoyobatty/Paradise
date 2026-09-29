@@ -383,8 +383,8 @@ SUBSYSTEM_DEF(garbage)
 
 #ifdef REFERENCE_TRACKING
 
-USER_VERB(find_refs, R_DEBUG, "Find References", "Find references.", VERB_CATEGORY_DEBUG)
-	find_references(FALSE)
+USER_CONTEXT_MENU(find_refs, R_DEBUG, "\[Admin\] Find References", datum/thing in world)
+	thing.find_references(FALSE)
 
 /datum/proc/find_references(skip_alert)
 	running_find_references = type
@@ -441,13 +441,13 @@ USER_VERB(find_refs, R_DEBUG, "Find References", "Find references.", VERB_CATEGO
 	SSgarbage.can_fire = 1
 	SSgarbage.next_fire = world.time + world.tick_lag
 
-USER_VERB(qdel_then_find_references, R_DEBUG, "qdel() then Find References", "qdel() then Find References", VERB_CATEGORY_DEBUG)
-	qdel(user, TRUE) //force a qdel
-	if(!running_find_references)
-		find_references(TRUE)
+USER_CONTEXT_MENU(qdel_then_find_references, R_DEBUG, "\[Admin\] qdel() then Find References", datum/thing in world)
+	qdel(thing, TRUE) //force a qdel
+	if(!thing.running_find_references)
+		thing.find_references(TRUE)
 
-USER_VERB(qdel_then_if_fail_find_references, R_DEBUG, "qdel() then Find References if GC failure", "qdel() then Find References if GC failure", VERB_CATEGORY_DEBUG)
-	qdel_and_find_ref_if_fail(user, TRUE)
+USER_CONTEXT_MENU(qdel_then_if_fail_find_references, R_DEBUG, "\[Admin\] qdel() then Find References if GC failure", datum/thing in world)
+	qdel_and_find_ref_if_fail(thing, TRUE)
 
 /datum/proc/DoSearchVar(potential_container, container_name, recursive_limit = 64, search_time = world.time)
 	if((usr?.client && !usr.client.running_find_references) || SSgarbage.ref_search_stop)
