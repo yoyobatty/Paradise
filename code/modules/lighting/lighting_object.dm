@@ -1,6 +1,8 @@
 /datum/lighting_object
 	/// the underlay we are currently applying to our turf to apply light
 	var/mutable_appearance/current_underlay
+	/// the appearance of the underlay we last put on our turf, so we can take it back off without rebuilding it
+	var/applied_underlay
 	/// whether we are already in the SSlighting.objects_queue list
 	var/needs_update = FALSE
 	/// the turf that our light is applied to
@@ -35,7 +37,7 @@
 	if(isturf(affected_turf))
 		affected_turf.lighting_object = null
 		affected_turf.luminosity = 1
-		affected_turf.underlays -= current_underlay
+		affected_turf.underlays -= applied_underlay
 	affected_turf = null
 	return ..()
 
@@ -83,17 +85,12 @@
 
 	if((rr & gr & br & ar) && (rg + gg + bg + ag + rb + gb + bb + ab == 8))
 		// anything that passes the first case is very likely to pass the second, and addition is a little faster in this case
-		affected_turf.underlays -= current_underlay
 		current_underlay.icon_state = "lighting_transparent"
 		current_underlay.color = null
-		affected_turf.underlays += current_underlay
 	else if(!set_luminosity)
-		affected_turf.underlays -= current_underlay
 		current_underlay.icon_state = "lighting_dark"
 		current_underlay.color = null
-		affected_turf.underlays += current_underlay
 	else
-		affected_turf.underlays -= current_underlay
 		current_underlay.icon_state = null
 		current_underlay.color = list(
 			rr, rg, rb, 00,
@@ -102,6 +99,17 @@
 			ar, ag, ab, 00,
 			00, 00, 00, 01
 		)
-		affected_turf.underlays += current_underlay
 
 	affected_turf.luminosity = set_luminosity
+
+	// No need to touch the turf if it already has this underlay (it can lose it, like when it's changed with ChangeTurf())
+	var/new_underlay = current_underlay.appearance
+	if(new_underlay == applied_underlay && (applied_underlay in affected_turf.underlays))
+		return
+
+	// Swap it in one go, as every change to a turf's underlays makes BYOND rebuild the turf's appearance
+	var/list/new_underlays = affected_turf.underlays.Copy()
+	new_underlays -= applied_underlay
+	new_underlays += new_underlay
+	affected_turf.underlays = new_underlays
+	applied_underlay = new_underlay
