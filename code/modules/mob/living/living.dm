@@ -1201,13 +1201,13 @@
 /mob/living/proc/is_inside_mob(atom/thing)
 	if(!(thing in contents))
 		return FALSE
-	if(l_hand && l_hand.UID() == thing.UID())
+	if(l_hand && l_hand == thing)
 		return FALSE
-	if(r_hand && r_hand.UID() == thing.UID())
+	if(r_hand && r_hand == thing)
 		return FALSE
-	if(back && back.UID() == thing.UID())
+	if(back && back == thing)
 		return FALSE
-	if(wear_mask && wear_mask.UID() == thing.UID())
+	if(wear_mask && wear_mask == thing)
 		return FALSE
 
 	return TRUE

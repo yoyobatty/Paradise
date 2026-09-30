@@ -16,11 +16,11 @@
 	var/list/window_priority = list()
 	var/list/collector_priority = list()
 	var/list/other_priority = list()
-	. = list()
 	var/insulation = 1
-	while(length(processing_list))
-		var/atom/thing = processing_list[1]
-		processing_list -= thing
+	// Walk the list instead of cutting from the front, same order
+	var/processed = 0
+	while(processed < length(processing_list))
+		var/atom/thing = processing_list[++processed]
 		if(!thing || ignored_things[thing.type])
 			continue
 		switch(emission_type)
@@ -46,7 +46,10 @@
 			if(target_mob.get_rad_protection() >= 0.99) // I would do exactly equal to 1, but you will never hit anything between 1 and .975, and byond seems to output 0.99999
 				continue
 		processing_list += thing.contents
-	. =	window_priority + collector_priority + other_priority
+	// Most tiles have no windows or collectors, no need to make new lists for those
+	if(!length(window_priority) && !length(collector_priority))
+		return other_priority
+	return window_priority + collector_priority + other_priority
 
 /proc/get_rad_contamination_adjacent(atom/location, atom/source)
 	var/static/list/ignored_things = typecacheof(list(
@@ -64,7 +67,7 @@
 		processing_list += location.contents
 	. = list()
 	for(var/atom/thing in processing_list)
-		if(thing && source && thing.UID() == source.UID())
+		if(thing && source && thing == source)
 			continue
 		if(ignored_things[thing.type])
 			continue
@@ -76,18 +79,18 @@
 			var/zone
 			var/pocket = FALSE
 			// Check if we hold the contamination source, have it in our pockets or in our belts or if it's inside us
-			if(target_mob.UID() == location.UID())
+			if(target_mob == location)
 				// If it's in our hands check if it can permeate our gloves
-				if((source && (target_mob.r_hand && target_mob.r_hand.UID() == source.UID()) || (target_mob.l_hand && target_mob.l_hand.UID() == source.UID())))
+				if((source && (target_mob.r_hand && target_mob.r_hand == source) || (target_mob.l_hand && target_mob.l_hand == source)))
 					zone = HANDS
 
 				// If it's in our pockets check against our jumpsuit only
-				else if((target_mob?.l_store && target_mob?.l_store?.UID() == source?.UID()) || (target_mob?.r_store && target_mob?.r_store.UID() == source?.UID()))
+				else if((target_mob?.l_store && target_mob?.l_store == source) || (target_mob?.r_store && target_mob?.r_store == source))
 					zone = LOWER_TORSO
 					pocket = TRUE
 
 			// If it's on our belt check against both our outer layer and jumpsuit
-			if(location.loc.UID() == target_mob.UID() && istype(location, /obj/item/storage/belt))
+			if(location.loc == target_mob && istype(location, /obj/item/storage/belt))
 				zone = LOWER_TORSO
 
 			// If on the floor check if it can permeate our shoes
@@ -117,7 +120,7 @@
 	while(length(processing_list))
 		var/atom/thing = processing_list[1]
 		processing_list -= thing
-		if(thing?.UID() == source?.UID())
+		if(thing == source)
 			continue
 		if(ignored_things[thing.type])
 			continue
@@ -161,7 +164,7 @@
 	wave.weight_sum = RAD_SOURCE_WEIGHT
 	wave.weights = list(wave.weight_sum)
 	for(var/atom/thing in things)
-		if(thing.UID() == source.UID())
+		if(thing == source)
 			// Don't block our own radiation
 			source.base_rad_act(source ,intensity, emission_type)
 		else
