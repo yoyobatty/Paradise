@@ -45,6 +45,7 @@
 #include "test_spawn_humans.dm"
 #include "test_spell_targeting_test.dm"
 #include "test_sql.dm"
+#include "test_station_pets.dm"
 #include "test_status_effect_ids.dm"
 #include "test_subsystem_init.dm"
 #include "test_subsystem_metric_sanity.dm"
