@@ -11,6 +11,8 @@ SUBSYSTEM_DEF(statpanels)
 	/// Stuff shown to all admins.
 	var/list/admin_data
 	var/list/mc_data
+	/// The status tab message up to the mob's own data. Same for everyone, so it's only encoded once per fire.
+	var/status_message_start
 
 	/// How many subsystem fires between most tab updates
 	var/default_wait = 10
@@ -58,16 +60,19 @@ SUBSYSTEM_DEF(statpanels)
 				global_data += list(list("[eta]", "[SSshuttle.emergency.getTimerStr()]"))
 		src.currentrun = GLOB.clients.Copy()
 		mc_data = null
+		status_message_start = null
 
 	var/list/currentrun = src.currentrun
 	while(length(currentrun))
+		// Offset by their spot in the client list, so the slower refreshes don't all land on the same fire
+		var/spread_fires = num_fires + length(currentrun)
 		var/client/target = currentrun[length(currentrun)]
 		currentrun.len--
 
 		if(!target.stat_panel.is_ready())
 			continue
 
-		if(target.stat_tab == "Status" && num_fires % status_wait == 0)
+		if(target.stat_tab == "Status" && spread_fires % status_wait == 0)
 			set_status_tab(target)
 
 		if(!target.holder || !(target.prefs?.toggles2 & PREFTOGGLE_2_MC_TAB))
@@ -86,7 +91,7 @@ SUBSYSTEM_DEF(statpanels)
 			var/mob/target_mob = target.mob
 			// Handle the examined turf of the stat panel, if it's been long enough, or if we've generated new images for it
 			var/turf/listed_turf = target_mob?.listed_turf
-			if(listed_turf && num_fires % default_wait == 0)
+			if(listed_turf && spread_fires % default_wait == 0)
 				if(target.stat_tab == listed_turf.name || !(listed_turf.name in target.panel_tabs))
 					set_turf_examine_tab(target, target_mob)
 
@@ -97,10 +102,10 @@ SUBSYSTEM_DEF(statpanels)
 	if(!global_data) //statbrowser hasnt fired yet and we were called from immediate_send_stat_data()
 		return
 
-	target.stat_panel.send_message("update_stat", list(
-		global_data = global_data,
-		mob_specific_data = target.mob?.get_status_tab_items(),
-	))
+	// Same message send_message() would build, we just don't encode the global data again for every client
+	if(!status_message_start)
+		status_message_start = url_encode("{\"type\":\"update_stat\",\"payload\":{\"global_data\":[json_encode(global_data)],\"mob_specific_data\":")
+	target.stat_panel.send_raw_message(status_message_start + url_encode("[json_encode(target.mob?.get_status_tab_items())]}}"))
 
 /datum/controller/subsystem/statpanels/proc/set_MC_tab(client/target)
 	var/turf/eye_turf = get_turf(target.eye)
