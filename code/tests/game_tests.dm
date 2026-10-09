@@ -23,6 +23,7 @@
 #include "games\test_cards.dm"
 #include "jobs\test_job_globals.dm"
 #include "test_aicard_icons.dm"
+#include "test_alien_weeds.dm"
 #include "test_announcements.dm"
 #include "test_anti_drop.dm"
 #include "test_apc_construction.dm"
