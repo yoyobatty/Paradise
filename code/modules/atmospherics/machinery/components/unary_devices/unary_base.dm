@@ -38,8 +38,8 @@
 		watched_turf = T
 		watched_offset = SSair.watch_tile(T)
 		return null
-	// Something already read or changed this tile's air this tick, so a normal read would give its copy and not MILLA's.
-	if(T.bound_air && T.bound_air.lastread >= SSair.milla_tick)
+	// We've got a copy of this tile's air that's still good, so a normal read costs nothing and is what everything else is using.
+	if(T.bound_air && T.bound_air.good_until >= SSair.milla_frame)
 		return null
 	if(isnull(SSair.watched_tiles))
 		return null
