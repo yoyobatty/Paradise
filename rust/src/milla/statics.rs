@@ -44,6 +44,19 @@ pub(crate) static TICK_PHASE_MICROS: [AtomicUsize; 5] = [
 /// How long the slowest Z level took in the last tick, in microseconds.
 pub(crate) static TICK_SLOWEST_LEVEL_MICROS: AtomicUsize = AtomicUsize::new(0);
 
+/// How many tiles water condensed on in the last tick.
+pub(crate) static TICK_WET_TILES: AtomicUsize = AtomicUsize::new(0);
+
+/// When the last tick was worked out, until BYOND picks it up.
+pub(crate) static TICK_WORKED_OUT_AT: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+
+/// How long the last tick BYOND picked up had been waiting for it, in microseconds.
+pub(crate) static TICK_PICKUP_MICROS: AtomicUsize = AtomicUsize::new(0);
+
+/// How long the tick thread's last call into BYOND to say a tick was done took, in microseconds.
+/// That's the wait for BYOND's thread plus everything BYOND did in the call.
+pub(crate) static TICK_DONE_CALL_MICROS: AtomicUsize = AtomicUsize::new(0);
+
 /// Running totals since boot: tile reads BYOND has made, and changed tiles it's been told about.
 pub(crate) static TOTAL_TILE_READS: AtomicUsize = AtomicUsize::new(0);
 pub(crate) static TOTAL_CHANGED_TILES_TOLD: AtomicUsize = AtomicUsize::new(0);

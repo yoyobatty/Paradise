@@ -74,6 +74,16 @@ pub(crate) fn tick(buffers: &Buffers) -> Result<(), eyre::Error> {
     // The new frame is worked out. Its interesting tiles wait with it until it's the current one.
     let mut waiting: Vec<InterestingTile> = Vec::new();
     waiting.extend(new_interesting_tiles);
+    TICK_WET_TILES.store(
+        waiting
+            .iter()
+            .filter(|tile| {
+                tile.reasons
+                    .intersects(ReasonFlags::WET | ReasonFlags::ICY)
+            })
+            .count(),
+        std::sync::atomic::Ordering::Relaxed,
+    );
     *FINISHED_INTERESTING_TILES.lock().unwrap() = Some(waiting);
     drop(prev);
     drop(next);

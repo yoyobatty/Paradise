@@ -1,8 +1,6 @@
 use crate::milla::constants::*;
 use crate::milla::model::*;
-use byondapi::global_call::call_global;
 use byondapi::map::ByondXYZ;
-use byondapi::prelude::ByondValue;
 use core::f32;
 use eyre::eyre;
 use scc::Bag;
@@ -599,6 +597,7 @@ pub(crate) fn post_process(
             }
         }
 
+        let floor_reasons;
         {
             let my_next_tile = next.get_tile_mut(my_index);
             // New tick, reset the fuel tracker.
@@ -609,21 +608,35 @@ pub(crate) fn post_process(
                 react(my_next_tile, true);
             }
 
-            do_turf_effects(my_next_tile, x, y, z)?;
+            floor_reasons = do_turf_effects(my_next_tile);
 
             // Sanitize the tile, to avoid negative/NaN/infinity spread.
             sanitize(my_next_tile, my_tile);
         }
 
-        let reasons = check_interesting(x, y, z, next, my_tile, my_index, new_interesting_tiles)?;
+        let reasons = check_interesting(
+            x,
+            y,
+            z,
+            next,
+            my_tile,
+            my_index,
+            new_interesting_tiles,
+            floor_reasons,
+        )?;
 
         // Nothing touches this tile again this tick, so this is how it ends up.
         let (seen_same, all_same) = same_tile(next.get_tile(my_index), my_tile);
         if !seen_same {
             next.changed_for_byond.insert(my_index);
         }
-        // Tiles that are hot or windy get reported to BYOND every tick, so they have to keep being looked at.
-        if changed || !all_same || reasons.intersects(ReasonFlags::HOT | ReasonFlags::WIND) {
+        // Tiles that are hot, windy or wet get reported to BYOND every tick, so they have to keep being looked at.
+        if changed
+            || !all_same
+            || reasons.intersects(
+                ReasonFlags::HOT | ReasonFlags::WIND | ReasonFlags::WET | ReasonFlags::ICY,
+            )
+        {
             next.mark_changed(prev, my_index);
         }
     }
@@ -685,8 +698,9 @@ pub(crate) fn check_interesting(
     my_tile: &Tile,
     my_index: usize,
     new_interesting_tiles: &Bag<InterestingTile>,
+    floor_reasons: ReasonFlags,
 ) -> Result<ReasonFlags, eyre::Error> {
-    let mut reasons: ReasonFlags = ReasonFlags::empty();
+    let mut reasons: ReasonFlags = floor_reasons;
     {
         let my_next_tile = next.get_tile_mut(my_index);
         if (my_next_tile.fuel_burnt > REACTION_SIGNIFICANCE_MOLES)
@@ -970,15 +984,10 @@ pub(crate) fn react(my_next_tile: &mut Tile, hotspot_step: bool) {
 }
 
 /// Apply the effects of the gas onto the turf itself
-pub(crate) fn do_turf_effects(
-    my_next_tile: &mut Tile,
-    x: i32,
-    y: i32,
-    z: i32,
-) -> Result<(), eyre::Error> {
+pub(crate) fn do_turf_effects(my_next_tile: &mut Tile) -> ReasonFlags {
     if !(my_next_tile.gases.water_vapor() > 1.0) {
         // Not enough water vapor to condense, whatever the humidity turns out to be.
-        return Ok(());
+        return ReasonFlags::empty();
     }
     let cached_temperature = my_next_tile.thermal_energy / my_next_tile.heat_capacity();
     // Calculate the water saturation pressure using the Arden Buck equation
@@ -1011,22 +1020,15 @@ pub(crate) fn do_turf_effects(
         my_next_tile.thermal_energy += WATER_VAPOR_BREAKDOWN_ENERGY * condensed_water;
         //We lose gas, so we lose the thermal energy it had
         my_next_tile.thermal_energy = cached_temperature * my_next_tile.heat_capacity();
-        // Make the floor wet
-        call_global(
-            "condense_water",
-            &[
-                if cached_temperature > T0C {
-                    ByondValue::from(1.0)
-                } else {
-                    ByondValue::from(3.0)
-                },
-                ByondValue::from((x + 1) as f32),
-                ByondValue::from((y + 1) as f32),
-                ByondValue::from((z + 1) as f32),
-            ],
-        )?;
+        // Make the floor wet. BYOND does that when it goes through the interesting tiles: a call
+        // into it from this thread waits for BYOND's own thread, once for every tile.
+        return if cached_temperature > T0C {
+            ReasonFlags::WET
+        } else {
+            ReasonFlags::ICY
+        };
     }
-    Ok(())
+    ReasonFlags::empty()
 }
 
 /// Apply effects caused by the tile's atmos mode. Returns whether that changed the tile.

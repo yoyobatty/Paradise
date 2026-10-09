@@ -486,6 +486,12 @@ fn milla_get_changed_tiles() -> eyre::Result<ByondValue> {
     if let Some(buffers) = BUFFERS.get() {
         tick::finish_tick(buffers);
     }
+    if let Some(worked_out_at) = TICK_WORKED_OUT_AT.lock().unwrap().take() {
+        TICK_PICKUP_MICROS.store(
+            worked_out_at.elapsed().as_micros() as usize,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    }
     let mut turfs: Vec<ByondValue> = Vec::new();
     for (x, y, z) in internal_get_changed_tiles() {
         turfs.push(byond_locatexyz(ByondXYZ::with_coords((
@@ -523,7 +529,9 @@ pub(crate) fn internal_get_changed_tiles() -> Vec<(i32, i32, i32)> {
 /// running totals since boot: tile reads, and changed tiles BYOND has been told about. Then the
 /// last tick again: milliseconds spent getting the frame ready, on walls, on wind, on the air flow
 /// and on everything after, added up over every Z level; milliseconds the slowest Z level took;
-/// and how many passes the air flow made and how many tiles those went over.
+/// how many passes the air flow made and how many tiles those went over; how many tiles water
+/// condensed on; milliseconds the tick BYOND last picked up had been waiting for it; and
+/// milliseconds the last call into BYOND to say a tick was done took.
 #[byondapi::bind]
 fn milla_get_tick_stats() -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
@@ -543,6 +551,9 @@ fn milla_get_tick_stats() -> eyre::Result<ByondValue> {
         ByondValue::from(TICK_SLOWEST_LEVEL_MICROS.load(relaxed) as f32 / 1000.0),
         ByondValue::from(simulate::FLOW_PASSES.load(relaxed) as f32),
         ByondValue::from(simulate::FLOW_VISITS.load(relaxed) as f32),
+        ByondValue::from(TICK_WET_TILES.load(relaxed) as f32),
+        ByondValue::from(TICK_PICKUP_MICROS.load(relaxed) as f32 / 1000.0),
+        ByondValue::from(TICK_DONE_CALL_MICROS.load(relaxed) as f32 / 1000.0),
     ];
     Ok(stats.as_slice().try_into()?)
 }
@@ -1003,7 +1014,13 @@ fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
             std::sync::atomic::Ordering::Relaxed,
         );
         if result.is_ok() {
+            let done = Instant::now();
+            *TICK_WORKED_OUT_AT.lock().unwrap() = Some(done);
             call_global("milla_tick_finished", &[])?;
+            TICK_DONE_CALL_MICROS.store(
+                done.elapsed().as_micros() as usize,
+                std::sync::atomic::Ordering::Relaxed,
+            );
         } else {
             TICK_UNFINISHED.store(false, std::sync::atomic::Ordering::Relaxed);
             let err = format!("MILLA tick error:\n----\n{:#?}\n----", result);
