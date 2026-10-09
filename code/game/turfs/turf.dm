@@ -722,10 +722,13 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 /// Something's been written straight to our tile in MILLA, so the copy of it we hold doesn't match any more.
 /turf/proc/milla_tile_written()
+	// Anything fetched from MILLA before now may be out of date.
+	SSair.watched_tiles = null
+	// Until MILLA's first tick comes in there's nothing it could have handed us
+	if(SSair.milla_frame)
+		SSair.written_tiles[src] = TRUE
 	if(bound_air)
 		bound_air.good_until = -1
-		// This writes straight to MILLA, so anything fetched from it before now may be out of date.
-		SSair.watched_tiles = null
 
 /// Do not call this directly. Use get_readonly_air or implement /datum/milla_safe.
 /turf/proc/private_unsafe_get_air()

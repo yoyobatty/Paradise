@@ -23,6 +23,8 @@ SUBSYSTEM_DEF(air)
 	var/milla_tick = 0
 	/// Goes up every time a tick MILLA has worked out becomes the current one. Copies of tiles are marked with it, see /datum/gas_mixture/bound_to_turf/var/good_until.
 	var/milla_frame = 0
+	/// Turfs something's written straight to in MILLA since its last tick came in. What MILLA handed us at the end of that tick is out of date for these.
+	var/list/turf/written_tiles = list()
 	runlevels = RUNLEVEL_GAME | RUNLEVEL_POSTGAME
 	offline_implications = "Turfs will no longer process atmos, and all atmospheric machines (including cryotubes) will no longer function. Shuttle call recommended."
 	cpu_display = SS_CPUDISPLAY_HIGH
@@ -430,11 +432,15 @@ SUBSYSTEM_DEF(air)
 
 		// Bind the MILLA tile we got, if needed.
 		if(reasons & MILLA_INTERESTING_REASON_DISPLAY)
-			var/milla_tile = currentrun.Copy(offset + 1, offset + 1 + MILLA_TILE_SIZE + 1)
+			// What we got is the tile as the tick left it. If something's written to it since, we have to ask again.
+			var/milla_tile = written_tiles[T] ? null : currentrun.Copy(offset + 1, offset + 1 + MILLA_TILE_SIZE + 1)
 			if(isnull(T.bound_air))
 				bind_turf(T, milla_tile)
 			else if(T.bound_air.good_until < milla_frame && !T.bound_air.dirty)
-				T.bound_air.take_milla_tile(milla_tile)
+				if(milla_tile)
+					T.bound_air.take_milla_tile(milla_tile)
+				else
+					T.bound_air.fetch()
 				T.bound_air.synchronized = FALSE
 
 			var/turf/simulated/S = T
@@ -798,6 +804,8 @@ SUBSYSTEM_DEF(air)
 	var/list/changed = get_changed_atmos_tiles()
 	// Every copy that was only good for the tick it was made in is out of date now
 	milla_frame++
+	// Whatever got written before now is in what MILLA hands us from here on
+	written_tiles.Cut()
 	// And so are these
 	for(var/turf/T as anything in changed)
 		var/datum/gas_mixture/bound_to_turf/air = T.bound_air
