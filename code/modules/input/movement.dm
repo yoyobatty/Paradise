@@ -7,7 +7,13 @@
 	if(!ID)
 		return
 
-	var/direction = (ID.desired_move_dir | ID.desired_move_dir_add) & ~ID.desired_move_dir_sub //bitflag fun at no extra cost
+	var/direction = ID.desired_move_dir | ID.desired_move_dir_add
+	if(!direction)
+		// Nothing held and nothing waiting, so there's nothing a release could still cancel.
+		// Forgetting it here is what lets a quick tap right after letting go count.
+		ID.desired_move_dir_sub = NONE
+		return
+	direction &= ~ID.desired_move_dir_sub //bitflag fun at no extra cost
 
 	// Pressing two opposite directions will cancel both out
 	if((direction & NORTH_SOUTH) >= NORTH_SOUTH)
