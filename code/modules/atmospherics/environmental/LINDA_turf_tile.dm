@@ -128,10 +128,16 @@
 	else
 		force_needed *= MOVE_FORCE_PUSH_RATIO
 
-	var/turf/my_turf = get_turf(src)
-	var/datum/gas_mixture/my_air = my_turf.get_readonly_air()
+	var/turf/simulated/my_turf = get_turf(src)
+	var/moles
+	if(istype(my_turf) && my_turf.wind_tick == SSair.milla_tick && (isnull(my_turf.bound_air) || my_turf.bound_air.good_until < SSair.milla_frame))
+		// We don't have an up to date copy of the tile's air, but the wind that's pushing us came with how much there is
+		moles = my_turf.wind_moles
+	else
+		var/datum/gas_mixture/my_air = my_turf.get_readonly_air()
+		moles = my_air.total_moles()
 
-	var/air = my_air.total_moles() / MOLES_CELLSTANDARD
+	var/air = moles / MOLES_CELLSTANDARD
 	var/wind = sqrt(flow_x ** 2 + flow_y ** 2)
 	var/force = wind * air * (MOVE_FORCE_DEFAULT / 5)
 

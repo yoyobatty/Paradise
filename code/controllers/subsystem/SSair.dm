@@ -450,8 +450,10 @@ SUBSYSTEM_DEF(air)
 			var/turf/simulated/S = T
 			if(istype(S))
 				if(isnull(S.active_hotspot))
-					// Wasn't an active hotspot before, add it.
-					hotspots += S
+					// Wasn't an active hotspot before, add it if something is burning.
+					// MILLA also sends tiles that are only hot, and a hotspot there would just get deleted again in update_hotspot().
+					if(fuel_burnt >= 0.001)
+						hotspots += S
 				else
 					S.active_hotspot.temperature = temperature
 					S.active_hotspot.fuel_burnt = fuel_burnt
@@ -480,6 +482,8 @@ SUBSYSTEM_DEF(air)
 				S.wind_tick = milla_tick
 				S.wind_x = x_flow
 				S.wind_y = y_flow
+				// Same order as total_moles(), so it's the number reading the tile would give.
+				S.wind_moles = currentrun[offset + MILLA_INDEX_OXYGEN] + currentrun[offset + MILLA_INDEX_CARBON_DIOXIDE] + currentrun[offset + MILLA_INDEX_NITROGEN] + currentrun[offset + MILLA_INDEX_TOXINS] + currentrun[offset + MILLA_INDEX_SLEEPING_AGENT] + currentrun[offset + MILLA_INDEX_AGENT_B] + currentrun[offset + MILLA_INDEX_HYDROGEN] + currentrun[offset + MILLA_INDEX_WATER_VAPOR]
 			T.high_pressure_movements(x_flow, y_flow)
 
 		currentrun.len -= MILLA_INTERESTING_TILE_SIZE
