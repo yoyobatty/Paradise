@@ -237,7 +237,6 @@ GLOBAL_VAR_INIT(record_id_num, 1001)
 		L.fields["b_dna"]		= H.dna.unique_enzymes
 		L.fields["enzymes"]		= H.dna.SE // Used in respawning
 		L.fields["identity"]	= H.dna.UI // "
-		L.fields["image"]		= getFlatIcon(H)	//This is god-awful
 		locked += L
 	return
 
