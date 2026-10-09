@@ -455,6 +455,166 @@ pub(crate) fn internal_get_tile(x: i32, y: i32, z: i32) -> Result<Tile> {
         .clone())
 }
 
+/// BYOND API for putting a scrubber on a turf, or changing what one does. Pass 0 for a new one,
+/// or the id of the one to change. `starts_for` and `takes` have a bit for each gas, in MILLA's
+/// order: the scrubber only does anything while there's more than a trace of a gas in
+/// `starts_for`, and then takes `share` of each gas in `takes` every tick.
+/// Returns the scrubber's id.
+#[byondapi::bind]
+fn milla_set_scrubber(
+    id: ByondValue,
+    turf: ByondValue,
+    starts_for: ByondValue,
+    takes: ByondValue,
+    share: ByondValue,
+) -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    let (x, y, z) = byond_xyz(&turf)?.coordinates();
+    let id = internal_set_scrubber(
+        f32::try_from(id)? as u32,
+        x as i32 - 1,
+        y as i32 - 1,
+        z as i32 - 1,
+        f32::try_from(starts_for)? as u8,
+        f32::try_from(takes)? as u8,
+        f32::try_from(share)?,
+    )?;
+    Ok(ByondValue::from(id as f32))
+}
+
+/// Rust version of setting up a scrubber. Coordinates count from zero.
+pub(crate) fn internal_set_scrubber(
+    id: u32,
+    x: i32,
+    y: i32,
+    z: i32,
+    starts_for: u8,
+    takes: u8,
+    share: f32,
+) -> Result<u32> {
+    check_writable()?;
+    let tile = ZLevel::maybe_get_index(x, y).ok_or(eyre!(
+        "Bad coordinates ({}, {}, {})",
+        x + 1,
+        y + 1,
+        z + 1
+    ))?;
+    if z < 0 || z >= MAX_Z_LEVELS {
+        return Err(eyre!("Bad Z level {}", z + 1));
+    }
+    // One that's being changed keeps whatever it's taken.
+    let mut taken = [0.0; GAS_COUNT];
+    let mut taken_thermal_energy = 0.0;
+    let mut id = id;
+    if id == 0 {
+        id = LAST_SCRUBBER_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed) as u32 + 1;
+    } else if let Some(old) = take_scrubber(id) {
+        taken = old.taken;
+        taken_thermal_energy = old.taken_thermal_energy;
+    }
+    {
+        let mut scrubbers = SCRUBBERS[z as usize].lock().unwrap();
+        let position = scrubbers.partition_point(|other| other.tile <= tile);
+        scrubbers.insert(
+            position,
+            Scrubber {
+                id,
+                tile,
+                starts_for,
+                takes,
+                share,
+                taken,
+                taken_thermal_energy,
+            },
+        );
+    }
+    // There might be something on the tile for it already, so the next tick has to look.
+    let buffers = BUFFERS.get().ok_or(eyre!("BUFFERS not initialized."))?;
+    let active = buffers.get_active().read().unwrap();
+    if let Some(level) = active.0.get(z as usize) {
+        if let Ok(mut z_level) = level.try_write() {
+            z_level.get_tile_mut_for_write(tile);
+        }
+    }
+    Ok(id)
+}
+
+/// Takes a scrubber out of whichever level's list it's in, if no tick has hold of that list.
+fn take_scrubber(id: u32) -> Option<Scrubber> {
+    for level in SCRUBBERS.iter() {
+        if let Ok(mut scrubbers) = level.try_lock() {
+            if let Some(position) = scrubbers.iter().position(|scrubber| scrubber.id == id) {
+                return Some(scrubbers.remove(position));
+            }
+        }
+    }
+    None
+}
+
+/// BYOND API for taking a scrubber away. Whatever it took and BYOND hasn't collected is lost
+/// with it. This can be called at any time: if a tick is running, the scrubber goes when BYOND
+/// next collects.
+#[byondapi::bind]
+fn milla_remove_scrubber(id: ByondValue) -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    let id = f32::try_from(id)? as u32;
+    if TICK_UNFINISHED.load(std::sync::atomic::Ordering::Relaxed) || take_scrubber(id).is_none() {
+        SCRUBBERS_TO_REMOVE.lock().unwrap().push(id);
+    }
+    Ok(ByondValue::null())
+}
+
+/// BYOND API for collecting what the scrubbers have taken off their tiles. Returns one list with
+/// ten values for each scrubber that took anything: its id, the moles of each gas in MILLA's
+/// order, and the thermal energy that gas had. Collecting empties them.
+#[byondapi::bind]
+fn milla_collect_scrubbed() -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    let mut values: Vec<ByondValue> = Vec::new();
+    if TICK_UNFINISHED.load(std::sync::atomic::Ordering::Relaxed) {
+        // The tick's still using them. Next time.
+        return Ok(values.as_slice().try_into()?);
+    }
+    {
+        let mut to_remove = SCRUBBERS_TO_REMOVE.lock().unwrap();
+        to_remove.retain(|id| take_scrubber(*id).is_none() && scrubber_exists(*id));
+    }
+    for level in SCRUBBERS.iter() {
+        let mut scrubbers = match level.try_lock() {
+            Ok(scrubbers) => scrubbers,
+            Err(_) => continue,
+        };
+        for scrubber in scrubbers.iter_mut() {
+            if scrubber.taken.iter().all(|amount| *amount == 0.0) {
+                continue;
+            }
+            values.push(ByondValue::from(scrubber.id as f32));
+            for gas in 0..GAS_COUNT {
+                values.push(ByondValue::from(scrubber.taken[gas]));
+            }
+            values.push(ByondValue::from(scrubber.taken_thermal_energy));
+            scrubber.taken = [0.0; GAS_COUNT];
+            scrubber.taken_thermal_energy = 0.0;
+        }
+    }
+    Ok(values.as_slice().try_into()?)
+}
+
+/// Is there still a scrubber with this id? One that couldn't be looked at counts as there.
+fn scrubber_exists(id: u32) -> bool {
+    for level in SCRUBBERS.iter() {
+        match level.try_lock() {
+            Ok(scrubbers) => {
+                if scrubbers.iter().any(|scrubber| scrubber.id == id) {
+                    return true;
+                }
+            }
+            Err(_) => return true,
+        }
+    }
+    false
+}
+
 /// A tick that's been started has to become the current frame before anything gets written, or
 /// the write would land on the frame that's about to be replaced.
 fn check_writable() -> Result<()> {

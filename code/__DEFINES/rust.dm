@@ -300,6 +300,21 @@
 /proc/rustlibs_sql_check_query(datum/db_query/query)
 	return RUSTLIB_CALL(sql_check_query, query)
 
+/// Has MILLA scrub a turf every tick, or changes how it does. Pass 0 for a new scrubber, or the number this gave back before.
+/// starts_for and takes are MILLA_WATCHED_GAS_* bits: it only does anything while there's more than a trace of a gas in starts_for,
+/// and then takes that share of each gas in takes. Returns the number MILLA knows it by.
+/proc/milla_set_scrubber(id, turf/T, starts_for, takes, share)
+	return RUSTLIB_CALL(milla_set_scrubber, id, T, starts_for, takes, share)
+
+/// Stops MILLA scrubbing for the scrubber with this number.
+/proc/milla_remove_scrubber(id)
+	return RUSTLIB_CALL(milla_remove_scrubber, id)
+
+/// What MILLA's scrubbers have taken off their turfs since this was last called.
+/// Ten values for each one that took anything: its number, the moles of each gas in MILLA's order, and the thermal energy that gas had.
+/proc/milla_collect_scrubbed()
+	return RUSTLIB_CALL(milla_collect_scrubbed)
+
 // MARK: Radiation
 /// Starts a radiation wave spreading from a tile. Weight is how much of it got past that tile. Returns the wave's number.
 /proc/rustlibs_rad_wave_start(x, y, z, intensity, emission_type, weight)

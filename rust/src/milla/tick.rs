@@ -172,7 +172,17 @@ pub(crate) fn tick_z_level(
         phase_done(2);
         simulate::flow_air(&prev, &mut next)?;
         phase_done(3);
-        simulate::post_process(&prev, &mut next, &environments, new_interesting_tiles, z)?;
+        {
+            let mut scrubbers = SCRUBBERS[z as usize].lock().unwrap();
+            simulate::post_process(
+                &prev,
+                &mut next,
+                &environments,
+                new_interesting_tiles,
+                z,
+                &mut scrubbers,
+            )?;
+        }
         phase_done(4);
 
         next.active_pressure_chunks.clear();

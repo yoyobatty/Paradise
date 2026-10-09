@@ -1,5 +1,7 @@
-/// The gases should_scrub() looks for no matter how the scrubber is set up
+/// The gases that start a scrubber scrubbing no matter how it's set up
 #define ALWAYS_SCRUBBED_GASES (MILLA_WATCHED_GAS_SLEEPING_AGENT | MILLA_WATCHED_GAS_AGENT_B | MILLA_WATCHED_GAS_HYDROGEN | MILLA_WATCHED_GAS_WATER_VAPOR)
+/// Every gas there is, for a scrubber that's siphoning
+#define ALL_SCRUBBED_GASES (MILLA_WATCHED_GAS_OXYGEN | MILLA_WATCHED_GAS_CARBON_DIOXIDE | MILLA_WATCHED_GAS_NITROGEN | MILLA_WATCHED_GAS_TOXINS | ALWAYS_SCRUBBED_GASES)
 
 /obj/machinery/atmospherics/unary/vent_scrubber
 	name = "air scrubber"
@@ -32,6 +34,15 @@
 	var/volume_rate = 200
 	var/widenet = FALSE //is this scrubber acting on the 3x3 area around it.
 
+	/// The turfs MILLA is scrubbing for us, each with the number MILLA knows that by. The scrubbing itself happens in MILLA's tick.
+	var/list/turf/milla_scrubbed_turfs
+	/// What we last told MILLA to start scrubbing for, as MILLA_WATCHED_GAS_* bits
+	var/milla_starts_for = 0
+	/// What we last told MILLA to take
+	var/milla_takes = 0
+	/// How much of what's on the turf we last told MILLA to take each tick
+	var/milla_share = 0
+
 	var/welded = FALSE
 
 	connect_types = list(CONNECT_TYPE_NORMAL, CONNECT_TYPE_SCRUBBER) //connects to regular and scrubber pipes
@@ -58,6 +69,7 @@
 	name = "[initial_loc.name] Air Scrubber #[length(initial_loc.scrubbers)]"
 
 /obj/machinery/atmospherics/unary/vent_scrubber/Destroy()
+	set_milla_scrubbing(null, 0, 0, 0)
 	if(initial_loc)
 		initial_loc.scrubbers -= src
 
@@ -118,35 +130,75 @@
 	if(widenet)
 		check_turfs()
 
-	if(stat & (NOPOWER|BROKEN))
-		return
-
+	// Work out what MILLA should be taking off our turfs right now, if anything. It does the scrubbing in its tick.
+	var/starts_for = 0
+	var/takes = 0
+	var/share = 0
 	var/turf/T = loc
-	if(T.density) //No, you should not be able to get free air from walls
-		return
+	if(!(stat & (NOPOWER|BROKEN)) && !T.density) //No, you should not be able to get free air from walls
+		if(!node)
+			on = FALSE
+		if(on && !welded)
+			if(scrubbing)
+				// Agent B gets taken whatever we're set to
+				takes = MILLA_WATCHED_GAS_AGENT_B
+				if(scrub_O2)
+					takes |= MILLA_WATCHED_GAS_OXYGEN
+				if(scrub_N2)
+					takes |= MILLA_WATCHED_GAS_NITROGEN
+				if(scrub_CO2)
+					takes |= MILLA_WATCHED_GAS_CARBON_DIOXIDE
+				if(scrub_Toxins)
+					takes |= MILLA_WATCHED_GAS_TOXINS
+				// These four get us started even when we're not set to take them, the other four only when we are
+				starts_for = (takes & (MILLA_WATCHED_GAS_OXYGEN | MILLA_WATCHED_GAS_NITROGEN | MILLA_WATCHED_GAS_CARBON_DIOXIDE | MILLA_WATCHED_GAS_TOXINS)) | ALWAYS_SCRUBBED_GASES
+				if(scrub_N2O)
+					takes |= MILLA_WATCHED_GAS_SLEEPING_AGENT
+				if(scrub_H2)
+					takes |= MILLA_WATCHED_GAS_HYDROGEN
+				if(scrub_H2O)
+					takes |= MILLA_WATCHED_GAS_WATER_VAPOR
+				share = min(1, volume_rate / CELL_VOLUME)
+			// Just siphoning all air, for as long as there's room in the pipe
+			else if(air_contents.return_pressure() < (50 * ONE_ATMOSPHERE))
+				takes = ALL_SCRUBBED_GASES
+				starts_for = ALL_SCRUBBED_GASES
+				share = volume_rate / CELL_VOLUME
 
-	if(!node)
-		on = FALSE
+	// Nothing to tell MILLA unless something's different from last time
+	if(starts_for == milla_starts_for && takes == milla_takes && share == milla_share)
+		if(!takes)
+			return
+		if(!widenet && length(milla_scrubbed_turfs) == 1 && milla_scrubbed_turfs[T])
+			return
+	var/list/turf/tiles = list()
+	if(takes)
+		if(issimulatedturf(T))
+			tiles += T
+		if(widenet)
+			for(var/turf/simulated/tile in adjacent_turfs)
+				tiles |= tile
+	set_milla_scrubbing(tiles, starts_for, takes, share)
 
-	if(welded)
-		return 0
-	//broadcast_status()
-	if(!on)
-		return 0
-
-	if(scrubbing && !widenet)
-		// MILLA already told us which gases are on this tile, so a scrubber with nothing to scrub doesn't have to read its air.
-		var/offset = watched_tile_offset(T)
-		if(!isnull(offset))
-			var/gases = SSair.watched_tiles[offset + MILLA_WATCHED_GASES]
-			// Same gases as should_scrub()
-			if(!(gases & ALWAYS_SCRUBBED_GASES) && !(scrub_O2 && (gases & MILLA_WATCHED_GAS_OXYGEN)) && !(scrub_N2 && (gases & MILLA_WATCHED_GAS_NITROGEN)) && !(scrub_CO2 && (gases & MILLA_WATCHED_GAS_CARBON_DIOXIDE)) && !(scrub_Toxins && (gases & MILLA_WATCHED_GAS_TOXINS)))
-				return
-
-	scrub(loc)
-	if(widenet)
-		for(var/turf/simulated/tile in adjacent_turfs)
-			scrub(tile)
+/// Tells MILLA which turfs to scrub for us and how.
+/obj/machinery/atmospherics/unary/vent_scrubber/proc/set_milla_scrubbing(list/turf/tiles, starts_for, takes, share)
+	var/changed = (starts_for != milla_starts_for || takes != milla_takes || share != milla_share)
+	// Turfs we've stopped scrubbing
+	for(var/turf/old_tile as anything in milla_scrubbed_turfs)
+		if(old_tile in tiles)
+			continue
+		SSair.remove_scrubber(milla_scrubbed_turfs[old_tile])
+		milla_scrubbed_turfs -= old_tile
+	for(var/turf/tile as anything in tiles)
+		var/id = milla_scrubbed_turfs ? milla_scrubbed_turfs[tile] : null
+		if(id && !changed)
+			continue
+		id = milla_set_scrubber(id || 0, tile, starts_for, takes, share)
+		LAZYSET(milla_scrubbed_turfs, tile, id)
+		SSair.add_scrubber(id, src)
+	milla_starts_for = starts_for
+	milla_takes = takes
+	milla_share = share
 
 //we populate a list of turfs with nonatmos-blocked cardinal turfs AND
 //	diagonal turfs that can share atmos with *both* of the cardinal turfs
@@ -155,105 +207,6 @@
 	var/turf/T = loc
 	if(istype(T))
 		adjacent_turfs = T.GetAtmosAdjacentTurfs(alldir=1)
-
-/obj/machinery/atmospherics/unary/vent_scrubber/proc/scrub(turf/simulated/tile)
-	if(!tile || !istype(tile))
-		return 0
-
-	if(scrubbing && !should_scrub(tile.get_readonly_air()))
-		return 0
-
-	var/datum/milla_safe/vent_scrubber_process/milla = new()
-	milla.invoke_async(src, tile)
-
-/obj/machinery/atmospherics/unary/vent_scrubber/proc/should_scrub(datum/gas_mixture/environment)
-	if(scrub_O2 && environment.oxygen() > 0.001)
-		return TRUE
-	if(scrub_N2 && environment.nitrogen() > 0.001)
-		return TRUE
-	if(scrub_CO2 && environment.carbon_dioxide() > 0.001)
-		return TRUE
-	if(scrub_Toxins && environment.toxins() > 0.001)
-		return TRUE
-	if(environment.sleeping_agent() > 0.001)
-		return TRUE
-	if(environment.agent_b() > 0.001)
-		return TRUE
-	if(environment.hydrogen() > 0.001)
-		return TRUE
-	if(environment.water_vapor() > 0.001)
-		return TRUE
-
-	return FALSE
-
-/datum/milla_safe/vent_scrubber_process
-
-/datum/milla_safe/vent_scrubber_process/on_run(obj/machinery/atmospherics/unary/vent_scrubber/scrubber, turf/simulated/tile)
-	if(!tile || !istype(tile))
-		return 0
-
-	var/datum/gas_mixture/environment = get_turf_air(tile)
-
-	if(scrubber.scrubbing)
-		if(scrubber.should_scrub(environment))
-			var/transfer_moles = min(1, scrubber.volume_rate / environment.volume) * environment.total_moles()
-
-			//Take a gas sample
-			var/datum/gas_mixture/removed = environment.remove(transfer_moles)
-			if(isnull(removed)) //in space
-				return
-
-			//Filter it
-			var/datum/gas_mixture/filtered_out = new
-			filtered_out.set_temperature(removed.temperature())
-			if(scrubber.scrub_O2)
-				filtered_out.set_oxygen(removed.oxygen())
-				removed.set_oxygen(0)
-			if(scrubber.scrub_N2)
-				filtered_out.set_nitrogen(removed.nitrogen())
-				removed.set_nitrogen(0)
-			if(scrubber.scrub_Toxins)
-				filtered_out.set_toxins(removed.toxins())
-				removed.set_toxins(0)
-			if(scrubber.scrub_CO2)
-				filtered_out.set_carbon_dioxide(removed.carbon_dioxide())
-				removed.set_carbon_dioxide(0)
-
-			if(removed.agent_b())
-				filtered_out.set_agent_b(removed.agent_b())
-				removed.set_agent_b(0)
-
-			if(scrubber.scrub_N2O)
-				filtered_out.set_sleeping_agent(removed.sleeping_agent())
-				removed.set_sleeping_agent(0)
-
-			if(scrubber.scrub_H2)
-				filtered_out.set_hydrogen(removed.hydrogen())
-				removed.set_hydrogen(0)
-
-			if(scrubber.scrub_H2O)
-				filtered_out.set_water_vapor(removed.water_vapor())
-				removed.set_water_vapor(0)
-
-			//Remix the resulting gases
-			scrubber.air_contents.merge(filtered_out)
-
-			environment.merge(removed)
-
-	else //Just siphoning all air
-		if(scrubber.air_contents.return_pressure() >= (50 * ONE_ATMOSPHERE))
-			return
-
-		var/transfer_moles = environment.total_moles() * (scrubber.volume_rate / environment.volume)
-
-		var/datum/gas_mixture/removed = environment.remove(transfer_moles)
-
-		scrubber.air_contents.merge(removed)
-
-	if(!QDELETED(scrubber.parent))
-		scrubber.parent.update = 1
-
-	return 1
 
 /obj/machinery/atmospherics/unary/vent_scrubber/hide(i) //to make the little pipe section invisible, the icon changes.
 	update_icon()
@@ -301,3 +254,4 @@
 	to_chat(user, SPAN_NOTICE("You save [src] into [M]'s buffer."))
 
 #undef ALWAYS_SCRUBBED_GASES
+#undef ALL_SCRUBBED_GASES

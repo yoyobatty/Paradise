@@ -271,3 +271,9 @@ pub(crate) const SETTLE_WIND: f32 = 0.000_001;
 /// Any amount of a gas from this up has a partial pressure above zero whatever the temperature,
 /// so it doesn't need working out to know the gas is there. Far below anything that matters.
 pub(crate) const GAS_SURELY_PRESENT: f32 = 1e-30;
+
+/// A scrubber leaves a gas alone at this much or less. Must match should_scrub() in BYOND.
+pub(crate) const SCRUBBER_TRACE_MOLES: f32 = 0.001;
+
+/// The smallest amount of gas BYOND's gas mixtures move. Must match QUANTIZE() in BYOND.
+pub(crate) const SCRUBBER_STEP_MOLES: f32 = 0.0001;

@@ -244,6 +244,24 @@ What are the archived variables for?
 	set_dirty()
 	return TRUE
 
+/// Becomes the gas MILLA handed us in a list: eight gases in MILLA's order starting after offset, then the heat they carry.
+/// Returns FALSE if there's nothing there to hold any heat.
+/datum/gas_mixture/proc/take_milla_gases(list/milla, offset)
+	private_oxygen = milla[offset + 1]
+	private_carbon_dioxide = milla[offset + 2]
+	private_nitrogen = milla[offset + 3]
+	private_toxins = milla[offset + 4]
+	private_sleeping_agent = milla[offset + 5]
+	private_agent_b = milla[offset + 6]
+	private_hydrogen = milla[offset + 7]
+	private_water_vapor = milla[offset + 8]
+	var/capacity = heat_capacity()
+	if(capacity <= 0)
+		return FALSE
+	private_temperature = milla[offset + 9] / capacity
+	set_dirty()
+	return TRUE
+
 	/// Only removes the gas if we have more than the amount
 /datum/gas_mixture/proc/boolean_remove(amount)
 	if(amount > total_moles())
