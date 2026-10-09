@@ -77,6 +77,8 @@ SUBSYSTEM_DEF(air)
 	var/list/pipenets = list()
 	/// The set of active atmos machinery. Length shown in SS Info as AM.
 	var/list/atmos_machinery = list()
+	/// The scrubbers MILLA is scrubbing turfs for, by the number MILLA knows each of those by.
+	var/list/obj/machinery/atmospherics/unary/vent_scrubber/milla_scrubbers = list()
 	/// The set of tiles that are currently on fire.
 	var/list/hotspots
 	/// The set of tiles that are still on fire after this tick.
@@ -253,6 +255,7 @@ SUBSYSTEM_DEF(air)
 	if(currentpart == SSAIR_ATMOSMACHINERY)
 		timer = TICK_USAGE_REAL
 
+		collect_scrubbed()
 		process_atmos_machinery(resumed)
 
 		cost_atmos_machinery.record_progress(TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer), state != SS_PAUSED && state != SS_PAUSING)
@@ -780,6 +783,35 @@ SUBSYSTEM_DEF(air)
 	milla_idle = TRUE
 	run_sleepless_callbacks()
 	run_sleeping_callbacks()
+
+/// Notes which scrubber MILLA is scrubbing a turf for.
+/datum/controller/subsystem/air/proc/add_scrubber(id, obj/machinery/atmospherics/unary/vent_scrubber/scrubber)
+	if(length(milla_scrubbers) < id)
+		milla_scrubbers.len = id
+	milla_scrubbers[id] = scrubber
+
+/// Has MILLA stop scrubbing a turf.
+/datum/controller/subsystem/air/proc/remove_scrubber(id)
+	milla_remove_scrubber(id)
+	if(id <= length(milla_scrubbers))
+		milla_scrubbers[id] = null
+
+/// Puts the gas MILLA's taken off the scrubbers' turfs since last time into their pipes.
+/datum/controller/subsystem/air/proc/collect_scrubbed()
+	var/list/scrubbed = milla_collect_scrubbed()
+	if(!length(scrubbed))
+		return
+	var/datum/gas_mixture/taken = new()
+	for(var/i in 1 to length(scrubbed) step 10)
+		var/id = scrubbed[i]
+		var/obj/machinery/atmospherics/unary/vent_scrubber/scrubber = id <= length(milla_scrubbers) ? milla_scrubbers[id] : null
+		if(QDELETED(scrubber))
+			continue
+		if(!taken.take_milla_gases(scrubbed, i))
+			continue
+		scrubber.air_contents.merge(taken)
+		if(!QDELETED(scrubber.parent))
+			scrubber.parent.update = 1
 
 /// MILLA's worked out a tick. This makes it the current one, and MILLA tells us which of the tiles it was watching for us changed in it.
 /// Nothing gets to read the air between the two.

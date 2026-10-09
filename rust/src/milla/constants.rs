@@ -272,3 +272,9 @@ pub(crate) const TRIPWIRE_GAS_MOLES: f32 = 0.001;
 /// fraction of the line, plus this many kPa.
 pub(crate) const TRIPWIRE_ROOM_FRACTION: f32 = 0.000_01;
 pub(crate) const TRIPWIRE_ROOM: f32 = 0.001;
+
+/// A scrubber leaves a gas alone at this much or less. Must match should_scrub() in BYOND.
+pub(crate) const SCRUBBER_TRACE_MOLES: f32 = 0.001;
+
+/// The smallest amount of gas BYOND's gas mixtures move. Must match QUANTIZE() in BYOND.
+pub(crate) const SCRUBBER_STEP_MOLES: f32 = 0.0001;

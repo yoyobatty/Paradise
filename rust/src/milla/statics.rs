@@ -1,3 +1,4 @@
+use crate::milla::constants::*;
 use crate::milla::model::*;
 use std::collections::HashMap;
 use std::sync::{atomic::AtomicBool, atomic::AtomicUsize, Mutex, OnceLock};
@@ -61,6 +62,18 @@ pub(crate) static TOTAL_CHANGED_TILES_TOLD: AtomicUsize = AtomicUsize::new(0);
 /// The tiles BYOND is holding a copy of, by Z level. When one of them changes BYOND gets told,
 /// and from then on it isn't holding a copy any more.
 pub(crate) static REMEMBERED_TILES: Mutex<Vec<TileSet>> = Mutex::new(Vec::new());
+
+/// The scrubbers on each Z level, in tile order. A level's tick has its own list to itself while
+/// it's running.
+pub(crate) static SCRUBBERS: [Mutex<Vec<Scrubber>>; MAX_Z_LEVELS as usize] =
+    [const { Mutex::new(Vec::new()) }; MAX_Z_LEVELS as usize];
+
+/// The last scrubber id handed out.
+pub(crate) static LAST_SCRUBBER_ID: AtomicUsize = AtomicUsize::new(0);
+
+/// Scrubbers BYOND asked to have removed while a tick had hold of them. They go the next time
+/// BYOND collects.
+pub(crate) static SCRUBBERS_TO_REMOVE: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 
 /// Set from when a tick is started until the frame it works out has become the current one.
 /// Nothing can be written in that time.

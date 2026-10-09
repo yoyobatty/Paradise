@@ -558,7 +558,10 @@ pub(crate) fn post_process(
     environments: &Box<[Tile]>,
     new_interesting_tiles: &Bag<InterestingTile>,
     z: i32,
+    scrubbers: &mut [Scrubber],
 ) -> Result<(), eyre::Error> {
+    // The scrubbers are in tile order, the same order the tiles get gone through in.
+    let mut next_scrubber = 0;
     let mut cursor = 0;
     while let Some(my_index) = next.awake.next_from(cursor) {
         cursor = my_index + 1;
@@ -614,6 +617,17 @@ pub(crate) fn post_process(
 
             // Sanitize the tile, to avoid negative/NaN/infinity spread.
             sanitize(my_next_tile, my_tile);
+
+            // Any scrubbers here take their share last, the way they did when BYOND ran them
+            // between ticks. A tile that isn't being worked on has nothing for them: it'd have
+            // changed last tick if they'd taken anything.
+            while next_scrubber < scrubbers.len() && scrubbers[next_scrubber].tile < my_index {
+                next_scrubber += 1;
+            }
+            while next_scrubber < scrubbers.len() && scrubbers[next_scrubber].tile == my_index {
+                scrubbers[next_scrubber].scrub(my_next_tile);
+                next_scrubber += 1;
+            }
         }
 
         let reasons = check_interesting(

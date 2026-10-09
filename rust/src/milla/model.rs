@@ -475,6 +475,65 @@ impl Tripwire {
     }
 }
 
+/// A scrubber working on one tile. What it takes off the tile each tick piles up here until BYOND
+/// comes for it.
+#[derive(Clone)]
+pub(crate) struct Scrubber {
+    /// What BYOND knows it by.
+    pub(crate) id: u32,
+    /// Which tile it's on.
+    pub(crate) tile: usize,
+    /// It only does anything while there's more than a trace of one of these gases, a bit each.
+    pub(crate) starts_for: u8,
+    /// The gases it takes, a bit each.
+    pub(crate) takes: u8,
+    /// How much of what's there it takes each tick.
+    pub(crate) share: f32,
+    /// The gas it's taken since BYOND last collected.
+    pub(crate) taken: [f32; GAS_COUNT],
+    /// The heat that gas carried.
+    pub(crate) taken_thermal_energy: f32,
+}
+
+impl Scrubber {
+    /// Takes this tick's gas off the tile. The tile keeps its temperature.
+    pub(crate) fn scrub(&mut self, tile: &mut Tile) {
+        let mut wanted = false;
+        for gas in 0..GAS_COUNT {
+            if self.starts_for & (1 << gas) != 0 && tile.gases.values[gas] > SCRUBBER_TRACE_MOLES {
+                wanted = true;
+            }
+        }
+        if !wanted {
+            return;
+        }
+        let temperature = tile.temperature();
+        let mut taken_heat_capacity = 0.0;
+        let mut took_any = false;
+        for gas in 0..GAS_COUNT {
+            if self.takes & (1 << gas) == 0 {
+                continue;
+            }
+            // BYOND's gas mixtures move gas around in ten-thousandths of a mole, so this does too.
+            let amount = ((tile.gases.values[gas] * self.share) / SCRUBBER_STEP_MOLES + 0.5).floor()
+                * SCRUBBER_STEP_MOLES;
+            if !(amount > 0.0) {
+                continue;
+            }
+            let amount = amount.min(tile.gases.values[gas]);
+            tile.gases.values[gas] -= amount;
+            self.taken[gas] += amount;
+            taken_heat_capacity += amount * SPECIFIC_HEATS[gas];
+            took_any = true;
+        }
+        if took_any {
+            tile.gases.set_dirty();
+            tile.thermal_energy = temperature * tile.heat_capacity();
+            self.taken_thermal_energy += temperature * taken_heat_capacity;
+        }
+    }
+}
+
 /// A set of tiles on one Z level, one bit per tile, so walking it always goes in index order.
 #[derive(Clone)]
 pub(crate) struct TileSet {
