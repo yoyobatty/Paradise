@@ -5,7 +5,9 @@ use crate::milla::model::*;
 use crate::milla::simulate;
 use crate::milla::statics::*;
 use crate::milla::tick;
+use byondapi::byond_string::str_id_of;
 use byondapi::global_call::call_global;
+use byondapi::global_call::call_global_id;
 use byondapi::map::byond_block;
 use byondapi::map::byond_locatexyz;
 use byondapi::map::byond_xyz;
@@ -998,10 +1000,13 @@ pub(crate) fn internal_get_watched_tiles() -> eyre::Result<Vec<f32>> {
 /// BYOND API for starting an atmos tick.
 #[byondapi::bind]
 fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
+    // Looked up here, on BYOND's own thread, where it costs nothing. Looked up from the tick thread
+    // it's one more wait for BYOND's thread on top of the call itself.
+    let tick_finished = str_id_of("milla_tick_finished")?;
     // A tick BYOND never got around to finishing gets finished now, before the next one builds on it.
     tick::finish_tick(BUFFERS.get_or_init(Buffers::new));
     TICK_UNFINISHED.store(true, std::sync::atomic::Ordering::Relaxed);
-    thread::spawn(|| -> Result<(), eyre::Error> {
+    thread::spawn(move || -> Result<(), eyre::Error> {
         let now = Instant::now();
         let buffers = BUFFERS.get_or_init(Buffers::new);
         let result = tick::tick(buffers);
@@ -1016,7 +1021,7 @@ fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
         if result.is_ok() {
             let done = Instant::now();
             *TICK_WORKED_OUT_AT.lock().unwrap() = Some(done);
-            call_global("milla_tick_finished", &[])?;
+            call_global_id(tick_finished, &[])?;
             TICK_DONE_CALL_MICROS.store(
                 done.elapsed().as_micros() as usize,
                 std::sync::atomic::Ordering::Relaxed,
