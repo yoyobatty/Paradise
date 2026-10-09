@@ -108,7 +108,10 @@
 	if(move_dir && !ID.move_lock)
 		SSinput.processing[src] = world.time
 		ID.desired_move_dir |= move_dir
-		if(!(ID.desired_move_dir_sub & move_dir))
+		if(ID.desired_move_dir_add & REVERSE_DIR(move_dir) & ~ID.desired_move_dir)
+			// A tap the other way is still waiting for its step. It goes first, and this key carries on after it if it's still held.
+			ID.desired_move_dir_sub |= move_dir
+		else if(!(ID.desired_move_dir_sub & move_dir))
 			ID.desired_move_dir_add |= move_dir
 
 	var/alt_mod = ID.keys_held["Alt"] ? "Alt" : ""
