@@ -197,6 +197,8 @@
 /turf/proc/recalculate_atmos_connectivity()
 	var/datum/milla_safe/recalculate_atmos_connectivity/milla = new()
 	milla.invoke_async(src)
+	// Whatever blocks air here is also what stops alien weeds growing through
+	wake_alien_weeds_around(src)
 
 /datum/milla_safe/recalculate_atmos_connectivity
 

@@ -221,6 +221,16 @@
 
 #define NODERANGE 3
 
+/// How many alien weeds are resting right now. Lets the things that wake them skip looking when there's none to wake.
+GLOBAL_VAR_INIT(resting_alien_weeds, 0)
+
+/// Gets any resting alien weeds on or next to this turf processing again. Call it when what they could grow into may have changed.
+/proc/wake_alien_weeds_around(turf/T)
+	if(!GLOB.resting_alien_weeds || !T)
+		return
+	for(var/obj/structure/alien/weeds/weed in range(1, T))
+		weed.wake()
+
 /obj/structure/alien/weeds
 	gender = PLURAL
 	name = "resin floor"
@@ -240,6 +250,8 @@
 	var/obj/structure/alien/wallweed/wall_weed // This var is used to handle wall-weed interactions for when they need to be deleted
 	var/static/list/weedImageCache
 	var/check_counter // This var is how many process() procs it takes for a weed to spread
+	/// TRUE while we've got nothing left to grow into and aren't processing. See rest() and wake().
+	var/resting = FALSE
 	/// This var is used for making automatic weed removals silent instead of making them produce the breaking sound
 	var/silent_removal = FALSE
 
@@ -255,6 +267,11 @@
 
 /obj/structure/alien/weeds/Destroy()
 	STOP_PROCESSING(SSobj, src)
+	if(resting)
+		resting = FALSE
+		GLOB.resting_alien_weeds--
+	// The weeds next to us can grow back over this spot
+	wake_alien_weeds_around(loc)
 	QUEUE_SMOOTH_NEIGHBORS(src)
 	if(!silent_removal)
 		playsound(loc, pick('sound/effects/alien_resin_break2.ogg','sound/effects/alien_resin_break1.ogg'), 50, FALSE)
@@ -266,6 +283,8 @@
 	SIGNAL_HANDLER
 	UnregisterSignal(linked_node, COMSIG_PARENT_QDELETING)
 	linked_node = null
+	// Without a node we wither away, and that happens in process()
+	wake()
 
 /obj/structure/alien/weeds/attack_alien(mob/living/carbon/alien/humanoid/user)
 	if(user.a_intent != INTENT_HARM)
@@ -277,6 +296,24 @@
 	if(check_counter >= 5)
 		spread()
 		check_counter = 0
+
+/// Stops processing. Once there's nowhere left to grow, there's nothing to do until something next to us changes.
+/obj/structure/alien/weeds/proc/rest()
+	if(resting)
+		return
+	resting = TRUE
+	GLOB.resting_alien_weeds++
+	STOP_PROCESSING(SSobj, src)
+
+/// Starts processing again, for when a weed next to us died or what blocks air around us changed
+/obj/structure/alien/weeds/proc/wake()
+	if(!resting)
+		return
+	resting = FALSE
+	GLOB.resting_alien_weeds--
+	// A random head start, so a patch that got woken together doesn't all check on the same tick
+	check_counter = rand(0, 4)
+	START_PROCESSING(SSobj, src)
 
 /obj/structure/alien/weeds/proc/clear_wall_weed()
 	if(wall_weed && !QDELETED(wall_weed))
@@ -337,16 +374,22 @@
 		return
 
 	if((istype(linked_node, /obj/structure/alien/resin/door)) || (istype(linked_node, /obj/structure/alien/resin/wall)))
+		rest()
 		return
 
 	if(get_dist(linked_node, src) > linked_node.node_range) /*!linked_node || */
+		rest()
 		return
 
+	var/grew = FALSE
 	for(var/turf/T in U.GetAtmosAdjacentTurfs())
 		if((locate(/obj/structure/alien/weeds) in T) || isspaceturf(T) || islava(T) || ischasm(T))
 			continue
 		new /obj/structure/alien/weeds(T, linked_node)
 		check_surroundings()
+		grew = TRUE
+	if(!grew)
+		rest()
 
 /obj/structure/alien/weeds/temperature_expose(exposed_temperature, exposed_volume)
 	..()
