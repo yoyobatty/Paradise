@@ -255,3 +255,19 @@ pub(crate) const WATCHED_GAS_PRESENT_MOLES: f32 = 0.0009;
 /// How much of the excess temperature in a hotspot should be lost to the tile every tick.
 /// Makes hotspots die out if they're not burning fast enough.
 pub(crate) const HOTSPOT_CONDUCTION: f32 = 0.1;
+
+/// A tile whose gas or heat would change by less than this fraction in a tick doesn't change at
+/// all. Without this, rounding keeps every tile shifting in its last digits forever, and nothing
+/// ever counts as still.
+pub(crate) const SETTLE_FRACTION: f32 = 0.000_001;
+
+/// The same, for amounts too small for a fraction to mean much. In moles, and in joules.
+pub(crate) const SETTLE_MOLES: f32 = 0.000_000_001;
+pub(crate) const SETTLE_THERMAL_ENERGY: f32 = 0.000_001;
+
+/// Wind that would change by less than this in a tick doesn't change at all.
+pub(crate) const SETTLE_WIND: f32 = 0.000_001;
+
+/// Any amount of a gas from this up has a partial pressure above zero whatever the temperature,
+/// so it doesn't need working out to know the gas is there. Far below anything that matters.
+pub(crate) const GAS_SURELY_PRESENT: f32 = 1e-30;

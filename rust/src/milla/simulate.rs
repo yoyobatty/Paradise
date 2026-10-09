@@ -8,11 +8,38 @@ use eyre::eyre;
 use scc::Bag;
 use std::collections::HashSet;
 use std::f32::consts::E;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
-pub(crate) fn find_walls(next: &mut ZLevel) {
-    for my_index in 0..MAP_SIZE * MAP_SIZE {
+/// Leave tiles alone when nothing around them changed last tick.
+pub(crate) static SLEEP: AtomicBool = AtomicBool::new(true);
+/// How many passes the air flow has made, and how many tiles those went over, added up over every
+/// Z level since they were last cleared.
+pub(crate) static FLOW_PASSES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+pub(crate) static FLOW_VISITS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// Go over the tiles that are still changing much in map order, not hash order.
+pub(crate) static ORDERED: AtomicBool = AtomicBool::new(false);
+/// In map order, take turns going up the map and back down it.
+pub(crate) static BOTH_WAYS: AtomicBool = AtomicBool::new(false);
+/// Drop changes too small to matter, so still air stays exactly still.
+/// Bits: 1 for the air flow, 2 for the wind, 4 for heat through walls.
+pub(crate) static SETTLE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+const SETTLE_FLOW: u8 = 1;
+const SETTLE_WINDS: u8 = 2;
+const SETTLE_CONDUCTION: u8 = 4;
+
+/// Is this value close enough to what it was that it shouldn't count as a change?
+fn settled(old: f32, new: f32, smallest: f32) -> bool {
+    (new - old).abs() <= (old.abs() * SETTLE_FRACTION).max(smallest)
+}
+
+pub(crate) fn find_walls(prev: &ZLevel, next: &mut ZLevel) {
+    let mut cursor = 0;
+    while let Some(my_index) = next.walls_to_find.next_from(cursor) {
+        cursor = my_index + 1;
         let x = (my_index / MAP_SIZE) as i32;
         let y = (my_index % MAP_SIZE) as i32;
+        let old_walls = next.get_tile(my_index).wall;
 
         for (axis, (dx, dy)) in AXES.iter().enumerate() {
             let their_index = match ZLevel::maybe_get_index(x + dx, y + dy) {
@@ -51,15 +78,28 @@ pub(crate) fn find_walls(next: &mut ZLevel) {
             }
             my_tile.wall[axis] = false;
         }
+
+        if next.get_tile(my_index).wall != old_walls {
+            next.mark_changed(prev, my_index);
+        }
     }
 }
 
 /// Calculate the new wind at each boundary.
 pub(crate) fn update_wind(prev: &ZLevel, next: &mut ZLevel) {
-    for my_index in 0..MAP_SIZE * MAP_SIZE {
+    let settle = SETTLE.load(Relaxed) & SETTLE_WINDS != 0;
+    // A tile's pressure gets asked for by up to four boundaries, and its temperature by every gas on each of them.
+    // Neither changes while we're in here, so each gets worked out once.
+    let mut pressure_cache = std::mem::take(&mut next.pressure_cache);
+    pressure_cache.start_tick();
+
+    let mut cursor = 0;
+    while let Some(my_index) = next.awake.next_from(cursor) {
+        cursor = my_index + 1;
         let x = (my_index / MAP_SIZE) as i32;
         let y = (my_index % MAP_SIZE) as i32;
         let my_tile = prev.get_tile(my_index);
+        let mut changed = false;
 
         for (axis, (dx, dy)) in AXES.iter().enumerate() {
             let neighbor_index = match ZLevel::maybe_get_index(x + dx, y + dy) {
@@ -67,111 +107,223 @@ pub(crate) fn update_wind(prev: &ZLevel, next: &mut ZLevel) {
                 None => continue,
             };
             let neighbor = prev.get_tile(neighbor_index);
-            let my_new_tile = next.get_tile_mut(my_index);
+            let old_wind = next.get_tile(my_index).wind[axis];
+            let old_flow = next.get_tile(my_index).flow[axis];
+            let old_flow_gases = next.get_tile(my_index).flow_gases[axis];
+            let mut wind = 0.0;
+            let mut flow = [0.0f32; 2];
+            let mut flow_gases: u8 = 0;
 
             // No wind across walls.
-            if my_new_tile.wall[axis] {
-                my_new_tile.wind[axis] = 0.0;
-                for i in 0..GAS_COUNT {
-                    my_new_tile.gas_flow[axis][i][GAS_FLOW_IN] = 0.0;
-                    my_new_tile.gas_flow[axis][i][GAS_FLOW_OUT] = 0.0;
+            if !next.get_tile(my_index).wall[axis] {
+                let (my_pressure, my_pressure_temperature) = pressure_cache.get(prev, my_index);
+                let (neighbor_pressure, neighbor_pressure_temperature) =
+                    pressure_cache.get(prev, neighbor_index);
+
+                // How much pressure do these tiles have together?
+                let combined_pressure = my_pressure + neighbor_pressure;
+
+                // If there's no air, there's no wind.
+                if !(combined_pressure <= 0.0) {
+                    // A bias from [-1.0, 1.0] representing how much air is flowing from the negative tile
+                    // to the positive one, based purely on pressure.
+                    let pressure_bias = 2.0 * (my_pressure / combined_pressure) - 1.0;
+
+                    // New wind mixes the pressure bias with the old wind, and clamps it to reasonable
+                    // bounds.
+                    wind = (my_tile.wind[axis]
+                        + WIND_ACCELERATION * (pressure_bias * WIND_STRENGTH - my_tile.wind[axis]))
+                        .clamp(-MAX_WIND, MAX_WIND);
+                    if settle && (wind - my_tile.wind[axis]).abs() <= SETTLE_WIND {
+                        // Close enough to where it was.
+                        wind = my_tile.wind[axis];
+                    }
+
+                    // Which gases are there to flow?
+                    for i in 0..GAS_COUNT {
+                        let my_gas = my_tile.gases.values[i];
+                        let neighbor_gas = neighbor.gases.values[i];
+                        // All the partial pressures are for is telling whether there's any of this
+                        // gas between the two tiles. Any real amount on either side means there is,
+                        // and none on both means there isn't. The sums are only needed in between.
+                        if my_gas >= GAS_SURELY_PRESENT || neighbor_gas >= GAS_SURELY_PRESENT {
+                            flow_gases |= 1 << i;
+                            continue;
+                        }
+                        if my_gas <= 0.0 && neighbor_gas <= 0.0 {
+                            continue;
+                        }
+                        // Calculate how much gas should flow based on pressure.
+                        let my_partial_pressure = if my_gas <= 0.0 {
+                            0.0
+                        } else {
+                            my_gas * my_pressure_temperature * R_IDEAL_GAS_EQUATION / TILE_VOLUME
+                        };
+                        let neighbor_partial_pressure = if neighbor_gas <= 0.0 {
+                            0.0
+                        } else {
+                            neighbor_gas * neighbor_pressure_temperature * R_IDEAL_GAS_EQUATION
+                                / TILE_VOLUME
+                        };
+                        if my_partial_pressure + neighbor_partial_pressure <= 0.0 {
+                            // Gas? What gas?
+                            continue;
+                        }
+                        flow_gases |= 1 << i;
+                    }
+                    // Every gas that's there flows the same way: the wind carries it one way, and
+                    // diffusion carries it both ways.
+                    if flow_gases != 0 {
+                        let wind_gas_flow = (1.0 + WIND_SPEED).powf(wind.abs()) - 1.0;
+                        if wind > 0.0 {
+                            flow[GAS_FLOW_OUT] += wind_gas_flow;
+                        } else {
+                            flow[GAS_FLOW_IN] += wind_gas_flow;
+                        }
+                        // And how much gas should flow based on diffusion.
+                        flow[GAS_FLOW_IN] += DIFFUSION_SPEED;
+                        flow[GAS_FLOW_OUT] += DIFFUSION_SPEED;
+                    }
                 }
-                continue;
             }
 
-            // If there's no air, there's no wind.
-            if my_tile.pressure() + neighbor.pressure() <= 0.0 {
-                my_new_tile.wind[axis] = 0.0;
-                for i in 0..GAS_COUNT {
-                    my_new_tile.gas_flow[axis][i][GAS_FLOW_IN] = 0.0;
-                    my_new_tile.gas_flow[axis][i][GAS_FLOW_OUT] = 0.0;
-                }
-                continue;
+            let my_new_tile = next.get_tile_mut(my_index);
+            my_new_tile.wind[axis] = wind;
+            my_new_tile.flow[axis] = flow;
+            my_new_tile.flow_gases[axis] = flow_gases;
+            if wind.to_bits() != old_wind.to_bits()
+                || flow_gases != old_flow_gases
+                || flow[GAS_FLOW_IN].to_bits() != old_flow[GAS_FLOW_IN].to_bits()
+                || flow[GAS_FLOW_OUT].to_bits() != old_flow[GAS_FLOW_OUT].to_bits()
+            {
+                changed = true;
             }
+        }
 
-            // How much pressure do these tiles have together?
-            let combined_pressure = my_tile.pressure() + neighbor.pressure();
+        if changed {
+            next.mark_changed(prev, my_index);
+        }
+    }
 
-            // A bias from [-1.0, 1.0] representing how much air is flowing from the negative tile
-            // to the positive one, based purely on pressure.
-            let pressure_bias = 2.0 * (my_tile.pressure() / combined_pressure) - 1.0;
+    next.pressure_cache = pressure_cache;
+}
 
-            // New wind mixes the pressure bias with the old wind, and clamps it to reasonable
-            // bounds.
-            my_new_tile.wind[axis] = (my_tile.wind[axis]
-                + WIND_ACCELERATION * (pressure_bias * WIND_STRENGTH - my_tile.wind[axis]))
-                .clamp(-MAX_WIND, MAX_WIND);
+/// The tiles that changed enough in one pass of the air flow to need another.
+enum StillFlowing {
+    /// Kept the way master keeps them. Gets gone through in whatever order the hashes fall.
+    Hashed(HashSet<usize>),
+    /// One bit a tile. Gets gone through in map order.
+    Ordered(TileSet),
+}
 
-            for i in 0..GAS_COUNT {
-                my_new_tile.gas_flow[axis][i][GAS_FLOW_IN] = 0.0;
-                my_new_tile.gas_flow[axis][i][GAS_FLOW_OUT] = 0.0;
+impl StillFlowing {
+    fn new() -> Self {
+        if ORDERED.load(Relaxed) {
+            StillFlowing::Ordered(TileSet::new())
+        } else {
+            StillFlowing::Hashed(HashSet::new())
+        }
+    }
 
-                // Calculate how much gas should flow based on pressure.
-                let combined_partial_pressure =
-                    my_tile.partial_pressure(i) + neighbor.partial_pressure(i);
-                if combined_partial_pressure <= 0.0 {
-                    // Gas? What gas?
-                    continue;
-                }
-                let wind_gas_flow = (1.0 + WIND_SPEED).powf(my_new_tile.wind[axis].abs()) - 1.0;
-                if my_new_tile.wind[axis] > 0.0 {
-                    my_new_tile.gas_flow[axis][i][GAS_FLOW_OUT] += wind_gas_flow;
-                } else {
-                    my_new_tile.gas_flow[axis][i][GAS_FLOW_IN] += wind_gas_flow;
-                }
-
-                // And how much gas should flow based on diffusion.
-                let diffusion_gas_flow = DIFFUSION_SPEED;
-                my_new_tile.gas_flow[axis][i][GAS_FLOW_IN] += diffusion_gas_flow;
-                my_new_tile.gas_flow[axis][i][GAS_FLOW_OUT] += diffusion_gas_flow;
+    fn insert(&mut self, index: usize) {
+        match self {
+            StillFlowing::Hashed(tiles) => {
+                tiles.insert(index);
             }
+            StillFlowing::Ordered(tiles) => {
+                tiles.insert(index);
+            }
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            StillFlowing::Hashed(tiles) => tiles.len(),
+            StillFlowing::Ordered(tiles) => tiles.len(),
         }
     }
 }
 
 pub(crate) struct AirflowOutcome {
-    active_tiles: HashSet<usize>,
+    active_tiles: StillFlowing,
     max_gas_delta: f32,
     max_thermal_energy_delta: f32,
 }
 
 /// Let the air flow until it stabilizes for this tick or we run out of patience.
 pub(crate) fn flow_air(prev: &ZLevel, next: &mut ZLevel) -> Result<AirflowOutcome, eyre::Error> {
-    let mut outcome = flow_air_once(prev, next, None)?;
-    for _iter in 1..MAX_ITERATIONS {
-        outcome = flow_air_once(prev, next, Some(outcome))?;
+    // The first time through, look at every tile that's being worked on this tick, including the
+    // ones that only start being worked on because the tile before them changed.
+    let mut outcome = AirflowOutcome {
+        active_tiles: StillFlowing::new(),
+        max_gas_delta: 0.0,
+        max_thermal_energy_delta: 0.0,
+    };
+    let mut passes = 1;
+    let mut visits = 0;
+    let mut cursor = 0;
+    while let Some(my_index) = next.awake.next_from(cursor) {
+        cursor = my_index + 1;
+        visits += 1;
+        flow_air_once_at_index(prev, next, my_index, &mut outcome)?;
+    }
+
+    for iter in 1..MAX_ITERATIONS {
+        passes += 1;
+        visits += outcome.active_tiles.len();
+        // The first time through went up the map, so this one goes back down, and so on.
+        outcome = flow_air_once(prev, next, outcome, iter % 2 == 1)?;
 
         // Check for significant changes.
         if outcome.max_gas_delta < GAS_CHANGE_SIGNIFICANCE
             && outcome.max_thermal_energy_delta < THERMAL_CHANGE_SIGNIFICANCE
         {
             // We've stabilized.
-            return Ok(outcome);
+            break;
         }
     }
 
+    FLOW_PASSES.fetch_add(passes, Relaxed);
+    FLOW_VISITS.fetch_add(visits, Relaxed);
     Ok(outcome)
 }
 
-/// Let the air flow at every active tile by one step.
+/// Let the air flow by one more step at every tile that's still changing much.
 pub(crate) fn flow_air_once(
     prev: &ZLevel,
     next: &mut ZLevel,
-    maybe_old_outcome: Option<AirflowOutcome>,
+    old_outcome: AirflowOutcome,
+    backwards: bool,
 ) -> Result<AirflowOutcome, eyre::Error> {
     let mut new_outcome = AirflowOutcome {
-        active_tiles: HashSet::new(),
+        active_tiles: StillFlowing::new(),
         max_gas_delta: 0.0,
         max_thermal_energy_delta: 0.0,
     };
 
-    if let Some(old_outcome) = maybe_old_outcome {
-        for my_index in &old_outcome.active_tiles {
-            flow_air_once_at_index(prev, next, *my_index, &mut new_outcome)?;
+    match &old_outcome.active_tiles {
+        StillFlowing::Hashed(tiles) => {
+            for my_index in tiles {
+                flow_air_once_at_index(prev, next, *my_index, &mut new_outcome)?;
+            }
         }
-    } else {
-        for my_index in 0..MAP_SIZE * MAP_SIZE {
-            flow_air_once_at_index(prev, next, my_index, &mut new_outcome)?;
+        StillFlowing::Ordered(tiles) => {
+            if backwards && BOTH_WAYS.load(Relaxed) {
+                let mut cursor = MAP_SIZE * MAP_SIZE - 1;
+                while let Some(my_index) = tiles.previous_from(cursor) {
+                    flow_air_once_at_index(prev, next, my_index, &mut new_outcome)?;
+                    if my_index == 0 {
+                        break;
+                    }
+                    cursor = my_index - 1;
+                }
+            } else {
+                let mut cursor = 0;
+                while let Some(my_index) = tiles.next_from(cursor) {
+                    cursor = my_index + 1;
+                    flow_air_once_at_index(prev, next, my_index, &mut new_outcome)?;
+                }
+            }
         }
     }
 
@@ -198,7 +350,9 @@ pub(crate) fn flow_air_once_at_index(
     }
 
     // Save the values from the prior iteration so we can check how much they changed.
-    let prev_iter = next.get_tile(my_index).clone();
+    let prev_iter_gases = next.get_tile(my_index).gases.values;
+    let prev_iter_thermal_energy = next.get_tile(my_index).thermal_energy;
+    let my_pressure = my_tile.pressure();
     {
         // We're doing a modified Gauss-Seidel method, and while it's counter-intuitive, one of
         // the necessary steps is to reset the current tile to its original values before
@@ -231,23 +385,37 @@ pub(crate) fn flow_air_once_at_index(
             }
         }
 
-        // If there's no air, don't do anything.
-        let total_pressure = my_tile.pressure() + new_neighbor.pressure();
-        if total_pressure <= 0.0 {
-            continue;
+        // If there's no air, don't do anything. With pressure here there's air whatever the
+        // other tile has, so its pressure only needs working out when there isn't.
+        if !(my_pressure > 0.0) {
+            let total_pressure = my_pressure + new_neighbor.pressure();
+            if total_pressure <= 0.0 {
+                continue;
+            }
         }
 
+        let neighbor_temperature = new_neighbor.temperature();
+        // Normalise the gas flow direction.
+        let (flow_in, flow_out, flow_gases) = if dx + dy > 0 {
+            (
+                my_new_tile.flow[axis][GAS_FLOW_IN],
+                my_new_tile.flow[axis][GAS_FLOW_OUT],
+                my_new_tile.flow_gases[axis],
+            )
+        } else {
+            (
+                new_neighbor.flow[axis][GAS_FLOW_OUT],
+                new_neighbor.flow[axis][GAS_FLOW_IN],
+                new_neighbor.flow_gases[axis],
+            )
+        };
         for i in 0..GAS_COUNT {
-            // Normalise the gas flow direction.
-            let gas_flow_in;
-            let gas_flow_out;
-            if dx + dy > 0 {
-                gas_flow_in = my_new_tile.gas_flow[axis][i][GAS_FLOW_IN];
-                gas_flow_out = my_new_tile.gas_flow[axis][i][GAS_FLOW_OUT];
+            // A gas that isn't flowing across this side has no flow either way.
+            let (gas_flow_in, gas_flow_out) = if flow_gases & (1 << i) != 0 {
+                (flow_in, flow_out)
             } else {
-                gas_flow_in = new_neighbor.gas_flow[axis][i][GAS_FLOW_OUT];
-                gas_flow_out = new_neighbor.gas_flow[axis][i][GAS_FLOW_IN];
-            }
+                (0.0, 0.0)
+            };
 
             // Once again, this may looks a bit odd, but it's the second step of Gauss-Seidel,
             // summing together this tile's value from the last iteration with the incoming values
@@ -261,7 +429,7 @@ pub(crate) fn flow_air_once_at_index(
             // Temperature is not Gauss-Seidel, though it looks similar. It's just a weighted
             // average.
             total_weighted_temperature +=
-                new_neighbor.temperature() * temperature_weight * TEMPERATURE_FLOW_RATE;
+                neighbor_temperature * temperature_weight * TEMPERATURE_FLOW_RATE;
             total_temperature_weights += temperature_weight * TEMPERATURE_FLOW_RATE;
         }
 
@@ -274,27 +442,59 @@ pub(crate) fn flow_air_once_at_index(
     let my_new_tile = next.get_tile_mut(my_index);
     for i in 0..GAS_COUNT {
         my_new_tile.gases.values[i] /= 1.0 + outgoing_gas_mult[i];
-
-        if (prev_iter.gases.values[i] - my_new_tile.gases.values[i]).abs()
-            >= GAS_CHANGE_SIGNIFICANCE
-        {
-            let new_gas_delta = (2.0 * prev_iter.gases.values[i]
-                / (prev_iter.gases.values[i] + my_new_tile.gases.values[i])
-                - 1.0)
-                .abs();
-            max_gas_delta = max_gas_delta.max(new_gas_delta);
-        }
     }
     my_new_tile.gases.set_dirty();
 
     my_new_tile.thermal_energy =
         my_new_tile.heat_capacity() * total_weighted_temperature / total_temperature_weights;
 
+    if SETTLE.load(Relaxed) & SETTLE_FLOW != 0 {
+        let mut is_settled = settled(
+            my_tile.thermal_energy,
+            my_new_tile.thermal_energy,
+            SETTLE_THERMAL_ENERGY,
+        );
+        for i in 0..GAS_COUNT {
+            is_settled &= settled(
+                my_tile.gases.values[i],
+                my_new_tile.gases.values[i],
+                SETTLE_MOLES,
+            );
+        }
+        if is_settled {
+            // Nothing here moved enough to count, so it didn't move.
+            my_new_tile.gases.copy_from(&my_tile.gases);
+            // Same as any other tile the air has flowed through: the totals get worked out again.
+            my_new_tile.gases.set_dirty();
+            my_new_tile.thermal_energy = my_tile.thermal_energy;
+        }
+    }
+
+    // Is this tile any different from how it started the tick?
+    // A tile with nothing in it gets a thermal energy of NaN here, which nothing can see (everything that
+    // would look checks the heat capacity first) and which gets put back before the tick is over.
+    // That doesn't count, or no empty tile would ever be left alone.
+    let mut changed = my_new_tile.thermal_energy.to_bits() != my_tile.thermal_energy.to_bits()
+        && !(my_new_tile.thermal_energy.is_nan() && my_new_tile.heat_capacity() <= 0.0);
+    for i in 0..GAS_COUNT {
+        changed |= my_new_tile.gases.values[i].to_bits() != my_tile.gases.values[i].to_bits();
+    }
+
+    for i in 0..GAS_COUNT {
+        if (prev_iter_gases[i] - my_new_tile.gases.values[i]).abs() >= GAS_CHANGE_SIGNIFICANCE {
+            let new_gas_delta = (2.0 * prev_iter_gases[i]
+                / (prev_iter_gases[i] + my_new_tile.gases.values[i])
+                - 1.0)
+                .abs();
+            max_gas_delta = max_gas_delta.max(new_gas_delta);
+        }
+    }
+
     let new_thermal_energy_delta;
-    if (prev_iter.thermal_energy - my_new_tile.thermal_energy).abs() >= THERMAL_CHANGE_SIGNIFICANCE
+    if (prev_iter_thermal_energy - my_new_tile.thermal_energy).abs() >= THERMAL_CHANGE_SIGNIFICANCE
     {
-        new_thermal_energy_delta = (2.0 * prev_iter.thermal_energy
-            / (prev_iter.thermal_energy + my_new_tile.thermal_energy)
+        new_thermal_energy_delta = (2.0 * prev_iter_thermal_energy
+            / (prev_iter_thermal_energy + my_new_tile.thermal_energy)
             - 1.0)
             .abs();
     } else {
@@ -306,6 +506,10 @@ pub(crate) fn flow_air_once_at_index(
     outcome.max_thermal_energy_delta = outcome
         .max_thermal_energy_delta
         .max(new_thermal_energy_delta);
+
+    if changed {
+        next.mark_changed(prev, my_index);
+    }
 
     // Check for significant changes.
     if max_gas_delta < GAS_CHANGE_SIGNIFICANCE_FRACTION {
@@ -325,6 +529,22 @@ pub(crate) fn flow_air_once_at_index(
     Ok(())
 }
 
+/// Compares everything about a tile that the tick can change after the air has flowed, exactly.
+/// Returns whether the part BYOND can see is the same, and whether all of it is.
+fn same_tile(a: &Tile, b: &Tile) -> (bool, bool) {
+    let mut seen_same = a.thermal_energy.to_bits() == b.thermal_energy.to_bits()
+        && a.hotspot_temperature.to_bits() == b.hotspot_temperature.to_bits()
+        && a.hotspot_volume.to_bits() == b.hotspot_volume.to_bits()
+        && a.fuel_burnt.to_bits() == b.fuel_burnt.to_bits();
+    for i in 0..GAS_COUNT {
+        seen_same &= a.gases.values[i].to_bits() == b.gases.values[i].to_bits();
+    }
+    let all_same = seen_same
+        && a.wind[0].to_bits() == b.wind[0].to_bits()
+        && a.wind[1].to_bits() == b.wind[1].to_bits();
+    (seen_same, all_same)
+}
+
 /// Applies effects that happen after the main airflow routine:
 /// * Tile modes
 /// * Superconductivity
@@ -339,18 +559,24 @@ pub(crate) fn post_process(
     new_interesting_tiles: &Bag<InterestingTile>,
     z: i32,
 ) -> Result<(), eyre::Error> {
-    for my_index in 0..MAP_SIZE * MAP_SIZE {
+    let mut cursor = 0;
+    while let Some(my_index) = next.awake.next_from(cursor) {
+        cursor = my_index + 1;
         let x = (my_index / MAP_SIZE) as i32;
         let y = (my_index % MAP_SIZE) as i32;
         let my_tile = prev.get_tile(my_index);
 
-        {
-            let my_next_tile = next.get_tile_mut(my_index);
-            apply_tile_mode(my_next_tile, environments)?;
-        }
+        let mut changed = apply_tile_mode(next.get_tile_mut(my_index), environments)?;
 
         if let AtmosMode::Space = my_tile.mode {
             // Space doesn't superconduct, has no reactions, doesn't need to be sanitized, and is never interesting. (Take that, astrophysicists and astronomers!)
+            let (seen_same, all_same) = same_tile(next.get_tile(my_index), my_tile);
+            if !seen_same {
+                next.changed_for_byond.insert(my_index);
+            }
+            if changed || !all_same {
+                next.mark_changed(prev, my_index);
+            }
             continue;
         }
 
@@ -362,8 +588,14 @@ pub(crate) fn post_process(
 
             let (my_next_tile, their_next_tile) = next.get_pair_mut(my_index, their_index);
 
-            if their_next_tile.mode != AtmosMode::Space {
-                superconduct(my_next_tile, their_next_tile, dx > 0, false);
+            if their_next_tile.mode != AtmosMode::Space
+                && superconduct(my_next_tile, their_next_tile, dx > 0, false)
+            {
+                // The other tile just changed, so it needs its own turn further on. If it wasn't
+                // being worked on, it was the same in both buffers until now, so there's nothing to copy.
+                changed = true;
+                next.awake.insert(their_index);
+                next.mark_changed(prev, their_index);
             }
         }
 
@@ -383,7 +615,17 @@ pub(crate) fn post_process(
             sanitize(my_next_tile, my_tile);
         }
 
-        check_interesting(x, y, z, next, my_tile, my_index, new_interesting_tiles)?;
+        let reasons = check_interesting(x, y, z, next, my_tile, my_index, new_interesting_tiles)?;
+
+        // Nothing touches this tile again this tick, so this is how it ends up.
+        let (seen_same, all_same) = same_tile(next.get_tile(my_index), my_tile);
+        if !seen_same {
+            next.changed_for_byond.insert(my_index);
+        }
+        // Tiles that are hot or windy get reported to BYOND every tick, so they have to keep being looked at.
+        if changed || !all_same || reasons.intersects(ReasonFlags::HOT | ReasonFlags::WIND) {
+            next.mark_changed(prev, my_index);
+        }
     }
     Ok(())
 }
@@ -443,7 +685,7 @@ pub(crate) fn check_interesting(
     my_tile: &Tile,
     my_index: usize,
     new_interesting_tiles: &Bag<InterestingTile>,
-) -> Result<(), eyre::Error> {
+) -> Result<ReasonFlags, eyre::Error> {
     let mut reasons: ReasonFlags = ReasonFlags::empty();
     {
         let my_next_tile = next.get_tile_mut(my_index);
@@ -526,7 +768,7 @@ pub(crate) fn check_interesting(
         });
     }
 
-    Ok(())
+    Ok(reasons)
 }
 
 /// Perform chemical reactions on the tile.
@@ -734,6 +976,10 @@ pub(crate) fn do_turf_effects(
     y: i32,
     z: i32,
 ) -> Result<(), eyre::Error> {
+    if !(my_next_tile.gases.water_vapor() > 1.0) {
+        // Not enough water vapor to condense, whatever the humidity turns out to be.
+        return Ok(());
+    }
     let cached_temperature = my_next_tile.thermal_energy / my_next_tile.heat_capacity();
     // Calculate the water saturation pressure using the Arden Buck equation
     let saturation_pressure: f32;
@@ -783,19 +1029,22 @@ pub(crate) fn do_turf_effects(
     Ok(())
 }
 
-/// Apply effects caused by the tile's atmos mode.
+/// Apply effects caused by the tile's atmos mode. Returns whether that changed the tile.
 pub(crate) fn apply_tile_mode(
     my_next_tile: &mut Tile,
     environments: &Box<[Tile]>,
-) -> Result<(), eyre::Error> {
+) -> Result<bool, eyre::Error> {
     match my_next_tile.mode {
         AtmosMode::Space => {
             // Space tiles lose all gas and thermal energy every tick.
+            let mut changed = my_next_tile.thermal_energy.to_bits() != 0;
             for gas in 0..GAS_COUNT {
+                changed |= my_next_tile.gases.values[gas].to_bits() != 0;
                 my_next_tile.gases.values[gas] = 0.0;
             }
             my_next_tile.gases.set_dirty();
             my_next_tile.thermal_energy = 0.0;
+            Ok(changed)
         }
         AtmosMode::ExposedTo { environment_id } => {
             // Exposed tiles reset back to the same state every tick.
@@ -804,8 +1053,15 @@ pub(crate) fn apply_tile_mode(
             }
 
             let environment = &environments[environment_id as usize];
+            let mut changed =
+                my_next_tile.thermal_energy.to_bits() != environment.thermal_energy.to_bits();
+            for gas in 0..GAS_COUNT {
+                changed |= my_next_tile.gases.values[gas].to_bits()
+                    != environment.gases.values[gas].to_bits();
+            }
             my_next_tile.gases.copy_from(&environment.gases);
             my_next_tile.thermal_energy = environment.thermal_energy;
+            Ok(changed)
         }
         AtmosMode::Sealed => {
             if my_next_tile.temperature() > SPACE_COOLING_THRESHOLD {
@@ -814,16 +1070,24 @@ pub(crate) fn apply_tile_mode(
                 let cooling = (SPACE_COOLING_FLAT
                     + SPACE_COOLING_TEMPERATURE_RATIO * my_next_tile.temperature())
                 .min(excess_thermal_energy);
+                let before = my_next_tile.thermal_energy;
                 my_next_tile.thermal_energy -= cooling;
+                return Ok(my_next_tile.thermal_energy.to_bits() != before.to_bits());
             }
+            Ok(false)
         }
-        AtmosMode::NoDecay => {} // No special interactions
+        AtmosMode::NoDecay => Ok(false), // No special interactions
     }
-    Ok(())
 }
 
 // Performs superconduction between two superconductivity-connected tiles.
-pub(crate) fn superconduct(my_tile: &mut Tile, their_tile: &mut Tile, is_east: bool, force: bool) {
+/// Returns whether any heat moved, which is the only way it changes either tile.
+pub(crate) fn superconduct(
+    my_tile: &mut Tile,
+    their_tile: &mut Tile,
+    is_east: bool,
+    force: bool,
+) -> bool {
     // Superconduction is scaled to the smaller directional superconductivity setting of the two
     // tiles.
     let mut transfer_coefficient: f32;
@@ -832,7 +1096,7 @@ pub(crate) fn superconduct(my_tile: &mut Tile, their_tile: &mut Tile, is_east: b
     } else if is_east {
         if !my_tile.wall[AXIS_X] {
             // Atmos flows freely here, no need to superconduct.
-            return;
+            return false;
         }
         transfer_coefficient = my_tile
             .superconductivity
@@ -841,7 +1105,7 @@ pub(crate) fn superconduct(my_tile: &mut Tile, their_tile: &mut Tile, is_east: b
     } else {
         if !my_tile.wall[AXIS_Y] {
             // Atmos flows freely here, no need to superconduct.
-            return;
+            return false;
         }
         transfer_coefficient = my_tile
             .superconductivity
@@ -853,7 +1117,7 @@ pub(crate) fn superconduct(my_tile: &mut Tile, their_tile: &mut Tile, is_east: b
     let their_heat_capacity = their_tile.heat_capacity();
     if transfer_coefficient <= 0.0 || my_heat_capacity <= 0.0 || their_heat_capacity <= 0.0 {
         // Nothing to do.
-        return;
+        return false;
     }
 
     // Temporary workaround to match LINDA better for high temperatures.
@@ -869,6 +1133,14 @@ pub(crate) fn superconduct(my_tile: &mut Tile, their_tile: &mut Tile, is_east: b
         * my_heat_capacity
         * their_heat_capacity
         / (my_heat_capacity + their_heat_capacity);
+
+    if SETTLE.load(Relaxed) & SETTLE_CONDUCTION != 0
+        && settled(my_tile.thermal_energy, my_tile.thermal_energy - conduction, SETTLE_THERMAL_ENERGY)
+        && settled(their_tile.thermal_energy, their_tile.thermal_energy + conduction, SETTLE_THERMAL_ENERGY)
+    {
+        // Too little heat to count.
+        return false;
+    }
 
     // Half of the conduction always goes to the overall heat of the tile
     my_tile.thermal_energy -= conduction / 2.0;
@@ -894,6 +1166,9 @@ pub(crate) fn superconduct(my_tile: &mut Tile, their_tile: &mut Tile, is_east: b
         my_tile.thermal_energy -= conduction / 2.0;
         their_tile.thermal_energy += conduction / 2.0;
     }
+
+    // With no heat to move, every line above left both tiles as they were.
+    conduction != 0.0
 }
 
 pub(crate) fn normalise_hotspot(tile: &mut Tile) {

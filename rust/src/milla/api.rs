@@ -7,7 +7,9 @@ use crate::milla::statics::*;
 use crate::milla::tick;
 use byondapi::global_call::call_global;
 use byondapi::map::byond_block;
+use byondapi::map::byond_locatexyz;
 use byondapi::map::byond_xyz;
+use byondapi::map::ByondXYZ;
 use byondapi::prelude::*;
 use eyre::eyre;
 use eyre::Result;
@@ -290,6 +292,7 @@ pub(crate) fn internal_set_tile(
     hotspot_temperature: Option<f32>,
     hotspot_volume: Option<f32>,
 ) -> Result<()> {
+    check_writable()?;
     let buffers = BUFFERS.get().ok_or(eyre!("BUFFERS not initialized."))?;
     let active = buffers.get_active().read().unwrap();
     let maybe_z_level = active.0[z as usize].try_write();
@@ -299,7 +302,7 @@ pub(crate) fn internal_set_tile(
         ));
     }
     let mut z_level = maybe_z_level.unwrap();
-    let tile = z_level.get_tile_mut(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
+    let tile = z_level.get_tile_mut_for_write(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
         "Bad coordinates ({}, {}, {})",
         x + 1,
         y + 1,
@@ -387,8 +390,16 @@ fn milla_get_tile(turf: ByondValue, list: ByondValue) -> eyre::Result<ByondValue
     logging::setup_panic_handler();
     let (x, y, z) = byond_xyz(&turf)?.coordinates();
     let vec: Vec<ByondValue>;
-    if let Ok(tile) = internal_get_tile(x as i32 - 1, y as i32 - 1, z as i32 - 1) {
+    let mut watched = false;
+    if let Ok((tile, settled)) = internal_get_tile_and_state(x as i32 - 1, y as i32 - 1, z as i32 - 1) {
         vec = (&tile).into();
+        // A tile that changed last tick is likely to change again, and telling BYOND every time
+        // would cost more than BYOND reading it again when it wants it.
+        if settled {
+            remember_tile(x as i32 - 1, y as i32 - 1, z as i32 - 1);
+            watched = true;
+        }
+        TOTAL_TILE_READS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     } else {
         // MILLA has died and is unrecoverable.
         // Uh... uh... report everything as breathable air, I guess?
@@ -399,7 +410,28 @@ fn milla_get_tile(turf: ByondValue, list: ByondValue) -> eyre::Result<ByondValue
         vec = (&air).into();
     }
     list.write_list(vec.as_slice())?;
-    Ok(ByondValue::null())
+    // Tells BYOND whether it'll hear about it when this tile changes.
+    Ok(ByondValue::from(if watched { 1.0 } else { 0.0 }))
+}
+
+/// Fetches a tile, and whether it came through the last tick and since without BYOND being able
+/// to tell it changed.
+pub(crate) fn internal_get_tile_and_state(x: i32, y: i32, z: i32) -> Result<(Tile, bool)> {
+    let buffers = BUFFERS.get().ok_or(eyre!("BUFFERS not initialized."))?;
+    let maybe_active = buffers.get_active().read();
+    if maybe_active.is_err() {
+        return Err(eyre!("MILLA buffers have been poisoned."));
+    }
+    let active = maybe_active.unwrap();
+    let z_level = active.0[z as usize].read().unwrap();
+    let index = ZLevel::maybe_get_index(x, y).ok_or(eyre!(
+        "Bad coordinates ({}, {}, {})",
+        x + 1,
+        y + 1,
+        z + 1
+    ))?;
+    let settled = !z_level.changed_for_byond.contains(index) && !z_level.written.contains(index);
+    Ok((z_level.get_tile(index).clone(), settled))
 }
 
 /// Rust version of fetching the atmos details of a tile.
@@ -419,6 +451,131 @@ pub(crate) fn internal_get_tile(x: i32, y: i32, z: i32) -> Result<Tile> {
             z + 1
         ))?)
         .clone())
+}
+
+/// A tick that's been started has to become the current frame before anything gets written, or
+/// the write would land on the frame that's about to be replaced.
+fn check_writable() -> Result<()> {
+    if TICK_UNFINISHED.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(eyre!(
+            "Tried to write during asynchronous, read-only atmos. Use a /datum/milla_safe/..."
+        ));
+    }
+    Ok(())
+}
+
+/// Notes that BYOND now holds a copy of this tile, so it wants to hear when the tile changes.
+pub(crate) fn remember_tile(x: i32, y: i32, z: i32) {
+    if let Some(index) = ZLevel::maybe_get_index(x, y) {
+        let mut remembered = REMEMBERED_TILES.lock().unwrap();
+        while remembered.len() <= z as usize {
+            remembered.push(TileSet::new());
+        }
+        remembered[z as usize].insert(index);
+    }
+}
+
+/// BYOND API for getting the turfs whose air has changed since it last asked, out of the ones
+/// it's holding a copy of. Once a turf has been handed over here, BYOND isn't told about it
+/// again until it reads the tile again.
+#[byondapi::bind]
+fn milla_get_changed_tiles() -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    // If BYOND's the one finishing ticks, this is where it happens: the new frame becomes current
+    // and BYOND hears what changed in the same breath.
+    if let Some(buffers) = BUFFERS.get() {
+        tick::finish_tick(buffers);
+    }
+    let mut turfs: Vec<ByondValue> = Vec::new();
+    for (x, y, z) in internal_get_changed_tiles() {
+        turfs.push(byond_locatexyz(ByondXYZ::with_coords((
+            x as i16 + 1,
+            y as i16 + 1,
+            z as i16 + 1,
+        )))?);
+    }
+    Ok(turfs.as_slice().try_into()?)
+}
+
+/// Rust version of getting the tiles that changed. Coordinates count from zero.
+pub(crate) fn internal_get_changed_tiles() -> Vec<(i32, i32, i32)> {
+    let mut changed_tiles = CHANGED_TILES.lock().unwrap();
+    let mut remembered = REMEMBERED_TILES.lock().unwrap();
+    let mut tiles = Vec::new();
+    for z in 0..changed_tiles.len() {
+        if z < remembered.len() {
+            let mut cursor = 0;
+            while let Some(index) = changed_tiles[z].next_from(cursor) {
+                cursor = index + 1;
+                if remembered[z].remove(index) {
+                    tiles.push(((index / MAP_SIZE) as i32, (index % MAP_SIZE) as i32, z as i32));
+                }
+            }
+        }
+        changed_tiles[z].clear();
+    }
+    TOTAL_CHANGED_TILES_TOLD.fetch_add(tiles.len(), std::sync::atomic::Ordering::Relaxed);
+    tiles
+}
+
+/// BYOND API for the last tick's numbers: how long it took in milliseconds, how many tiles it
+/// worked on, how many of those changed, and how many changed in a way BYOND can see. Then two
+/// running totals since boot: tile reads, and changed tiles BYOND has been told about. Then the
+/// last tick again: milliseconds spent getting the frame ready, on walls, on wind, on the air flow
+/// and on everything after, added up over every Z level; milliseconds the slowest Z level took;
+/// and how many passes the air flow made and how many tiles those went over.
+#[byondapi::bind]
+fn milla_get_tick_stats() -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    let relaxed = std::sync::atomic::Ordering::Relaxed;
+    let stats = [
+        ByondValue::from(TICK_TIME_MICROS.load(relaxed) as f32 / 1000.0),
+        ByondValue::from(TICK_TILES_WORKED_ON.load(relaxed) as f32),
+        ByondValue::from(TICK_TILES_CHANGED.load(relaxed) as f32),
+        ByondValue::from(TICK_TILES_CHANGED_FOR_BYOND.load(relaxed) as f32),
+        ByondValue::from(TOTAL_TILE_READS.load(relaxed) as f32),
+        ByondValue::from(TOTAL_CHANGED_TILES_TOLD.load(relaxed) as f32),
+        ByondValue::from(TICK_PHASE_MICROS[0].load(relaxed) as f32 / 1000.0),
+        ByondValue::from(TICK_PHASE_MICROS[1].load(relaxed) as f32 / 1000.0),
+        ByondValue::from(TICK_PHASE_MICROS[2].load(relaxed) as f32 / 1000.0),
+        ByondValue::from(TICK_PHASE_MICROS[3].load(relaxed) as f32 / 1000.0),
+        ByondValue::from(TICK_PHASE_MICROS[4].load(relaxed) as f32 / 1000.0),
+        ByondValue::from(TICK_SLOWEST_LEVEL_MICROS.load(relaxed) as f32 / 1000.0),
+        ByondValue::from(simulate::FLOW_PASSES.load(relaxed) as f32),
+        ByondValue::from(simulate::FLOW_VISITS.load(relaxed) as f32),
+    ];
+    Ok(stats.as_slice().try_into()?)
+}
+
+/// BYOND API for saying whether BYOND makes a finished tick the current frame itself, by calling
+/// milla_get_changed_tiles() when it's told the tick is done. That way nothing can read the new
+/// frame before BYOND knows what changed in it.
+#[byondapi::bind]
+fn milla_set_byond_finishes_ticks(enabled: ByondValue) -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    BYOND_FINISHES_TICKS.store(
+        f32::try_from(enabled)? > 0.0,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+    Ok(ByondValue::null())
+}
+
+/// BYOND API for the tick's switches. Sleep leaves tiles alone when nothing around them changed,
+/// and gives the same results as not sleeping. Settle is a set of bits: 1, 2 and 4 drop changes
+/// too small to matter in the air flow, the wind and heat through walls, which isn't the same
+/// results, but lets still air count as still. 8 goes over the tiles that are still flowing in
+/// map order, which is faster and the same every run, where the hash order isn't.
+/// 16 has those passes take turns going up the map and back down it.
+#[byondapi::bind]
+fn milla_set_tuning(sleep: ByondValue, settle: ByondValue) -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    let relaxed = std::sync::atomic::Ordering::Relaxed;
+    simulate::SLEEP.store(f32::try_from(sleep)? > 0.0, relaxed);
+    let settle = f32::try_from(settle)? as u8;
+    simulate::SETTLE.store(settle & 7, relaxed);
+    simulate::ORDERED.store(settle & 8 != 0, relaxed);
+    simulate::BOTH_WAYS.store(settle & 16 != 0, relaxed);
+    Ok(ByondValue::null())
 }
 
 /// BYOND API for getting a list of interesting tiles this tick.
@@ -492,6 +649,7 @@ pub(crate) fn internal_reduce_superconductivity(
     south: Option<f32>,
     west: Option<f32>,
 ) -> eyre::Result<()> {
+    check_writable()?;
     let buffers = BUFFERS.get().ok_or(eyre!("BUFFERS not initialized."))?;
     let active = buffers.get_active().read().unwrap();
     let maybe_z_level = active.0[z as usize].try_write();
@@ -501,7 +659,7 @@ pub(crate) fn internal_reduce_superconductivity(
         ));
     }
     let mut z_level = maybe_z_level.unwrap();
-    let tile = z_level.get_tile_mut(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
+    let tile = z_level.get_tile_mut_for_write(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
         "Bad coordinates ({}, {}, {})",
         x + 1,
         y + 1,
@@ -533,6 +691,7 @@ fn milla_reset_superconductivity(turf: ByondValue) -> eyre::Result<ByondValue> {
 
 /// Rust version of resetting the superconductivity of a tile.
 pub(crate) fn internal_reset_superconductivity(x: i32, y: i32, z: i32) -> Result<()> {
+    check_writable()?;
     let buffers = BUFFERS.get().ok_or(eyre!("BUFFERS not initialized."))?;
     let active = buffers.get_active().read().unwrap();
     let maybe_z_level = active.0[z as usize].try_write();
@@ -542,7 +701,7 @@ pub(crate) fn internal_reset_superconductivity(x: i32, y: i32, z: i32) -> Result
         ));
     }
     let mut z_level = maybe_z_level.unwrap();
-    let tile = z_level.get_tile_mut(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
+    let tile = z_level.get_tile_mut_for_write(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
         "Bad coordinates ({}, {}, {})",
         x + 1,
         y + 1,
@@ -588,6 +747,7 @@ pub(crate) fn internal_create_hotspot(
     temperature: f32,
     volume: f32,
 ) -> Result<()> {
+    check_writable()?;
     let buffers = BUFFERS.get().ok_or(eyre!("BUFFERS not initialized."))?;
     let active = buffers.get_active().read().unwrap();
     let maybe_z_level = active.0[z as usize].try_write();
@@ -597,7 +757,7 @@ pub(crate) fn internal_create_hotspot(
         ));
     }
     let mut z_level = maybe_z_level.unwrap();
-    let tile = z_level.get_tile_mut(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
+    let tile = z_level.get_tile_mut_for_write(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
         "Bad coordinates ({}, {}, {})",
         x + 1,
         y + 1,
@@ -634,6 +794,7 @@ fn milla_extinguish_hotspot(turf: ByondValue) -> eyre::Result<ByondValue> {
 
 /// Rust version of a heat source creating a hotspot.
 pub(crate) fn internal_extinguish_hotspot(x: i32, y: i32, z: i32) -> Result<()> {
+    check_writable()?;
     let buffers = BUFFERS.get().ok_or(eyre!("BUFFERS not initialized."))?;
     let active = buffers.get_active().read().unwrap();
     let maybe_z_level = active.0[z as usize].try_write();
@@ -643,7 +804,7 @@ pub(crate) fn internal_extinguish_hotspot(x: i32, y: i32, z: i32) -> Result<()> 
         ));
     }
     let mut z_level = maybe_z_level.unwrap();
-    let tile = z_level.get_tile_mut(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
+    let tile = z_level.get_tile_mut_for_write(ZLevel::maybe_get_index(x, y).ok_or(eyre!(
         "Bad coordinates ({}, {}, {})",
         x + 1,
         y + 1,
@@ -826,6 +987,9 @@ pub(crate) fn internal_get_watched_tiles() -> eyre::Result<Vec<f32>> {
 /// BYOND API for starting an atmos tick.
 #[byondapi::bind]
 fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
+    // A tick BYOND never got around to finishing gets finished now, before the next one builds on it.
+    tick::finish_tick(BUFFERS.get_or_init(Buffers::new));
+    TICK_UNFINISHED.store(true, std::sync::atomic::Ordering::Relaxed);
     thread::spawn(|| -> Result<(), eyre::Error> {
         let now = Instant::now();
         let buffers = BUFFERS.get_or_init(Buffers::new);
@@ -834,9 +998,14 @@ fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
             now.elapsed().as_millis() as usize,
             std::sync::atomic::Ordering::Relaxed,
         );
+        TICK_TIME_MICROS.store(
+            now.elapsed().as_micros() as usize,
+            std::sync::atomic::Ordering::Relaxed,
+        );
         if result.is_ok() {
             call_global("milla_tick_finished", &[])?;
         } else {
+            TICK_UNFINISHED.store(false, std::sync::atomic::Ordering::Relaxed);
             let err = format!("MILLA tick error:\n----\n{:#?}\n----", result);
             call_global("milla_tick_error", &[ByondValue::new_str(err)?])?;
         }
@@ -863,6 +1032,7 @@ fn milla_set_zlevel_frozen(
 ) -> eyre::Result<ByondValue> {
     let z = f32::try_from(byond_z)? as i32 - 1;
     let frozen = bool::try_from(byond_frozen)?;
+    check_writable()?;
     let buffers = BUFFERS.get().ok_or(eyre!("BUFFERS not initialized."))?;
     let active = buffers.get_active().read().unwrap();
     let maybe_z_level = active.0[z as usize].try_write();
