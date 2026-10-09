@@ -1241,12 +1241,14 @@
 	cure_husk()
 
 	if(!client || !key) //Don't boot out anyone already in the mob.
-		for(var/obj/item/organ/internal/brain/H in world)
-			if(H.brainmob)
-				if(H.brainmob.real_name == src.real_name)
-					if(H.brainmob.mind)
-						H.brainmob.mind.transfer_to(src)
-						qdel(H)
+		// A removed brain keeps its owner's mob inside it, and the living mobs are a much shorter list than everything in the world.
+		for(var/mob/living/brain/brain_mob in GLOB.mob_living_list)
+			var/obj/item/organ/internal/brain/H = brain_mob.loc
+			if(!istype(H) || H.brainmob != brain_mob)
+				continue
+			if(brain_mob.real_name == real_name && brain_mob.mind)
+				brain_mob.mind.transfer_to(src)
+				qdel(H)
 
 	..()
 
