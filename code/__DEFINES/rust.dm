@@ -93,6 +93,24 @@
 /proc/get_tracked_pressure_tiles()
 	return RUSTLIB_CALL(milla_get_tracked_pressure_tiles)
 
+/// The turfs whose air has changed since this was last called, out of the ones that have been read with get_tile_atmos() since they last changed.
+/// If we've said we finish MILLA's ticks, this is also what makes the tick that just got worked out the current one.
+/proc/get_changed_atmos_tiles()
+	return RUSTLIB_CALL(milla_get_changed_tiles)
+
+/// Says whether a MILLA tick becomes the current one when we call get_changed_atmos_tiles(), not as soon as MILLA is done with it.
+/proc/set_milla_tick_finishing(by_us)
+	return RUSTLIB_CALL(milla_set_byond_finishes_ticks, by_us)
+
+/// The last MILLA tick's numbers: how long it took in ms, how many tiles it worked on, how many of those changed, and how many changed in a way we can see.
+/proc/get_milla_tick_stats()
+	return RUSTLIB_CALL(milla_get_tick_stats)
+
+/// Sleep leaves tiles alone when nothing around them changed. Settle is bits: 1, 2 and 4 drop changes too small to matter
+/// (air flow, wind, heat through walls) so still air stays still, 8 goes over flowing tiles in map order.
+/proc/set_milla_tuning(sleep, settle)
+	return RUSTLIB_CALL(milla_set_tuning, sleep, settle)
+
 /proc/reduce_superconductivity(turf/T, list/superconductivity)
 	var/north = superconductivity[1]
 	var/east = superconductivity[2]
@@ -113,10 +131,12 @@
 	return RUSTLIB_CALL(milla_set_tile_airtight, T, north, east, south, west)
 
 /proc/create_hotspot(turf/T, hotspot_temperature, hotspot_volume)
-	return RUSTLIB_CALL(milla_create_hotspot, T, hotspot_temperature, hotspot_volume)
+	. = RUSTLIB_CALL(milla_create_hotspot, T, hotspot_temperature, hotspot_volume)
+	T.milla_tile_written()
 
 /proc/extinguish_hotspot(turf/T)
 	RUSTLIB_CALL(milla_extinguish_hotspot, T)
+	T.milla_tile_written()
 
 /proc/track_pressure_tiles(atom/A, radius)
 	var/turf/T = get_turf(A)
