@@ -10,6 +10,12 @@ use thread_priority;
 
 /// Runs a single tick of the atmospherics model, multi-threaded by Z level.
 pub(crate) fn tick(buffers: &Buffers) -> Result<(), eyre::Error> {
+    for phase in TICK_PHASE_MICROS.iter() {
+        phase.store(0, std::sync::atomic::Ordering::Relaxed);
+    }
+    TICK_SLOWEST_LEVEL_MICROS.store(0, std::sync::atomic::Ordering::Relaxed);
+    simulate::FLOW_PASSES.store(0, std::sync::atomic::Ordering::Relaxed);
+    simulate::FLOW_VISITS.store(0, std::sync::atomic::Ordering::Relaxed);
     assert!(thread_priority::ThreadPriority::Min
         .set_for_current()
         .is_ok());
@@ -65,7 +71,51 @@ pub(crate) fn tick(buffers: &Buffers) -> Result<(), eyre::Error> {
 
     result?;
 
+    // The new frame is worked out. Its interesting tiles wait with it until it's the current one.
+    let mut waiting: Vec<InterestingTile> = Vec::new();
+    waiting.extend(new_interesting_tiles);
+    *FINISHED_INTERESTING_TILES.lock().unwrap() = Some(waiting);
+    drop(prev);
+    drop(next);
+
+    if !BYOND_FINISHES_TICKS.load(std::sync::atomic::Ordering::Relaxed) {
+        finish_tick(buffers);
+    }
+
+    Ok(())
+}
+
+/// Makes the frame the last tick worked out the current one, the one BYOND reads and writes.
+/// Does nothing if that's already been done.
+pub(crate) fn finish_tick(buffers: &Buffers) {
+    let new_interesting_tiles = match FINISHED_INTERESTING_TILES.lock().unwrap().take() {
+        Some(tiles) => tiles,
+        None => return,
+    };
+
     buffers.flip();
+
+    // Now that BYOND can see the new frame, add what changed in it to the list it's waiting on.
+    {
+        let current = buffers.get_active().read().unwrap();
+        let mut changed_tiles = CHANGED_TILES.lock().unwrap();
+        let mut worked_on = 0;
+        let mut changed = 0;
+        let mut changed_for_byond = 0;
+        for z in 0..current.0.len() {
+            let z_level = current.0[z].read().unwrap();
+            while changed_tiles.len() <= z {
+                changed_tiles.push(TileSet::new());
+            }
+            changed_tiles[z].add_all(&z_level.changed_for_byond);
+            worked_on += z_level.awake.len();
+            changed += z_level.active.len();
+            changed_for_byond += z_level.changed_for_byond.len();
+        }
+        TICK_TILES_WORKED_ON.store(worked_on, std::sync::atomic::Ordering::Relaxed);
+        TICK_TILES_CHANGED.store(changed, std::sync::atomic::Ordering::Relaxed);
+        TICK_TILES_CHANGED_FOR_BYOND.store(changed_for_byond, std::sync::atomic::Ordering::Relaxed);
+    }
 
     let mut interesting_tiles = INTERESTING_TILES.lock().unwrap();
     // drake_no: Last tick's interesting tiles.
@@ -73,7 +123,7 @@ pub(crate) fn tick(buffers: &Buffers) -> Result<(), eyre::Error> {
     // drake_yes: This tick's interesting tiles.
     interesting_tiles.extend(new_interesting_tiles);
 
-    Ok(())
+    TICK_UNFINISHED.store(false, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// Runs a single tick of one Z level's atmospherics model.
@@ -92,17 +142,32 @@ pub(crate) fn tick_z_level(
     let prev = prev_atmos_lock.read().unwrap();
     let mut next = next_atmos_lock.write().unwrap();
 
-    // Initialize the new frame as a copy of the old one.
-    next.copy_from(&prev);
+    // Get the new frame ready: pick the tiles that need working on and copy them over from the
+    // old one. Every other tile is already the same in both.
+    let relaxed = std::sync::atomic::Ordering::Relaxed;
+    let started = std::time::Instant::now();
+    let mut phase_started = started;
+    let mut phase_done = |phase: usize| {
+        let now = std::time::Instant::now();
+        TICK_PHASE_MICROS[phase].fetch_add((now - phase_started).as_micros() as usize, relaxed);
+        phase_started = now;
+    };
+    next.begin_tick(&prev, simulate::SLEEP.load(relaxed));
+    phase_done(0);
 
     if !prev.frozen {
-        simulate::find_walls(&mut next);
+        simulate::find_walls(&prev, &mut next);
+        phase_done(1);
         simulate::update_wind(&prev, &mut next);
+        phase_done(2);
         simulate::flow_air(&prev, &mut next)?;
+        phase_done(3);
         simulate::post_process(&prev, &mut next, &environments, new_interesting_tiles, z)?;
+        phase_done(4);
 
         next.active_pressure_chunks.clear();
     }
+    TICK_SLOWEST_LEVEL_MICROS.fetch_max(started.elapsed().as_micros() as usize, relaxed);
 
     Ok(())
 }
