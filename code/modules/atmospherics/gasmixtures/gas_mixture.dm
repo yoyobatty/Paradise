@@ -954,7 +954,9 @@ What are the archived variables for?
 /datum/gas_mixture/bound_to_turf
 	synchronized = FALSE
 	var/dirty = FALSE
-	var/lastread = 0
+	/// Our copy of the tile is good until SSair.milla_frame goes past this.
+	/// For a tile that wasn't changing when we got it, that's INFINITY, and MILLA tells us when it does change. See SSair.mark_changed_tiles().
+	var/good_until = -1
 	var/turf/bound_turf = null
 	var/datum/gas_mixture/readonly/readonly = null
 
@@ -1025,6 +1027,50 @@ What are the archived variables for?
 		set_dirty()
 		private_hotspot_temperature = max(private_hotspot_temperature, temperature)
 		private_hotspot_volume = max(private_hotspot_volume, (volume / CELL_VOLUME))
+
+/// Gets our tile from MILLA again.
+/datum/gas_mixture/bound_to_turf/proc/fetch()
+	// Only ever used between here and take_milla_tile(), so one list does for every turf.
+	var/static/list/milla_tile = new/list(MILLA_TILE_SIZE)
+	// MILLA says whether it'll tell us when this tile changes. It doesn't for one that's changing every tick anyway.
+	var/watched = get_tile_atmos(bound_turf, milla_tile)
+	take_milla_tile(milla_tile)
+	if(watched)
+		good_until = INFINITY
+
+/// Takes on a tile MILLA gave us. The readonly copy is kept and brought up to date, not made again.
+/datum/gas_mixture/bound_to_turf/proc/take_milla_tile(list/milla)
+	private_oxygen = milla[MILLA_INDEX_OXYGEN]
+	private_carbon_dioxide = milla[MILLA_INDEX_CARBON_DIOXIDE]
+	private_nitrogen = milla[MILLA_INDEX_NITROGEN]
+	private_toxins = milla[MILLA_INDEX_TOXINS]
+	private_sleeping_agent = milla[MILLA_INDEX_SLEEPING_AGENT]
+	private_agent_b = milla[MILLA_INDEX_AGENT_B]
+	private_hydrogen = milla[MILLA_INDEX_HYDROGEN]
+	private_water_vapor = milla[MILLA_INDEX_WATER_VAPOR]
+	innate_heat_capacity = milla[MILLA_INDEX_INNATE_HEAT_CAPACITY]
+	private_temperature = milla[MILLA_INDEX_TEMPERATURE]
+	private_hotspot_temperature = milla[MILLA_INDEX_HOTSPOT_TEMPERATURE]
+	private_hotspot_volume = milla[MILLA_INDEX_HOTSPOT_VOLUME]
+	private_fuel_burnt = milla[MILLA_INDEX_FUEL_BURNT]
+	good_until = SSair.milla_frame
+	dirty = FALSE
+
+	var/datum/gas_mixture/readonly/copy = readonly
+	if(isnull(copy))
+		return
+	copy.private_oxygen = private_oxygen
+	copy.private_carbon_dioxide = private_carbon_dioxide
+	copy.private_nitrogen = private_nitrogen
+	copy.private_toxins = private_toxins
+	copy.private_sleeping_agent = private_sleeping_agent
+	copy.private_agent_b = private_agent_b
+	copy.private_hydrogen = private_hydrogen
+	copy.private_water_vapor = private_water_vapor
+	copy.private_temperature = private_temperature
+	copy.private_hotspot_temperature = private_hotspot_temperature
+	copy.private_hotspot_volume = private_hotspot_volume
+	copy.private_fuel_burnt = private_fuel_burnt
 
 /datum/gas_mixture/bound_to_turf/proc/private_unsafe_write()
 	set_tile_atmos(
