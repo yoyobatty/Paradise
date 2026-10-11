@@ -32,6 +32,14 @@
 		GLOB.data_core.locked -= src
 	return ..()
 
+/// Makes the front and side of the record's photo for the consoles that show them. Turning a photo into text is slow
+/// and most records are never opened, so it is done the first time one is. Call it before reading those fields.
+/datum/data/record/proc/make_photo_text()
+	if(fields["photo-south"] || !("photo" in fields))
+		return
+	fields["photo-south"] = "data:image/png;base64,[icon2base64(icon(fields["photo"], dir = SOUTH))]"
+	fields["photo-west"] = "data:image/png;base64,[icon2base64(icon(fields["photo"], dir = WEST))]"
+
 /datum/data/text
 	name = "text"
 	var/data = null

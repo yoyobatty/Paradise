@@ -110,6 +110,7 @@
 				var/list/general = list()
 				data["general"] = general
 				if(record_general && GLOB.data_core.general.Find(record_general))
+					record_general.make_photo_text()
 					var/list/gen_fields = record_general.fields
 					general["fields"] = list(
 						SEC_FIELD("Name", 				gen_fields["name"], 		"name",			FALSE),

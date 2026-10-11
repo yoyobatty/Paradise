@@ -114,6 +114,7 @@
 				var/list/general = list()
 				data["general"] = general
 				if(istype(active1, /datum/data/record) && GLOB.data_core.general.Find(active1))
+					active1.make_photo_text()
 					var/list/fields = list()
 					general["fields"] = fields
 					fields[++fields.len] = FIELD("Name", active1.fields["name"], null)

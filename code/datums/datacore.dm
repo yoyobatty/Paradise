@@ -179,9 +179,8 @@ GLOBAL_VAR_INIT(record_id_num, 1001)
 		else
 			card_photo = get_id_photo(H)
 
+		// The photo-south and photo-west fields are made from this when the record is first opened, see make_photo_text()
 		G.fields["photo"] = card_photo
-		G.fields["photo-south"] = "data:image/png;base64,[icon2base64(icon(card_photo, dir = SOUTH))]"
-		G.fields["photo-west"] = "data:image/png;base64,[icon2base64(icon(card_photo, dir = WEST))]"
 		if(H.gen_record && !jobban_isbanned(H, ROLEBAN_RECORDS))
 			G.fields["notes"] = H.gen_record
 		else

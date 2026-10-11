@@ -229,6 +229,7 @@ GLOBAL_LIST_EMPTY(world_uplinks)
 	data["cart_price"] = calculate_cart_tc()
 	data["lucky_numbers"] = lucky_numbers
 	if(selected_record && GLOB.data_core.general.Find(selected_record))
+		selected_record.make_photo_text()
 		data["selected_record"] = list(
 				"name" = html_encode(selected_record.fields["name"]),
 				"sex" = html_encode(selected_record.fields["sex"]),
