@@ -1172,7 +1172,8 @@
 
 /turf/proc/copyTurf(turf/T)
 	if(T.type != type)
-		T.ChangeTurf(type, keep_icon = FALSE)
+		// The shuttle brings its own air, so don't bother filling the new turf from its neighbours
+		T.ChangeTurf(type, keep_icon = FALSE, ignore_air = TRUE)
 	if(T.icon_state != icon_state)
 		T.icon_state = icon_state
 	if(T.icon != icon)
