@@ -564,7 +564,9 @@
 
 		// Always do this stuff as it ensures that the destination turfs still behave properly with the rest of the shuttle transit
 		//lighting stuff
-		T1.lighting_build_overlay()
+		// It only needs a new lighting object if it didn't keep one from the turf it was before
+		if(!T1.lighting_object)
+			T1.lighting_build_overlay()
 		T1.recalculate_atmos_connectivity()
 
 		if(!should_transit)
