@@ -148,7 +148,11 @@
 	registered_name = card.registered_name
 	name = card.name
 	photo = card.photo
+	card.finish_html()
 	dat = card.dat
+	// Our own page may have been waiting for a photo, the copied one is whole
+	dat_unfinished = FALSE
+	dat_photo = null
 	blood_type = card.blood_type
 	dna_hash = card.dna_hash
 	fingerprint_hash = card.fingerprint_hash

@@ -121,6 +121,10 @@
 	var/age
 	var/photo
 	var/dat
+	/// TRUE while dat is still waiting for its photo, which finish_html() puts in
+	var/dat_unfinished = FALSE
+	/// The photo dat was made for
+	var/dat_photo
 	var/stamped = 0
 
 	/// Can we flash the ID?
@@ -156,6 +160,7 @@
 	var/datum/asset/assets = get_asset_datum(/datum/asset/simple/paper)
 	assets.send(user)
 
+	finish_html()
 	var/datum/browser/popup = new(user, "idcard", name, 600, 400)
 	popup.set_content(dat)
 	popup.open()
@@ -214,8 +219,9 @@
 	RebuildHTML()
 
 /obj/item/card/id/proc/RebuildHTML()
-	var/photo_front = "'data:image/png;base64,[icon2base64(icon(photo, dir = SOUTH))]'"
-	var/photo_side = "'data:image/png;base64,[icon2base64(icon(photo, dir = WEST))]'"
+	// Turning the photo into text is slow and few cards are ever read, so that part waits for finish_html()
+	dat_photo = photo
+	dat_unfinished = TRUE
 
 	dat = {"<table><tr><td>
 	Name: [registered_name]</A><BR>
@@ -225,8 +231,19 @@
 	Fingerprint: [fingerprint_hash]</A><BR>
 	Blood Type: [blood_type]<BR>
 	DNA Hash: [dna_hash]<BR><BR>
-	<td align = center valign = top>Photo:<br><img src=[photo_front] height=80 width=80 border=4>
+	<td align = center valign = top>Photo:<br>"}
+
+/// Puts the photo into the page RebuildHTML() started. Anything that uses dat has to call this first.
+/obj/item/card/id/proc/finish_html()
+	if(!dat_unfinished)
+		return
+	var/photo_front = "'data:image/png;base64,[icon2base64(icon(dat_photo, dir = SOUTH))]'"
+	var/photo_side = "'data:image/png;base64,[icon2base64(icon(dat_photo, dir = WEST))]'"
+
+	dat += {"<img src=[photo_front] height=80 width=80 border=4>
 	<img src=[photo_side] height=80 width=80 border=4></td></tr></table>"}
+	dat_unfinished = FALSE
+	dat_photo = null
 
 /obj/item/card/id/GetAccess()
 	if(SSjobs.skeleton_crew)
@@ -310,6 +327,7 @@
 
 	else if(istype(used, /obj/item/stamp))
 		if(!stamped)
+			finish_html()
 			dat+="<img src=large_[used.icon_state].png>"
 			stamped = 1
 			to_chat(user, "You stamp the ID card!")
