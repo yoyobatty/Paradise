@@ -311,6 +311,9 @@ GLOBAL_VAR_INIT(global_singulo_id, 1)
 		for(var/thing in tile)
 			if(thing != src)
 				var/atom/movable/X = thing
+				// Something pulled or eaten earlier on this tile can delete a later one, like stacks merging
+				if(QDELETED(X))
+					continue
 				if(get_dist(X, src) > consume_range)
 					X.singularity_pull(src, current_size)
 				else
