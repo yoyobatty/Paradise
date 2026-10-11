@@ -1,3 +1,6 @@
+/// How many APCs switch their lights over each tick. All of them in one go froze the server for about an eighth of a second.
+#define NIGHTSHIFT_APCS_PER_TICK 5
+
 SUBSYSTEM_DEF(nightshift)
 	name = "Night Shift"
 	init_order = INIT_ORDER_NIGHTSHIFT
@@ -55,7 +58,19 @@ SUBSYSTEM_DEF(nightshift)
 			announce("Good evening, crew. To reduce power consumption and stimulate the circadian rhythms of some species, all of the lights aboard the station have been dimmed for the night.")
 		else
 			announce("Good morning, crew. As it is now day time, all of the lights aboard the station have been restored to their former brightness.")
+	switch_lights()
+
+/// Switches the station's lights over a few APCs at a time, so it sweeps across the station in a second or two
+/datum/controller/subsystem/nightshift/proc/switch_lights()
+	set waitfor = FALSE
+	var/switched = 0
 	for(var/A in GLOB.apcs)
 		var/obj/machinery/power/apc/APC = A
-		if(is_station_level(APC.z))
-			APC.set_nightshift(active)
+		if(QDELETED(APC) || !is_station_level(APC.z))
+			continue
+		// Whatever it is set to by now, in case it changed again while this was going round
+		APC.set_nightshift(nightshift_active)
+		if(++switched % NIGHTSHIFT_APCS_PER_TICK == 0)
+			sleep(world.tick_lag)
+
+#undef NIGHTSHIFT_APCS_PER_TICK
