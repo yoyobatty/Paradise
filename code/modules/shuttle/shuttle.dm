@@ -571,8 +571,11 @@
 
 		if(!should_transit)
 			continue // Don't want to actually change the skipped turf
+		// Changing the turf works out its atmos connectivity again, so that's only needed here if it stays what it is
+		var/turf_stays = (T0.type == turf_type)
 		T0.ChangeTurf(turf_type, keep_icon = FALSE)
-		T0.recalculate_atmos_connectivity()
+		if(turf_stays)
+			T0.recalculate_atmos_connectivity()
 
 	if(holding_starlight)
 		SSlighting.release_starlight()
