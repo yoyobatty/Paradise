@@ -10,6 +10,8 @@ SUBSYSTEM_DEF(lighting)
 	var/static/list/objects_queue = list() // List of lighting objects queued for update.
 	/// Goes up by one every light source update. See [/datum/controller/subsystem/lighting/proc/get_update_stamp]
 	var/static/update_stamp = 0
+	/// Space turfs whose starlight update is being held back, null when nothing is holding them.
+	var/list/held_starlight
 
 /datum/controller/subsystem/lighting/get_stat_details()
 	return "L:[length(sources_queue)]|C:[length(corners_queue)]|O:[length(objects_queue)]"
@@ -34,7 +36,27 @@ SUBSYSTEM_DEF(lighting)
 
 	fire(FALSE, TRUE)
 
+/// Holds back starlight updates until release_starlight(), so something changing a lot of turfs at once updates each
+/// space turf around them once instead of every time a neighbour changes. Returns FALSE if they're already held.
+/datum/controller/subsystem/lighting/proc/hold_starlight()
+	if(held_starlight)
+		return FALSE
+	held_starlight = list()
+	return TRUE
+
+/// Does the starlight updates that were held back.
+/datum/controller/subsystem/lighting/proc/release_starlight()
+	var/list/held = held_starlight
+	held_starlight = null
+	// Some of them might not be space anymore
+	for(var/turf/space/space_tile in held)
+		space_tile.update_starlight()
+
 /datum/controller/subsystem/lighting/fire(resumed, init_tick_checks)
+	// In case whatever held them never let go
+	if(held_starlight)
+		release_starlight()
+
 	MC_SPLIT_TICK_INIT(3)
 	if(!init_tick_checks)
 		MC_SPLIT_TICK

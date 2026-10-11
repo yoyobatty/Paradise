@@ -531,6 +531,8 @@
 		mobile_port.shuttle_smash(L2, S1)
 	mobile_port.roadkill(L0, L1, S1.dir)
 
+	// Every turf changed here updates the starlight of the space around it, so wait and do each space turf once
+	var/holding_starlight = SSlighting.hold_starlight()
 	for(var/i in 1 to length(L0))
 		var/turf/T0 = L0[i]
 		if(!T0)
@@ -569,6 +571,9 @@
 			continue // Don't want to actually change the skipped turf
 		T0.ChangeTurf(turf_type, keep_icon = FALSE)
 		T0.recalculate_atmos_connectivity()
+
+	if(holding_starlight)
+		SSlighting.release_starlight()
 
 	mobile_port.areaInstance.moving = transit
 	for(var/A1 in L1)

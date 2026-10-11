@@ -60,6 +60,10 @@
 
 /turf/space/proc/update_starlight()
 	if(GLOB.configuration.general.starlight)
+		if(SSlighting.held_starlight)
+			// Lots of turfs are changing at once, we'll get updated when they're done
+			SSlighting.held_starlight[src] = TRUE
+			return
 		for(var/t in RANGE_TURFS(1,src)) //RANGE_TURFS is in code\__HELPERS\game.dm
 			if(isspaceturf(t))
 				//let's NOT update this that much pls
