@@ -146,6 +146,11 @@
 		orbiter.loc = target_loc
 		// Setting loc directly doesn't fire COMSIG_MOVABLE_MOVED, so we need to do it ourselves
 		SEND_SIGNAL(orbiter, COMSIG_MOVABLE_MOVED, current_loc, target_loc, null)
+		// Same for telling it that it changed z-level
+		var/turf/old_turf = get_turf(current_loc)
+		var/turf/new_turf = target_loc
+		if(old_turf?.z != new_turf?.z)
+			orbiter.on_changed_z_level(old_turf, new_turf)
 	orbiter.animate_movement = SYNC_STEPS
 
 /**
@@ -226,6 +231,9 @@
 			var/orbiter_loc = movable_orbiter.loc
 			movable_orbiter.loc = new_turf
 			SEND_SIGNAL(movable_orbiter, COMSIG_MOVABLE_MOVED, orbiter_loc, new_turf, null)
+			var/turf/old_turf = orbiter_turf
+			if(old_turf?.z != new_turf?.z)
+				movable_orbiter.on_changed_z_level(old_turf, new_turf)
 
 		if(CHECK_TICK && new_turf != get_turf(movable_orbiter))
 			// We moved again during the checktick, cancel current operation
