@@ -211,12 +211,41 @@
 /proc/is_same_root_atom(atom/one, atom/two)
 	return get_atom_on_turf(one) == get_atom_on_turf(two)
 
-/proc/get_mobs_in_radio_ranges(list/obj/item/radio/radios)
+/// How many tiles across the squares are that get_radio_hearers() sorts its listeners into
+#define RADIO_LISTENER_SQUARE 8
+
+/**
+ * Finds which of a set of listeners can hear at least one of the radios given.
+ *
+ * Most radios have nobody anywhere near them, so this starts from where the listeners are.
+ * That is far cheaper than working out everywhere each radio can be heard from.
+ *
+ * Arguments:
+ * * radios - The radios the sound is coming out of
+ * * ears - Where the listeners are, as turf => list of the mobs listening on it
+ * * radio_chat - TRUE for someone talking over the radio. A radio that can't be heard off its own tile is then only heard by whoever is carrying it, and a cyborg's radio has to be working.
+ *
+ * Returns the listeners that hear, as mob => TRUE
+ */
+/proc/get_radio_hearers(list/obj/item/radio/radios, list/ears, radio_chat = FALSE)
 	. = list()
-	// Returns a list of mobs who can hear any of the radios given in @radios
-	var/list/speaker_coverage = list()
+	// For each z-level with a listener on it, the turfs with listeners in each square of the map
+	var/list/squares_by_z = new /list(world.maxz)
+	var/squares_wide = ceil(world.maxx / RADIO_LISTENER_SQUARE)
+	var/squares_high = ceil(world.maxy / RADIO_LISTENER_SQUARE)
+	for(var/turf/ear as anything in ears)
+		var/list/squares = squares_by_z[ear.z]
+		if(!squares)
+			squares = new /list(squares_wide * squares_high)
+			squares_by_z[ear.z] = squares
+		var/square = floor((ear.x - 1) / RADIO_LISTENER_SQUARE) + floor((ear.y - 1) / RADIO_LISTENER_SQUARE) * squares_wide + 1
+		if(squares[square])
+			squares[square] += ear
+		else
+			squares[square] = list(ear)
+
 	for(var/obj/item/radio/R in radios)
-		if(R)
+		if(radio_chat)
 			//Cyborg checks. Receiving message uses a bit of cyborg's charge.
 			var/obj/item/radio/borg/BR = R
 			if(istype(BR) && BR.myborg)
@@ -227,17 +256,47 @@
 				if(!borg.is_component_functioning("radio"))
 					continue //No power.
 
-			var/turf/speaker = get_turf(R)
-			if(speaker)
-				for(var/turf/T in hear(R.canhear_range,speaker))
-					var/obj/item/radio/oldR = speaker_coverage[T]
-					if(!istype(oldR))
-						speaker_coverage[T] = R
-						continue
-					if(oldR.canhear_range < R.canhear_range)
-						speaker_coverage[T] = R
+		var/turf/speaker = get_turf(R)
+		if(!speaker)
+			continue
+		var/range = R.canhear_range
+		if(range <= 0)
+			// Can't be heard off its own tile
+			for(var/mob/M as anything in ears[speaker])
+				if(!radio_chat || is_same_root_atom(M, R))
+					.[M] = TRUE
+			continue
+		var/list/squares = squares_by_z[speaker.z]
+		if(!squares)
+			continue
+		// Is anyone listening close enough to it?
+		var/anyone_near = FALSE
+		for(var/square_y in floor(max(speaker.y - range - 1, 0) / RADIO_LISTENER_SQUARE) to floor(min(speaker.y + range - 1, world.maxy - 1) / RADIO_LISTENER_SQUARE))
+			for(var/square_x in floor(max(speaker.x - range - 1, 0) / RADIO_LISTENER_SQUARE) to floor(min(speaker.x + range - 1, world.maxx - 1) / RADIO_LISTENER_SQUARE))
+				for(var/turf/ear as anything in squares[square_x + square_y * squares_wide + 1])
+					if(get_dist(ear, speaker) <= range)
+						anyone_near = TRUE
+						break
+				if(anyone_near)
+					break
+			if(anyone_near)
+				break
+		if(!anyone_near)
+			continue
+		for(var/turf/T in hear(range, speaker))
+			for(var/mob/M as anything in ears[T])
+				.[M] = TRUE
+
+#undef RADIO_LISTENER_SQUARE
+
+/proc/get_mobs_in_radio_ranges(list/obj/item/radio/radios)
+	. = list()
+	// Returns a list of mobs who can hear any of the radios given in @radios
 
 	// Try to find all the players who can hear the message
+	var/list/mob/listeners = list()
+	var/list/heard_anywhere = list()
+	var/list/ears = list()
 	for(var/A in GLOB.player_list + GLOB.hear_radio_list)
 		var/mob/M = A
 		if(!M)
@@ -245,17 +304,19 @@
 		var/turf/ear = get_turf(M)
 		if(!ear)
 			continue
+		listeners += M
 		// Ghostship is magic: Ghosts can hear radio chatter from anywhere
 		if(isobserver(M) && M.get_preference(PREFTOGGLE_CHAT_GHOSTRADIO))
-			. |= M
+			heard_anywhere[M] = TRUE
 			continue
-		if(!speaker_coverage[ear])
-			continue
-		var/obj/item/radio/R = speaker_coverage[ear]
-		if(!istype(R) || R.canhear_range > 0)
-			. |= M
-			continue
-		if(is_same_root_atom(M, speaker_coverage[ear]))
+		if(ears[ear])
+			ears[ear] += M
+		else
+			ears[ear] = list(M)
+
+	var/list/heard = get_radio_hearers(radios, ears, radio_chat = TRUE)
+	for(var/mob/M as anything in listeners)
+		if(heard_anywhere[M] || heard[M])
 			. |= M
 
 /proc/inLineOfSight(X1,Y1,X2,Y2,Z=1,PX1=16.5,PY1=16.5,PX2=16.5,PY2=16.5)
