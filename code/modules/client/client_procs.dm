@@ -1109,6 +1109,7 @@
 	if(new_eye == eye)
 		return
 	eye = new_eye
+	mob?.update_hud_z()
 
 /client/proc/clear_screen()
 	for(var/object in screen)

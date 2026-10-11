@@ -80,13 +80,16 @@ GLOBAL_LIST_INIT(huds, alist(
 	for(var/mob/M in hudusers)
 		remove_hud_images(M, A)
 	hudatoms -= A
+	UnregisterSignal(A, COMSIG_MOVABLE_Z_CHANGED)
 
 /// Removes all of the hud pictures that `A` produces from mob `M`'s view.
 /datum/atom_hud/proc/remove_hud_images(mob/M, atom/A) // Unsafe, no sanity apart from client.
 	if(!M || !M.client || !A)
 		return
 	for(var/i in hud_icons)
-		M.client.images -= A.hud_list[i]
+		// Taking nothing away still looks through the whole list
+		if(A.hud_list[i])
+			M.client.images -= A.hud_list[i]
 
 /// Adds `source` to mob's sources of this hud, and shows them all the pictures on the hud
 /datum/atom_hud/proc/add_hud_to(mob/M, atom/source)
@@ -95,14 +98,23 @@ GLOBAL_LIST_INIT(huds, alist(
 	if(!(M in hudusers))
 		hudusers[M] = list()
 	hudusers[M] |= source
+	// They only get what's on the z-level they're looking at, checked here to save a call for everything that isn't
+	var/z = M.hud_z
+	if(!M.client || !z)
+		return
 	for(var/atom/A in hudatoms)
-		add_hud_images(M, A)
+		var/turf/T = get_turf(A)
+		if(T?.z == z)
+			add_hud_images(M, A)
 
 /// Adds single atom `A` to the list of pictures this hud will display. Shows them to mobs with this hud.
 /datum/atom_hud/proc/add_to_hud(atom/A)
 	if(!A)
 		return
 	hudatoms |= A
+	// Its pictures only go to those looking at the z-level it's on, so we need to hear when that changes
+	if(ismovable(A))
+		RegisterSignal(A, COMSIG_MOVABLE_Z_CHANGED, PROC_REF(on_atom_changed_z), TRUE)
 	for(var/mob/M in hudusers)
 		add_hud_images(M, A)
 
@@ -110,14 +122,90 @@ GLOBAL_LIST_INIT(huds, alist(
 /datum/atom_hud/proc/add_hud_images(mob/M, atom/A) // Unsafe, no sanity apart from client.
 	if(!M || !M.client || !A)
 		return
+	// Nothing on another z-level can be on their screen, and every image they hold is looked at every tick
+	var/turf/T = get_turf(A)
+	if(!T || T.z != M.hud_z)
+		return
 	if((A.invisibility > M.see_invisible) && !ignore_invisibility_check) // yee yee ass snowflake check for our yee yee ass snowflake huds
 		return
 	for(var/i in hud_icons)
 		if(A.hud_list[i])
 			M.client.images |= A.hud_list[i]
 
+/// An atom on this hud changed z-level. Those looking at the one it left lose its pictures, those looking at the one it's on now get them.
+/datum/atom_hud/proc/on_atom_changed_z(atom/movable/source, turf/old_turf, turf/new_turf)
+	SIGNAL_HANDLER // COMSIG_MOVABLE_Z_CHANGED
+	var/old_z = old_turf?.z
+	for(var/mob/M in hudusers)
+		if(!M.client || !M.hud_z)
+			continue
+		if(M.hud_z == old_z)
+			remove_hud_images(M, source)
+		else
+			add_hud_images(M, source)
+
+/// Mob `M` is looking at another z-level now. Takes away the pictures of what's on the one they were looking at and shows them what's on this one.
+/datum/atom_hud/proc/user_changed_z(mob/M, old_z)
+	var/new_z = M.hud_z
+	var/list/atom/now_in_view = list()
+	for(var/atom/A as anything in hudatoms)
+		var/turf/T = get_turf(A)
+		if(!T)
+			continue
+		if(T.z == old_z)
+			remove_hud_images(M, A)
+		else if(T.z == new_z)
+			now_in_view += A
+	for(var/atom/A as anything in now_in_view)
+		add_hud_images(M, A)
+
 //MOB PROCS
+/// The z-level our client is looking at, which is the one its eye is on. 0 if that's nowhere.
+/mob/proc/get_hud_z()
+	var/turf/eye_turf = get_turf(client.eye)
+	return eye_turf ? eye_turf.z : 0
+
+/// Call this whenever where our client looks from could have changed z-level. Swaps its hud pictures over if it has.
+/mob/proc/update_hud_z()
+	if(!client || isnull(hud_z))
+		return
+	watch_hud_eye()
+	var/new_z = get_hud_z()
+	if(new_z == hud_z)
+		return
+	var/old_z = hud_z
+	hud_z = new_z
+	for(var/datum/atom_hud/hud as anything in GLOB.all_huds)
+		if(src in hud.hudusers)
+			hud.user_changed_z(src, old_z)
+
+/// When our client looks through something else that can move, that thing changing z-level matters as much as us doing it.
+/mob/proc/watch_hud_eye()
+	var/atom/movable/eye = client.eye
+	var/eye_uid = (ismovable(eye) && eye != src) ? eye.UID() : null
+	if(eye_uid == hud_eye_uid)
+		return
+	var/atom/movable/old_eye = locateUID(hud_eye_uid)
+	if(old_eye)
+		UnregisterSignal(old_eye, COMSIG_MOVABLE_Z_CHANGED)
+	hud_eye_uid = eye_uid
+	if(eye_uid)
+		RegisterSignal(eye, COMSIG_MOVABLE_Z_CHANGED, PROC_REF(on_hud_eye_changed_z))
+
+/mob/proc/on_hud_eye_changed_z(atom/movable/source)
+	SIGNAL_HANDLER // COMSIG_MOVABLE_Z_CHANGED
+	update_hud_z()
+
+/mob/on_changed_z_level(turf/old_turf, turf/new_turf, notify_contents = TRUE)
+	. = ..()
+	update_hud_z()
+
 /mob/proc/reload_huds()
+	// First time since logging in, so work out which z-level to load them for
+	if(client && isnull(hud_z))
+		hud_z = get_hud_z()
+		watch_hud_eye()
+
 	//var/gang_huds = list()
 	//if(ticker.mode)
 	//	for(var/datum/gang/G in ticker.mode.gangs)

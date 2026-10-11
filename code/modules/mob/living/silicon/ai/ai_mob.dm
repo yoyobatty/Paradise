@@ -1011,6 +1011,7 @@ GLOBAL_LIST_INIT(ai_verbs_default, list(
 		if(!A && isturf(loc) && eyeobj)
 			client.eye = eyeobj
 			client.perspective = MOB_PERSPECTIVE
+			update_hud_z()
 			eyeobj.get_remote_view_fullscreens(src)
 
 /mob/living/silicon/ai/proc/botcall()

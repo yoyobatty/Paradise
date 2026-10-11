@@ -605,6 +605,7 @@ GLOBAL_LIST_INIT(slot_equipment_priority, list( \
 			else
 				client.perspective = EYE_PERSPECTIVE
 				client.eye = loc
+		update_hud_z()
 		return 1
 
 /mob/living/reset_perspective(atom/A)

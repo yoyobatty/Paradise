@@ -191,6 +191,10 @@
 	var/resize = 1 //Badminnery resize
 
 	var/list/permanent_huds = list()
+	/// The z-level our client has HUD images for, which is the one its eye is on. Null until they've been loaded.
+	var/hud_z
+	/// UID of what our client is looking through when that isn't us, so we hear about it changing z-level.
+	var/hud_eye_uid
 
 	var/list/actions = list()
 	var/list/datum/action/chameleon_item_actions

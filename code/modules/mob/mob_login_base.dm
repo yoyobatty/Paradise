@@ -36,6 +36,7 @@
 	world.update_status()
 
 	client.images = null				//remove the images such as AIs being unable to see runes
+	hud_z = null						//and so the HUD ones, reload_huds() below loads them again for where we are now
 	client.screen = list()				//remove hud items just in case
 	if(client.click_intercept)
 		client.click_intercept.quit() // Let's not keep any old click_intercepts
