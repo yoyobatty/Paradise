@@ -68,8 +68,16 @@ GLOBAL_LIST_INIT(huds, alist(
 	if(hudusers[M] && length(hudusers[M]))
 		return
 
-	for(var/atom/A in hudatoms)
-		remove_hud_images(M, A)
+	if(M.client)
+		// They hold the pictures for one z-level only, and taking away one they don't hold looks through their whole list
+		var/list/held = list()
+		for(var/image/held_image as anything in M.client.images)
+			held[held_image] = TRUE
+		for(var/atom/A in hudatoms)
+			for(var/i in hud_icons)
+				var/image/hud_image = A.hud_list[i]
+				if(hud_image && held[hud_image])
+					M.client.images -= hud_image
 	hudusers -= M
 	M.reload_huds()
 
