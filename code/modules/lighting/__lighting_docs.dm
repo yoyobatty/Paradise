@@ -42,6 +42,13 @@ atom: (lighting_atom.dm)
 * 	  - Updates the light var on this atom, deleting or creating as needed and calling .update()
 
 
+atom/movable: (lighting_following.dm)
+*   - var/light_follows; if TRUE the light is a /datum/light_source/following, for lights that get carried about
+* 	  - It shows as one glow that moves with whatever carries it, and no turfs are redrawn when it moves
+* 	  - Only for ranges up to 5, a bigger one gets an ordinary light source
+* 	  - Used by the lights that get carried or worn: flashlights, PDAs, helmet and hardsuit lamps, MODsuit and gun lights
+
+
 turf: (lighting_turf.dm)
  *   - var/list/affecting_lights; list of light sources that are shining onto this turf
  *

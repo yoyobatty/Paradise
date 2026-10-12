@@ -40,10 +40,25 @@
 		else
 			. = loc
 
+		var/source_type = light_source_type()
+		if(light && light.type != source_type) // We need a different kind of light now, start over.
+			QDEL_NULL(light)
+
 		if(light) // Update the light or create it if it does not exist.
 			light.update(.)
 		else
-			light = new/datum/light_source(src, .)
+			light = new source_type(src, .)
+
+/// The type of light source our light should be
+/atom/proc/light_source_type()
+	return /datum/light_source
+
+/atom/movable/light_source_type()
+	if(!light_follows || light_power <= 0)
+		return ..()
+	if(light_range < MINIMUM_USEFUL_LIGHT_RANGE || light_range > FOLLOWING_LIGHT_MAX_RANGE)
+		return ..()
+	return /datum/light_source/following
 
 /atom/proc/extinguish_light(force = FALSE)
 	return
