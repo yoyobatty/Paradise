@@ -5,6 +5,7 @@
 	icon_state = "hardhat0_yellow"
 	var/brightness_on = 4 //luminosity when on
 	var/on = FALSE
+	light_follows = TRUE
 	armor = list(MELEE = 10, BULLET = 5, LASER = 10, ENERGY = 5, BOMB = 10, RAD = 10, FIRE = INFINITY, ACID = 50)
 	flags_inv = 0
 	actions_types = list(/datum/action/item_action/toggle_helmet_light)

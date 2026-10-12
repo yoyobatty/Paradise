@@ -17,6 +17,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, RAD = 0, FIRE = 100, ACID = 100)
 	resistance_flags = FIRE_PROOF | ACID_PROOF
 	origin_tech = "programming=2"
+	light_follows = TRUE
 	/// Is this a silicon's internal PDA?
 	var/silicon_pda = FALSE
 	/// Name on the registered owner's ID card.

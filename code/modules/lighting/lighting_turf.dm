@@ -4,6 +4,8 @@
 	lighting_corner_SE?.vis_update()
 	lighting_corner_SW?.vis_update()
 	lighting_corner_NW?.vis_update()
+	for(var/datum/light_source/following/light as anything in GLOB.following_lights)
+		light.turf_opacity_changed(src)
 
 /turf/proc/lighting_clear_overlay()
 	if(lighting_object)
@@ -37,6 +39,10 @@
 		totallums += corner.lum_r + corner.lum_b + corner.lum_g
 
 	totallums /= 12 // 4 corners, each with 3 channels, get the average.
+
+	// Following lights don't light the corners, so their light is added on here
+	for(var/datum/light_source/following/light as anything in GLOB.following_lights)
+		totallums += light.get_lum_on(src)
 
 	totallums = (totallums - minlum) / (maxlum - minlum)
 

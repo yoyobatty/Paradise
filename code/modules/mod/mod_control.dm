@@ -18,6 +18,7 @@
 	w_class = WEIGHT_CLASS_BULKY
 	slot_flags = ITEM_SLOT_BACK
 	strip_delay = 10 SECONDS
+	light_follows = TRUE
 	actions_types = list(
 		/datum/action/item_action/mod/deploy,
 		/datum/action/item_action/mod/activate,

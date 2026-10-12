@@ -26,6 +26,7 @@
 	var/backstab_bonus = 30
 	var/light_on = FALSE
 	var/brightness_on = 5
+	light_follows = TRUE
 	var/adaptive_damage_bonus = 0
 	/// Amount of force typically assigned when wielded
 	var/base_force_wielded = 20

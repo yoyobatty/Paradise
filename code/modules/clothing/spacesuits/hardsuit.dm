@@ -10,6 +10,7 @@
 	var/basestate = "hardsuit"
 	var/brightness_on = 4 //luminosity when on
 	var/on = FALSE
+	light_follows = TRUE
 	var/obj/item/clothing/suit/space/hardsuit/suit
 
 	var/scanning = TRUE

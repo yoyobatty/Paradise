@@ -15,6 +15,7 @@
 	resistance_flags = FIRE_PROOF
 	var/brightness_on = 4 //luminosity when the light is on
 	var/on = FALSE
+	light_follows = TRUE
 	var/smile = FALSE
 	var/smile_color = "#FF0000"
 	var/visor_icon = "envisor"

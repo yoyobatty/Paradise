@@ -45,6 +45,8 @@
 	var/blocks_emissive = FALSE
 	///Internal holder for emissive blocker object, do not use directly use blocks_emissive
 	var/atom/movable/emissive_blocker/em_block
+	/// If TRUE, our light is a glow that moves with whatever carries us instead of relighting turfs. See [/datum/light_source/following]
+	var/light_follows = FALSE
 	/// Icon state for thought bubbles. Normally set by mobs.
 	var/thought_bubble_image = "thought_bubble"
 

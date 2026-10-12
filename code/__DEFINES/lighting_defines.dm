@@ -10,6 +10,19 @@
 
 #define LIGHTING_MINIMUM_POWER 0.1
 
+#define FOLLOWING_LIGHT_MAX_RANGE 5 //! The biggest range a following light can have. BYOND can't make dark turfs visible any further out.
+#define FOLLOWING_LIGHT_GLOW_OFFSET 160 //! How many pixels to shift the glow picture by to put its middle on a tile.
+#define FOLLOWING_LIGHT_GLOW_EDGE 170 //! How many pixels out from its middle the glow picture fades to nothing.
+#define FOLLOWING_LIGHT_GLOW_BRIGHTNESS 0.8 //! How bright the middle of the glow is, against the middle of an ordinary light. See [/atom/movable/following_light/proc/set_light_look]
+#define FOLLOWING_LIGHT_MAX_KEPT_SHADOWS 500 //! How many sets of shadows following lights keep before clearing them out.
+#define FOLLOWING_LIGHT_FADE_TIME 2 //! How long shadows take to fade when something nearby starts or stops blocking light, in deciseconds.
+// Which corners of a turf a following light leaves dark
+#define FOLLOWING_LIGHT_DARK_SOUTHWEST (1<<0)
+#define FOLLOWING_LIGHT_DARK_SOUTHEAST (1<<1)
+#define FOLLOWING_LIGHT_DARK_NORTHWEST (1<<2)
+#define FOLLOWING_LIGHT_DARK_NORTHEAST (1<<3)
+#define FOLLOWING_LIGHT_DARK_ALL (FOLLOWING_LIGHT_DARK_SOUTHWEST|FOLLOWING_LIGHT_DARK_SOUTHEAST|FOLLOWING_LIGHT_DARK_NORTHWEST|FOLLOWING_LIGHT_DARK_NORTHEAST)
+
 #define LIGHTING_ICON 'icons/effects/lighting_object.dmi' // icon used for lighting shading effects
 
 // If the max of the lighting lumcounts of each spectrum drops below this, disable luminosity on the lighting objects.

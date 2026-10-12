@@ -10,6 +10,7 @@
 	flags =  CONDUCT
 	slot_flags = ITEM_SLOT_BELT
 	materials = list(MAT_METAL=2000)
+	light_follows = TRUE
 	throwforce = 5
 	throw_speed = 3
 	throw_range = 5

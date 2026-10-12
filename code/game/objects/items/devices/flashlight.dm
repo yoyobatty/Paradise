@@ -10,6 +10,7 @@
 	materials = list(MAT_METAL = 200, MAT_GLASS = 100)
 	actions_types = list(/datum/action/item_action/toggle_light)
 	light_color = "#ffffd0"
+	light_follows = TRUE
 	var/on = FALSE
 	/// Luminosity when turned on.
 	var/brightness_on = 4
@@ -177,6 +178,8 @@
 	icon_state = "lamp"
 	inhand_icon_state = "lamp"
 	brightness_on = 5
+	// Lamps mostly stay put, and an ordinary light costs nothing while it isn't moving
+	light_follows = FALSE
 	w_class = WEIGHT_CLASS_BULKY
 	materials = list()
 	on = TRUE
