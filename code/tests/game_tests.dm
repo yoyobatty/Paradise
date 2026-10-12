@@ -26,6 +26,7 @@
 #include "test_announcements.dm"
 #include "test_anti_drop.dm"
 #include "test_apc_construction.dm"
+#include "test_closet_light.dm"
 #include "test_components.dm"
 #include "test_config_sanity.dm"
 #include "test_cooking.dm"
