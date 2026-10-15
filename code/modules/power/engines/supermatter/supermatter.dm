@@ -28,6 +28,7 @@
 #define POWERLOSS_INHIBITION_GAS_THRESHOLD 0.20         //Higher == Higher percentage of inhibitor gas needed before the charge inertia chain reaction effect starts.
 #define POWERLOSS_INHIBITION_MOLE_THRESHOLD 20        //Higher == More moles of the gas are needed before the charge inertia chain reaction effect starts.        //Scales powerloss inhibition down until this amount of moles is reached
 #define POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD 500  //bonus powerloss inhibition boost if this amount of moles is reached
+#define POWERLOSS_INHIBITION_MIN 0.25 //Lowest the powerloss inhibitor can go, so CO2 can slow power loss but never stop it
 
 #define O2_CRUNCH 1.5
 #define CO2_CRUNCH 1
@@ -547,7 +548,7 @@
 			powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling - 0.05, 0, 1)
 		//Ranges from 0 to 1(1-(value between 0 and 1 * ranges from 1 to 1.5(mol / 500)))
 		//We take the mol count, and scale it to be our inhibitor
-		powerloss_inhibitor = clamp(1 - (powerloss_dynamic_scaling * clamp(combined_gas / POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD, 1 , 1.5)), 0 , 1)
+		powerloss_inhibitor = clamp(1 - (powerloss_dynamic_scaling * clamp(combined_gas / POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD, 1 , 1.5)), POWERLOSS_INHIBITION_MIN, 1)
 
 		//Releases stored power into the general pool
 		//We get this by consuming shit or being scalpeled
@@ -687,8 +688,8 @@
 				// We are taking damage from power
 				if(power > POWER_PENALTY_THRESHOLD)
 					radio.autosay("<b>Warning: Hyperstructure has reached dangerous power level.</b>", name, "Engineering")
-					// The current gas mix allows EER to keep building up
-					if(powerloss_inhibitor < 0.01)
+					// The current gas mix is slowing power loss as much as it can
+					if(powerloss_inhibitor <= POWERLOSS_INHIBITION_MIN)
 						radio.autosay("<b>DANGER: CHARGE INERTIA CHAIN REACTION IN PROGRESS.</b>", name, "Engineering")
 
 				// We are taking mole damage
@@ -1351,6 +1352,7 @@
 #undef POWERLOSS_INHIBITION_GAS_THRESHOLD
 #undef POWERLOSS_INHIBITION_MOLE_THRESHOLD
 #undef POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD
+#undef POWERLOSS_INHIBITION_MIN
 #undef MOLE_CRUNCH_THRESHOLD
 #undef MOLE_PENALTY_THRESHOLD
 #undef MOLE_HEAT_PENALTY
