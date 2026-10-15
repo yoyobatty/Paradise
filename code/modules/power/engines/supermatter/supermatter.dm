@@ -487,6 +487,13 @@
 	if(!removed || removed.total_moles() <= 0 || isspaceturf(T)) //we're in space or there is no gas to process
 		if(takes_damage)
 			damage += min(((power + 2000) * 0.002) * DAMAGE_INCREASE_MULTIPLIER, DAMAGE_HARDCAP * explosion_point) // always does at least some damage
+		// The chamber is empty, so stop acting on the last gas mix we saw
+		if(produces_gas)
+			combined_gas = 0
+			gasmix_power_ratio = 0
+			gas_coefficient = 1
+			powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling - 0.05, 0, 1)
+			powerloss_inhibitor = 1 - powerloss_dynamic_scaling
 	else
 		if(takes_damage)
 			//causing damage
