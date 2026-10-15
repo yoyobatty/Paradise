@@ -488,6 +488,36 @@
 		if(takes_damage)
 			damage += min(((power + 2000) * 0.002) * DAMAGE_INCREASE_MULTIPLIER, DAMAGE_HARDCAP * explosion_point) // always does at least some damage
 	else
+		//calculating gas related values
+		combined_gas = max(removed.total_moles(), 0)
+
+		plasmacomp = max(removed.toxins() / combined_gas, 0)
+		o2comp = max(removed.oxygen() / combined_gas, 0)
+		co2comp = max(removed.carbon_dioxide() / combined_gas, 0)
+		n2ocomp = max(removed.sleeping_agent() / combined_gas, 0)
+		n2comp = max(removed.nitrogen() / combined_gas, 0)
+		h2comp = max(removed.hydrogen() / combined_gas, 0)
+		h2ocomp = max(removed.water_vapor() / combined_gas, 0)
+
+		gasmix_power_ratio = min(max(plasmacomp + o2comp + co2comp + h2comp + h2ocomp - n2comp, 0), 1)
+
+		dynamic_heat_modifier = max((plasmacomp * PLASMA_HEAT_PENALTY) + (o2comp * OXYGEN_HEAT_PENALTY) + (co2comp * CO2_HEAT_PENALTY) + (n2comp * NITROGEN_HEAT_PENALTY) + (h2comp * HYDROGEN_HEAT_PENALTY) + (h2ocomp * H2O_HEAT_PENALTY), 0.5)
+		dynamic_heat_resistance = max(n2ocomp * N2O_HEAT_RESISTANCE, 1)
+
+		power_transmission_bonus = max((plasmacomp * PLASMA_TRANSMIT_MODIFIER) + (o2comp * OXYGEN_TRANSMIT_MODIFIER) + (h2comp * HYDROGEN_TRANSMIT_MODIFIER) + (h2ocomp * H2O_TRANSMIT_MODIFIER), 0)
+
+		//more moles of gases are harder to heat than fewer, so let's scale heat damage around them
+		mole_heat_penalty = max(combined_gas / MOLE_HEAT_PENALTY, 1)
+
+		if(combined_gas > POWERLOSS_INHIBITION_MOLE_THRESHOLD && co2comp > POWERLOSS_INHIBITION_GAS_THRESHOLD)
+			powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling + clamp(co2comp - powerloss_dynamic_scaling, -0.02, 0.02), 0, 1)
+		else
+			powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling - 0.05, 0, 1)
+		//Ranges from 0 to 1(1-(value between 0 and 1 * ranges from 1 to 1.5(mol / 500)))
+		//We take the mol count, and scale it to be our inhibitor
+		powerloss_inhibitor = clamp(1 - (powerloss_dynamic_scaling * clamp(combined_gas / POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD, 1 , 1.5)), 0 , 1)
+
+		// Damage is worked out after reading the gas, so it uses this cycle's mix and not the last one
 		if(takes_damage)
 			//causing damage
 			//Due to DAMAGE_INCREASE_MULTIPLIER, we only deal one 4th of the damage the statements otherwise would cause
@@ -519,35 +549,6 @@
 			//Takes the lower number between archived damage + (1.8) and damage
 			//This means we can only deal 1.8 damage per function call
 			damage = min(damage_archived + (DAMAGE_HARDCAP * explosion_point),damage)
-
-		//calculating gas related values
-		combined_gas = max(removed.total_moles(), 0)
-
-		plasmacomp = max(removed.toxins() / combined_gas, 0)
-		o2comp = max(removed.oxygen() / combined_gas, 0)
-		co2comp = max(removed.carbon_dioxide() / combined_gas, 0)
-		n2ocomp = max(removed.sleeping_agent() / combined_gas, 0)
-		n2comp = max(removed.nitrogen() / combined_gas, 0)
-		h2comp = max(removed.hydrogen() / combined_gas, 0)
-		h2ocomp = max(removed.water_vapor() / combined_gas, 0)
-
-		gasmix_power_ratio = min(max(plasmacomp + o2comp + co2comp + h2comp + h2ocomp - n2comp, 0), 1)
-
-		dynamic_heat_modifier = max((plasmacomp * PLASMA_HEAT_PENALTY) + (o2comp * OXYGEN_HEAT_PENALTY) + (co2comp * CO2_HEAT_PENALTY) + (n2comp * NITROGEN_HEAT_PENALTY) + (h2comp * HYDROGEN_HEAT_PENALTY) + (h2ocomp * H2O_HEAT_PENALTY), 0.5)
-		dynamic_heat_resistance = max(n2ocomp * N2O_HEAT_RESISTANCE, 1)
-
-		power_transmission_bonus = max((plasmacomp * PLASMA_TRANSMIT_MODIFIER) + (o2comp * OXYGEN_TRANSMIT_MODIFIER) + (h2comp * HYDROGEN_TRANSMIT_MODIFIER) + (h2ocomp * H2O_TRANSMIT_MODIFIER), 0)
-
-		//more moles of gases are harder to heat than fewer, so let's scale heat damage around them
-		mole_heat_penalty = max(combined_gas / MOLE_HEAT_PENALTY, 1)
-
-		if(combined_gas > POWERLOSS_INHIBITION_MOLE_THRESHOLD && co2comp > POWERLOSS_INHIBITION_GAS_THRESHOLD)
-			powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling + clamp(co2comp - powerloss_dynamic_scaling, -0.02, 0.02), 0, 1)
-		else
-			powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling - 0.05, 0, 1)
-		//Ranges from 0 to 1(1-(value between 0 and 1 * ranges from 1 to 1.5(mol / 500)))
-		//We take the mol count, and scale it to be our inhibitor
-		powerloss_inhibitor = clamp(1 - (powerloss_dynamic_scaling * clamp(combined_gas / POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD, 1 , 1.5)), 0 , 1)
 
 		//Releases stored power into the general pool
 		//We get this by consuming shit or being scalpeled
