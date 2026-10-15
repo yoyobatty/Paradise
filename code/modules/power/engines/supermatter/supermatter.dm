@@ -11,31 +11,13 @@
 #define OBJECT (LOWEST + 1)
 #define LOWEST (1)
 
-#define PLASMA_HEAT_PENALTY 20     // Higher == Bigger heat and waste penalty from having the crystal surrounded by this gas. Negative numbers reduce penalty.
-#define OXYGEN_HEAT_PENALTY 1
-#define CO2_HEAT_PENALTY 0.1
-#define NITROGEN_HEAT_PENALTY -1
-#define HYDROGEN_HEAT_PENALTY 30
-#define H2O_HEAT_PENALTY 5
-
-#define OXYGEN_TRANSMIT_MODIFIER 2   //Higher == Bigger bonus to power generation.
-#define PLASMA_TRANSMIT_MODIFIER 6
-#define HYDROGEN_TRANSMIT_MODIFIER 4
-#define H2O_TRANSMIT_MODIFIER -10
-
-#define N2O_HEAT_RESISTANCE 6          //Higher == Gas makes the crystal more resistant against heat damage.
-
 #define POWERLOSS_INHIBITION_GAS_THRESHOLD 0.20         //Higher == Higher percentage of inhibitor gas needed before the charge inertia chain reaction effect starts.
 #define POWERLOSS_INHIBITION_MOLE_THRESHOLD 20        //Higher == More moles of the gas are needed before the charge inertia chain reaction effect starts.        //Scales powerloss inhibition down until this amount of moles is reached
 #define POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD 500  //bonus powerloss inhibition boost if this amount of moles is reached
-
-#define O2_CRUNCH 1.5
-#define CO2_CRUNCH 1
-#define N2_CRUNCH 0.55
-#define N2O_CRUNCH 0.55
-#define PLASMA_CRUNCH 4
-#define HYDROGEN_CRUNCH 2
-#define H2O_CRUNCH 0.75
+#define POWERLOSS_CURVE 500 //Power loss grows with the cube of power over this, so it starts slow and gets steep
+#define POWERLOSS_MAX_RATIO 0.83 //The most of its power the crystal can lose in one cycle
+#define SPACE_DAMAGE_POWER_OFFSET 2000 //Damage from being exposed to space is worked out from power plus this
+#define SPACE_DAMAGE_PER_POWER 0.002 //Damage from being exposed to space, for each point of the above
 
 #define MOLE_CRUNCH_THRESHOLD 1700           //Above this value we can get lord singulo and
 #define MOLE_PENALTY_THRESHOLD 1500           //Above this value we can get lord singulo and independent mol damage, below it we can heal damage
@@ -43,7 +25,7 @@
 //Along with damage_penalty_point, makes flux anomalies.
 /// The cutoff for the minimum amount of power required to trigger the crystal invasion delamination event.
 #define EVENT_POWER_PENALTY_THRESHOLD 4500
-#define POWER_PENALTY_THRESHOLD 5000          //The cutoff on power properly doing damage, pulling shit around, and delamming into a tesla. Low chance of cryo anomalies, +2 bolts of electricity
+#define POWER_PENALTY_THRESHOLD 5000          //The cutoff on power properly doing damage, pulling things around, and delamming into a tesla. Low chance of cryo anomalies, +2 bolts of electricity
 #define SEVERE_POWER_PENALTY_THRESHOLD 7000   //+1 bolt of electricity, allows for gravitational anomalies, and higher chances of cryo anomalies
 #define CRITICAL_POWER_PENALTY_THRESHOLD 9000 //+1 bolt of electricity.
 #define DAMAGE_HARDCAP 0.005
@@ -88,7 +70,6 @@
 #define SLIGHTLY_CHARGED_ZAP_ICON_STATE "sm_arc_supercharged"
 #define OVER_9000_ZAP_ICON_STATE "sm_arc_dbz_referance" //Witty I know
 
-#define MAX_SPACE_EXPOSURE_DAMAGE 2
 
 /// Colours used for effects.
 #define SUPERMATTER_COLOUR "#ffd04f"
@@ -125,7 +106,7 @@
 	var/damage = 0
 	///The damage we had before this cycle. Used to limit the damage we can take each cycle, and for safe_alert
 	var/damage_archived = 0
-	///Our "Shit is no longer fucked" message. We send it when damage is less then damage_archived
+	///Our "things are fine again" message. We send it when damage is less than damage_archived
 	var/safe_alert = "Crystalline hyperstructure returning to safe operating parameters."
 	///The point at which we should start sending messeges about the damage to the engi channels.
 	var/warning_point = 50
@@ -150,16 +131,9 @@
 	var/pre_reduction_power = 0
 	/// A bonus to rad production equal to EER multiplied by the bonus given by each gas. The bonus gets higher the more gas there is in the chamber.
 	var/gas_coefficient = 0
-	///Determines the rate of positve change in gas comp values
-	var/gas_change_rate = 0.05
 
-	var/n2comp = 0					// raw composition of each gas in the chamber, ranges from 0 to 1
-	var/plasmacomp = 0
-	var/o2comp = 0
-	var/co2comp = 0
-	var/n2ocomp = 0
-	var/h2comp = 0
-	var/h2ocomp = 0
+	/// What share of the gas each gas in GLOB.supermatter_gases is, from 0 to 1, by the gas's id
+	var/list/gas_comp = list()
 
 	///The last air sample's total molar count, will always be above or equal to 0
 	var/combined_gas = 0
@@ -193,7 +167,7 @@
 	var/obj/effect/warp_effect/supermatter/warp
 	///A variable to have the warp effect for singulo SM work properly
 	var/pulse_stage = 0
-	///This list will hold 4 supermatter darkness effects when the supermatter is delaminating to a singulo delam. This lets me darken the area to look better, as it turns out, walls make the effect look ugly as shit.
+	///This list will hold 4 supermatter darkness effects when the supermatter is delaminating to a singulo delam. This lets me darken the area to look better, as it turns out, walls make the effect look ugly.
 	var/list/darkness_effects = list()
 
 	///Boolean used for logging if we've been powered
@@ -439,18 +413,18 @@
 	supermatter.process_atmos_safely(T, env)
 
 /obj/machinery/atmospherics/supermatter_crystal/proc/process_atmos_safely(turf/T, datum/gas_mixture/env)
-	if(!processes) //Just fuck me up bro
+	if(!processes)
 		return
 
-	if(isnull(T))		// We have a null turf...something is wrong, stop processing this entity.
+	if(isnull(T)) // We have a null turf...something is wrong, stop processing this entity.
 		return PROCESS_KILL
 
-	if(!istype(loc, /turf)) 	//We are in a crate or somewhere that isn't turf, if we return to turf resume processing but for now.
-		return  //Yeah just stop.
+	if(!istype(loc, /turf)) // We're in a crate or somewhere that isn't a turf, so wait until we're back on one
+		return
 
 	if(T.density)
 		var/turf/did_it_melt = T.ChangeTurf(T.baseturf)
-		if(!did_it_melt.density) //In case some joker finds way to place these on indestructible walls
+		if(!did_it_melt.density) // In case someone finds a way to put one in an indestructible wall
 			visible_message(SPAN_WARNING("[src] melts through [T]!"))
 		return
 
@@ -458,7 +432,41 @@
 	if(power > 100)
 		if(!has_been_powered)
 			enable_for_the_first_time()
-	//We vary volume by power, and handle OH FUCK FUSION IN COOLING LOOP noises.
+	handle_sounds()
+
+	var/datum/gas_mixture/removed
+	if(produces_gas)
+		// Take some of the gas around us to work with
+		removed = env.remove(gasefficency * env.total_moles())
+	else
+		// Pass all the gas related code an empty gas container
+		removed = new()
+	damage_archived = damage
+	if(!removed || removed.total_moles() <= 0 || isspaceturf(T)) // We're in space or there's no gas to work with
+		if(takes_damage)
+			damage += min(((power + SPACE_DAMAGE_POWER_OFFSET) * SPACE_DAMAGE_PER_POWER) * DAMAGE_INCREASE_MULTIPLIER, DAMAGE_HARDCAP * explosion_point) // Always does at least some damage
+	else
+		if(takes_damage)
+			take_gas_damage(removed)
+		read_gas_mix(removed)
+		gain_power(removed)
+		emit_radiation()
+		release_gas_and_heat(removed)
+		if(produces_gas)
+			env.merge(removed)
+
+	affect_nearby_mobs()
+	lose_power()
+	handle_zaps_and_anomalies(removed)
+	if(prob(15))
+		supermatter_pull(loc, min(power / 850, 3)) //850, 1700, 2550
+	lights()
+	sm_filters()
+	send_alerts()
+	return 1
+
+/// Louder the more power it has, and switches to the delam loop when it's badly damaged
+/obj/machinery/atmospherics/supermatter_crystal/proc/handle_sounds()
 	if(power)
 		soundloop.volume = clamp((50 + (power / 50)), 50, 100)
 	if(damage >= 300)
@@ -466,7 +474,7 @@
 	else
 		soundloop.mid_sounds = list('sound/machines/sm/loops/calm.ogg' = 1)
 
-	//We play delam/neutral sounds at a rate determined by power and damage
+	// Every so often play a calm or a delam sound, more often the worse things are
 	if(last_accent_sound < world.time && prob(20))
 		var/aggression = min(((damage / 800) * (power / 2500)), 1.0) * 100
 		if(damage >= 300)
@@ -476,129 +484,118 @@
 		var/next_sound = round((100 - aggression) * 5)
 		last_accent_sound = world.time + max(SUPERMATTER_ACCENT_SOUND_MIN_COOLDOWN, next_sound)
 
-	var/datum/gas_mixture/removed
-	if(produces_gas)
-		//Remove gas from surrounding area
-		removed = env.remove(gasefficency * env.total_moles())
+/// Damage from heat, power and crowding, and healing when the gas is cool. This uses last cycle's gas mix.
+/obj/machinery/atmospherics/supermatter_crystal/proc/take_gas_damage(datum/gas_mixture/removed)
+	// Hot gas does more damage the more of it there is, and N2O raises how hot it has to be
+	damage = max(damage + (max(max(removed.total_moles() / MOLE_PENALTY_THRESHOLD, 0.5) * (removed.temperature() - ((T0C + heat_penalty_threshold) * dynamic_heat_resistance)), 0) * mole_heat_penalty / 50 ) * DAMAGE_INCREASE_MULTIPLIER, 0)
+	// Power only starts doing damage above 5000
+	damage = max(damage + (max(power - POWER_PENALTY_THRESHOLD, 0)/500) * DAMAGE_INCREASE_MULTIPLIER, 0)
+	// Moles only start doing damage above 1500
+	damage = max(damage + (max(combined_gas - MOLE_PENALTY_THRESHOLD, 0) / 80) * DAMAGE_INCREASE_MULTIPLIER, 0)
+
+	// Gas below the damage temperature heals the crystal, up to 2 a cycle without N2O and up to 12 with all N2O
+	if(combined_gas < MOLE_PENALTY_THRESHOLD)
+		damage = max(damage + (min(removed.temperature() - (T0C + heat_penalty_threshold) * dynamic_heat_resistance, 0) / 150 ), 0)
+
+	// Holes in the chamber to space
+	var/turf/here = get_turf(src)
+	for(var/turf/neighbor in here.GetAtmosAdjacentTurfs(alldir = TRUE))
+		if(!isspaceturf(neighbor))
+			continue
+		damage += (power + SPACE_DAMAGE_POWER_OFFSET) * SPACE_DAMAGE_PER_POWER * DAMAGE_INCREASE_MULTIPLIER
+		break
+
+	// Never more than 1.8 damage a cycle
+	damage = min(damage_archived + (DAMAGE_HARDCAP * explosion_point),damage)
+
+/// Works out what share of the gas each gas is, and what that does to the crystal
+/obj/machinery/atmospherics/supermatter_crystal/proc/read_gas_mix(datum/gas_mixture/removed)
+	combined_gas = max(removed.total_moles(), 0)
+
+	// Gases that give power from heat are added up first, and the ones that hold it back come off after
+	var/power_gas = 0
+	var/anti_power_gas = 0
+	var/heat_penalty = 0
+	var/heat_resistance = 0
+	var/transmit = 0
+	var/crunch = 0
+	for(var/datum/sm_gas/gas as anything in GLOB.supermatter_gases)
+		var/comp = max(gas.get_moles(removed) / combined_gas, 0)
+		gas_comp[gas.id] = comp
+		if(gas.power_ratio > 0)
+			power_gas += comp
+		else if(gas.power_ratio < 0)
+			anti_power_gas += comp
+		heat_penalty += comp * gas.heat_penalty
+		heat_resistance += comp * gas.heat_resistance
+		transmit += comp * gas.transmit_modifier
+		crunch += comp * gas.crunch
+
+	gasmix_power_ratio = min(max(power_gas - anti_power_gas, 0), 1)
+	dynamic_heat_modifier = max(heat_penalty, 0.5)
+	dynamic_heat_resistance = max(heat_resistance, 1)
+	power_transmission_bonus = max(transmit, 0)
+
+	// More moles are harder to heat than fewer, so heat damage scales around them
+	mole_heat_penalty = max(combined_gas / MOLE_HEAT_PENALTY, 1)
+
+	// Enough CO2 slowly builds up powerloss_dynamic_scaling, which slows down how much power the crystal loses
+	var/co2comp = gas_comp["carbon_dioxide"]
+	if(combined_gas > POWERLOSS_INHIBITION_MOLE_THRESHOLD && co2comp > POWERLOSS_INHIBITION_GAS_THRESHOLD)
+		powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling + clamp(co2comp - powerloss_dynamic_scaling, -0.02, 0.02), 0, 1)
 	else
-		// Pass all the gas related code an empty gas container
-		removed = new()
-	damage_archived = damage
-	if(!removed || removed.total_moles() <= 0 || isspaceturf(T)) //we're in space or there is no gas to process
-		if(takes_damage)
-			damage += min(((power + 2000) * 0.002) * DAMAGE_INCREASE_MULTIPLIER, DAMAGE_HARDCAP * explosion_point) // always does at least some damage
+		powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling - 0.05, 0, 1)
+	// Goes from 1 down to 0, lower the more CO2 and the more moles there are
+	powerloss_inhibitor = clamp(1 - (powerloss_dynamic_scaling * clamp(combined_gas / POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD, 1 , 1.5)), 0 , 1)
+
+	// A crowded chamber gives off more radiation and zaps more, depending on the gases
+	var/crush_ratio = combined_gas / MOLE_CRUNCH_THRESHOLD
+	gas_coefficient = 1 + (crush_ratio ** 2 * (crush_ratio <= 1) + (crush_ratio > 1) * 2 * crush_ratio / (crush_ratio + 1)) * crunch
+
+/// Adds power from things the crystal ate and from the gas being hot
+/obj/machinery/atmospherics/supermatter_crystal/proc/gain_power(datum/gas_mixture/removed)
+	// Matter power comes from things the crystal eats, or from being cut with the supermatter scalpel
+	if(matter_power && power_changes)
+		// A tenth of the matter power at a time, and never less than 40
+		var/removed_matter = max(matter_power / MATTER_POWER_CONVERSION, 40)
+		power = max(power + removed_matter, 0)
+		matter_power = max(matter_power - removed_matter, 0)
+
+	// A mix that's mostly power gas glows and gets more power out of heat
+	var/temp_factor = 50
+	if(gasmix_power_ratio > 0.8)
+		icon_state = "[base_icon_state]_glow"
 	else
-		if(takes_damage)
-			//causing damage
-			//Due to DAMAGE_INCREASE_MULTIPLIER, we only deal one 4th of the damage the statements otherwise would cause
+		temp_factor = 30
+		icon_state = base_icon_state
 
-			//((((some value between 0.5 and 1 * (temp - ((273.15 + 40) * some values between 1 and 10))) * some number between 0.25 and knock your socks off / 150) * 0.25
-			//Heat and mols account for each other, a lot of hot mols are more damaging then a few
-			// Reduced heat damage below 200 Mols
-			damage = max(damage + (max(max(removed.total_moles() / MOLE_PENALTY_THRESHOLD, 0.5) * (removed.temperature() - ((T0C + heat_penalty_threshold) * dynamic_heat_resistance)), 0) * mole_heat_penalty / 50 ) * DAMAGE_INCREASE_MULTIPLIER, 0)
-			// Power only starts affecting damage when it is above 5000
-			damage = max(damage + (max(power - POWER_PENALTY_THRESHOLD, 0)/500) * DAMAGE_INCREASE_MULTIPLIER, 0)
-			// Molar count only starts affecting damage when it is above 1800
-			damage = max(damage + (max(combined_gas - MOLE_PENALTY_THRESHOLD, 0) / 80) * DAMAGE_INCREASE_MULTIPLIER, 0)
+	if(power_changes)
+		power = max((removed.temperature() * temp_factor / T0C) * gasmix_power_ratio + power, 0)
 
-			//There might be a way to integrate healing and hurting via heat
-			//healing damage
-			if(combined_gas < MOLE_PENALTY_THRESHOLD)
-				//Only has a net positive effect when the temp is below the damage point. Heals up to 2 damage without N2O, going up to 12 with full N2O
-				damage = max(damage + (min(removed.temperature() - (T0C + heat_penalty_threshold) * dynamic_heat_resistance, 0) / 150 ), 0)
+	pre_reduction_power = power
 
-			//Check for holes in the SM inner chamber.
-			var/turf/here = get_turf(src)
-			for(var/turf/neighbor in here.GetAtmosAdjacentTurfs(alldir = TRUE))
-				if(!isspaceturf(neighbor))
-					continue
-				damage += (power + 2000) * 0.002 * DAMAGE_INCREASE_MULTIPLIER
-				break
-			//caps damage rate
+/// Radiation, which the collectors turn into power
+/obj/machinery/atmospherics/supermatter_crystal/proc/emit_radiation()
+	radiation_pulse(src, 6 * power * (gas_coefficient + max(0, ((power_transmission_bonus / 10)))), GAMMA_RAD)
 
-			//Takes the lower number between archived damage + (1.8) and damage
-			//This means we can only deal 1.8 damage per function call
-			damage = min(damage_archived + (DAMAGE_HARDCAP * explosion_point),damage)
+/// Gives off plasma and oxygen, and heats the gas up
+/obj/machinery/atmospherics/supermatter_crystal/proc/release_gas_and_heat(datum/gas_mixture/removed)
+	// Part of the power goes into making gas and heat
+	var/device_energy = power * REACTION_POWER_MODIFIER
 
-		//calculating gas related values
-		combined_gas = max(removed.total_moles(), 0)
+	// More power and a higher heat penalty give off more plasma
+	removed.set_toxins(removed.toxins() + max(((device_energy * dynamic_heat_modifier) / PLASMA_RELEASE_MODIFIER) * gas_multiplier, 0))
+	// More power, hotter gas and a higher heat penalty give off more oxygen
+	removed.set_oxygen(removed.oxygen() + max((((device_energy + removed.temperature() * dynamic_heat_modifier) - T0C) / OXYGEN_RELEASE_MODIFIER) * gas_multiplier, 0))
 
-		plasmacomp = max(removed.toxins() / combined_gas, 0)
-		o2comp = max(removed.oxygen() / combined_gas, 0)
-		co2comp = max(removed.carbon_dioxide() / combined_gas, 0)
-		n2ocomp = max(removed.sleeping_agent() / combined_gas, 0)
-		n2comp = max(removed.nitrogen() / combined_gas, 0)
-		h2comp = max(removed.hydrogen() / combined_gas, 0)
-		h2ocomp = max(removed.water_vapor() / combined_gas, 0)
+	// The heat it puts out, scaled by the average specific heat of the gas
+	if(removed.total_moles() >= 1)
+		var/produced_joules = max(0, ((device_energy * dynamic_heat_modifier) / THERMAL_RELEASE_MODIFIER) * heat_multiplier)
+		produced_joules *= (removed.heat_capacity() / removed.total_moles())
+		removed.set_temperature((removed.thermal_energy() + produced_joules) / removed.heat_capacity())
 
-		gasmix_power_ratio = min(max(plasmacomp + o2comp + co2comp + h2comp + h2ocomp - n2comp, 0), 1)
-
-		dynamic_heat_modifier = max((plasmacomp * PLASMA_HEAT_PENALTY) + (o2comp * OXYGEN_HEAT_PENALTY) + (co2comp * CO2_HEAT_PENALTY) + (n2comp * NITROGEN_HEAT_PENALTY) + (h2comp * HYDROGEN_HEAT_PENALTY) + (h2ocomp * H2O_HEAT_PENALTY), 0.5)
-		dynamic_heat_resistance = max(n2ocomp * N2O_HEAT_RESISTANCE, 1)
-
-		power_transmission_bonus = max((plasmacomp * PLASMA_TRANSMIT_MODIFIER) + (o2comp * OXYGEN_TRANSMIT_MODIFIER) + (h2comp * HYDROGEN_TRANSMIT_MODIFIER) + (h2ocomp * H2O_TRANSMIT_MODIFIER), 0)
-
-		//more moles of gases are harder to heat than fewer, so let's scale heat damage around them
-		mole_heat_penalty = max(combined_gas / MOLE_HEAT_PENALTY, 1)
-
-		if(combined_gas > POWERLOSS_INHIBITION_MOLE_THRESHOLD && co2comp > POWERLOSS_INHIBITION_GAS_THRESHOLD)
-			powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling + clamp(co2comp - powerloss_dynamic_scaling, -0.02, 0.02), 0, 1)
-		else
-			powerloss_dynamic_scaling = clamp(powerloss_dynamic_scaling - 0.05, 0, 1)
-		//Ranges from 0 to 1(1-(value between 0 and 1 * ranges from 1 to 1.5(mol / 500)))
-		//We take the mol count, and scale it to be our inhibitor
-		powerloss_inhibitor = clamp(1 - (powerloss_dynamic_scaling * clamp(combined_gas / POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD, 1 , 1.5)), 0 , 1)
-
-		//Releases stored power into the general pool
-		//We get this by consuming shit or being scalpeled
-		if(matter_power && power_changes)
-			//We base our removed power off one 10th of the matter_power.
-			var/removed_matter = max(matter_power / MATTER_POWER_CONVERSION, 40)
-			//Adds at least 40 power
-			power = max(power + removed_matter, 0)
-			//Removes at least 40 matter power
-			matter_power = max(matter_power - removed_matter, 0)
-
-		var/temp_factor = 50
-		if(gasmix_power_ratio > 0.8)
-			//with a perfect gas mix, make the power less based on heat
-			icon_state = "[base_icon_state]_glow"
-		else
-			//in normal mode, base the produced energy around the heat
-			temp_factor = 30
-			icon_state = base_icon_state
-
-
-		if(power_changes)
-			power = max((removed.temperature() * temp_factor / T0C) * gasmix_power_ratio + power, 0)
-
-		pre_reduction_power = power
-
-		var/crush_ratio = combined_gas / MOLE_CRUNCH_THRESHOLD
-
-		gas_coefficient = 1 + (crush_ratio ** 2 * (crush_ratio <= 1) + (crush_ratio > 1) * 2 * crush_ratio / (crush_ratio + 1)) * (plasmacomp * PLASMA_CRUNCH + o2comp * O2_CRUNCH + co2comp * CO2_CRUNCH + n2comp * N2_CRUNCH + n2ocomp * N2O_CRUNCH + h2comp * HYDROGEN_CRUNCH + h2ocomp * H2O_CRUNCH)
-
-		radiation_pulse(src, 6 * power * (gas_coefficient + max(0, ((power_transmission_bonus / 10)))), GAMMA_RAD)
-
-		//Power * 0.55 * a value between 1 and 0.8
-		var/device_energy = power * REACTION_POWER_MODIFIER
-
-		//Calculate how much gas to release
-		//Varies based on power and gas content
-		removed.set_toxins(removed.toxins() + max(((device_energy * dynamic_heat_modifier) / PLASMA_RELEASE_MODIFIER) * gas_multiplier, 0))
-		//Varies based on power, gas content, and heat
-		removed.set_oxygen(removed.oxygen() + max((((device_energy + removed.temperature() * dynamic_heat_modifier) - T0C) / OXYGEN_RELEASE_MODIFIER) * gas_multiplier, 0))
-
-		// Calculate temperature change in terms of thermal energy, scaled by the average specific heat of the gas.
-		if(removed.total_moles() >= 1)
-			var/produced_joules = max(0, ((device_energy * dynamic_heat_modifier) / THERMAL_RELEASE_MODIFIER) * heat_multiplier)
-			produced_joules *= (removed.heat_capacity() / removed.total_moles())
-			removed.set_temperature((removed.thermal_energy() + produced_joules) / removed.heat_capacity())
-
-		if(produces_gas)
-			env.merge(removed)
-
-	//Makes em go mad and accumulate rads.
+/// Hallucinations for anyone who can see it without mesons, and radiation for anyone close
+/obj/machinery/atmospherics/supermatter_crystal/proc/affect_nearby_mobs()
 	for(var/mob/living/carbon/human/l in view(src, HALLUCINATION_RANGE(power))) // If they can see it without mesons on.  Bad on them.
 		if(!HAS_TRAIT(l, TRAIT_MESON_VISION) && !HAS_TRAIT(l, SM_HALLUCINATION_IMMUNE))
 			var/D = sqrt(1 / max(1, get_dist(l, src)))
@@ -608,14 +605,14 @@
 		var/rads = (power / 10) * sqrt( 1 / max(get_dist(l, src), 1) )
 		l.base_rad_act(src, rads, GAMMA_RAD)
 
-	//Transitions between one function and another, one we use for the fast inital startup, the other is used to prevent errors with fusion temperatures.
-	//Use of the second function improves the power gain imparted by using co2
+/// Loses power every cycle, more the more it has. CO2 can slow this down.
+/obj/machinery/atmospherics/supermatter_crystal/proc/lose_power()
 	if(power_changes)
-		power = max((power - min(((power / 500) ** 3) * powerloss_inhibitor, power * 0.83 * powerloss_inhibitor) + power_additive), 0)
-	//After this point power is lowered
-	//This wraps around to the begining of the function
-	//Handle high power zaps/anomaly generation
-	if((power * gas_coefficient) > POWER_PENALTY_THRESHOLD || damage > damage_penalty_point) //If the power is above 5000, if the damage is above 550, or mole crushing
+		power = max((power - min(((power / POWERLOSS_CURVE) ** 3) * powerloss_inhibitor, power * POWERLOSS_MAX_RATIO * powerloss_inhibitor) + power_additive), 0)
+
+/// Zaps and anomalies once power or damage get high
+/obj/machinery/atmospherics/supermatter_crystal/proc/handle_zaps_and_anomalies(datum/gas_mixture/removed)
+	if((power * gas_coefficient) > POWER_PENALTY_THRESHOLD || damage > damage_penalty_point) // Above 5000 power (lower when the chamber is crowded), or above 550 damage
 		var/range = 4
 		zap_cutoff = 1500
 		if(removed && removed.return_pressure() > 0 && removed.temperature() > 0)
@@ -643,7 +640,7 @@
 				//Machines go boom
 				flags |= (ZAP_MOB_STUN | ZAP_MACHINE_EXPLOSIVE | ZAP_MOB_DAMAGE | ZAP_OBJ_DAMAGE)
 				zap_count = 4
-		//Now we deal with damage shit
+		// A badly damaged crystal throws an extra zap now and then
 		if(damage > damage_penalty_point && prob(20))
 			zap_count += 1
 
@@ -659,12 +656,8 @@
 		if(((power * gas_coefficient) > SEVERE_POWER_PENALTY_THRESHOLD && prob(2)) || (prob(0.3) && (power * gas_coefficient) > POWER_PENALTY_THRESHOLD))
 			supermatter_anomaly_gen(src, BLUESPACE_ANOMALY, rand(5, 10))
 
-	if(prob(15))
-		supermatter_pull(loc, min(power / 850, 3)) //850, 1700, 2550
-	lights()
-	sm_filters()
-
-	//Tells the engi team to get their butt in gear
+/// Radio warnings to engineering, and to everyone once it's bad, then the countdown once it's too far gone
+/obj/machinery/atmospherics/supermatter_crystal/proc/send_alerts()
 	if(damage > warning_point) // while the core is still damaged and it's still worth noting its status
 		if((REALTIMEOFDAY - lastwarning) / 10 >= WARNING_DELAY)
 			alarm()
@@ -672,7 +665,7 @@
 				radio.autosay("<b>[safe_alert] Integrity: [get_integrity()]%</b>", name, "Engineering")
 				lastwarning = REALTIMEOFDAY
 			else // We are losing integrity, let's warn engineering.
-				if(damage > emergency_point) //Oh shit it's bad, time to freak out
+				if(damage > emergency_point) // Bad enough to tell the whole station
 					radio.autosay(SPAN_BIG("[emergency_alert] Integrity: [get_integrity()]%"), name, null)
 					lastwarning = REALTIMEOFDAY
 					if(!has_reached_emergency)
@@ -687,7 +680,7 @@
 				// We are taking damage from power
 				if(power > POWER_PENALTY_THRESHOLD)
 					radio.autosay("<b>Warning: Hyperstructure has reached dangerous power level.</b>", name, "Engineering")
-					// The current gas mix allows EER to keep building up
+					// The gas mix has stopped the crystal losing power, so it keeps building up
 					if(powerloss_inhibitor < 0.01)
 						radio.autosay("<b>DANGER: CHARGE INERTIA CHAIN REACTION IN PROGRESS.</b>", name, "Engineering")
 
@@ -695,10 +688,8 @@
 				if(combined_gas > MOLE_PENALTY_THRESHOLD)
 					radio.autosay("<b>Warning: Critical coolant mass reached.</b>", name, "Engineering")
 
-			//Boom (Mind blown)
 		if(damage > explosion_point)
 			countdown()
-	return 1
 
 /obj/machinery/atmospherics/supermatter_crystal/update_overlays()
 	. = ..()
@@ -1279,7 +1270,7 @@
 	Bumped(thing)
 
 /obj/machinery/atmospherics/supermatter_crystal/proc/make_next_event_time()
-	// Some completely random bullshit to make a "bell curve"
+	// Some random numbers added together to make a "bell curve"
 	var/fake_time = rand(5 MINUTES, 25 MINUTES)
 	if(fake_time < 15 MINUTES && prob(30))
 		fake_time += rand(2 MINUTES, 10 MINUTES)
@@ -1337,20 +1328,13 @@
 #undef OBJECT
 #undef LOWEST
 
-#undef PLASMA_HEAT_PENALTY
-#undef OXYGEN_HEAT_PENALTY
-#undef CO2_HEAT_PENALTY
-#undef NITROGEN_HEAT_PENALTY
-#undef HYDROGEN_HEAT_PENALTY
-#undef H2O_HEAT_PENALTY
-#undef OXYGEN_TRANSMIT_MODIFIER
-#undef PLASMA_TRANSMIT_MODIFIER
-#undef HYDROGEN_TRANSMIT_MODIFIER
-#undef H2O_TRANSMIT_MODIFIER
-#undef N2O_HEAT_RESISTANCE
 #undef POWERLOSS_INHIBITION_GAS_THRESHOLD
 #undef POWERLOSS_INHIBITION_MOLE_THRESHOLD
 #undef POWERLOSS_INHIBITION_MOLE_BOOST_THRESHOLD
+#undef POWERLOSS_CURVE
+#undef POWERLOSS_MAX_RATIO
+#undef SPACE_DAMAGE_POWER_OFFSET
+#undef SPACE_DAMAGE_PER_POWER
 #undef MOLE_CRUNCH_THRESHOLD
 #undef MOLE_PENALTY_THRESHOLD
 #undef MOLE_HEAT_PENALTY
@@ -1378,16 +1362,8 @@
 #undef DEFAULT_ZAP_ICON_STATE
 #undef SLIGHTLY_CHARGED_ZAP_ICON_STATE
 #undef OVER_9000_ZAP_ICON_STATE
-#undef MAX_SPACE_EXPOSURE_DAMAGE
 #undef SUPERMATTER_COLOUR
 #undef SUPERMATTER_RED
 #undef SUPERMATTER_TESLA_COLOUR
 #undef SUPERMATTER_SINGULARITY_RAYS_COLOUR
 #undef SUPERMATTER_SINGULARITY_LIGHT_COLOUR
-#undef O2_CRUNCH
-#undef CO2_CRUNCH
-#undef N2_CRUNCH
-#undef N2O_CRUNCH
-#undef PLASMA_CRUNCH
-#undef HYDROGEN_CRUNCH
-#undef H2O_CRUNCH
