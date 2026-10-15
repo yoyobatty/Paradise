@@ -51,6 +51,9 @@
 
 
 #define THERMAL_RELEASE_MODIFIER 1         //Higher == less heat released during reaction, not to be confused with the above values
+#define SUPERMATTER_HEAT_PER_POWER 48       //How much gas heat (kelvin times moles) one point of power is worth, both when the crystal draws heat in and when it lets it out
+#define SUPERMATTER_MAX_HEAT_DRAW 0.1       //The most of the gas's heat the crystal can draw in one cycle
+#define SUPERMATTER_RADIATIVE_LOSS 0.005    //Part of its power the crystal always loses each cycle, CO2 can't stop this
 #define PLASMA_RELEASE_MODIFIER 750        //Higher == less plasma released by reaction
 #define OXYGEN_RELEASE_MODIFIER 325        //Higher == less oxygen released at high temperature/power
 
@@ -424,6 +427,10 @@
 	explosion(get_turf(T), explosion_power * max(gasmix_power_ratio, 0.205) * 0.5 , explosion_power * max(gasmix_power_ratio, 0.205) + 2, explosion_power * max(gasmix_power_ratio, 0.205) + 4 , explosion_power * max(gasmix_power_ratio, 0.205) + 6, 1, 1, cause = "Exploding Supermatter")
 	qdel(src)
 
+/// How much power the crystal loses this cycle. CO2 can slow most of it down, but some always gets out.
+/obj/machinery/atmospherics/supermatter_crystal/proc/get_power_loss()
+	return min(((power / 500) ** 3) * powerloss_inhibitor, power * 0.83 * powerloss_inhibitor) + power * SUPERMATTER_RADIATIVE_LOSS
+
 /obj/machinery/atmospherics/supermatter_crystal/process_atmos()
 	tick_counter += SSair.wait
 	if(tick_counter >= ticks_per_run)
@@ -570,7 +577,12 @@
 
 
 		if(power_changes)
-			power = max((removed.temperature() * temp_factor / T0C) * gasmix_power_ratio + power, 0)
+			// Hot gas powers the crystal, but the heat has to come out of the gas
+			var/heat_drawn = (removed.temperature() * temp_factor / T0C) * gasmix_power_ratio
+			heat_drawn = clamp(heat_drawn, 0, combined_gas * removed.temperature() * SUPERMATTER_MAX_HEAT_DRAW / SUPERMATTER_HEAT_PER_POWER)
+			if(heat_drawn > 0)
+				removed.set_temperature(max(removed.temperature() - heat_drawn * SUPERMATTER_HEAT_PER_POWER / combined_gas, TCMB))
+				power += heat_drawn
 
 		pre_reduction_power = power
 
@@ -589,9 +601,11 @@
 		//Varies based on power, gas content, and heat
 		removed.set_oxygen(removed.oxygen() + max((((device_energy + removed.temperature() * dynamic_heat_modifier) - T0C) / OXYGEN_RELEASE_MODIFIER) * gas_multiplier, 0))
 
+		// The power the crystal loses this cycle comes out as heat and radiation, and the gas decides how much of it is heat.
 		// Calculate temperature change in terms of thermal energy, scaled by the average specific heat of the gas.
 		if(removed.total_moles() >= 1)
-			var/produced_joules = max(0, ((device_energy * dynamic_heat_modifier) / THERMAL_RELEASE_MODIFIER) * heat_multiplier)
+			var/heat_share = dynamic_heat_modifier / (dynamic_heat_modifier + 1)
+			var/produced_joules = max(0, ((get_power_loss() * heat_share * SUPERMATTER_HEAT_PER_POWER) / THERMAL_RELEASE_MODIFIER) * heat_multiplier)
 			produced_joules *= (removed.heat_capacity() / removed.total_moles())
 			removed.set_temperature((removed.thermal_energy() + produced_joules) / removed.heat_capacity())
 
@@ -611,7 +625,7 @@
 	//Transitions between one function and another, one we use for the fast inital startup, the other is used to prevent errors with fusion temperatures.
 	//Use of the second function improves the power gain imparted by using co2
 	if(power_changes)
-		power = max((power - min(((power / 500) ** 3) * powerloss_inhibitor, power * 0.83 * powerloss_inhibitor) + power_additive), 0)
+		power = max(power - get_power_loss() + power_additive, 0)
 	//After this point power is lowered
 	//This wraps around to the begining of the function
 	//Handle high power zaps/anomaly generation
@@ -1361,6 +1375,9 @@
 #undef DAMAGE_HARDCAP
 #undef DAMAGE_INCREASE_MULTIPLIER
 #undef THERMAL_RELEASE_MODIFIER
+#undef SUPERMATTER_HEAT_PER_POWER
+#undef SUPERMATTER_MAX_HEAT_DRAW
+#undef SUPERMATTER_RADIATIVE_LOSS
 #undef PLASMA_RELEASE_MODIFIER
 #undef OXYGEN_RELEASE_MODIFIER
 #undef REACTION_POWER_MODIFIER
