@@ -112,7 +112,7 @@
 				armorlist[type] = proper_amount
 		while(result)
 
-		if(!result || !QDELETED(src))
+		if(!result || QDELETED(src))
 			return TRUE
 
 		armor = armor.setRating(armorlist[MELEE], armorlist[BULLET], armorlist[LASER], armorlist[ENERGY], armorlist[BOMB], armorlist[RAD], armorlist[FIRE], armorlist[ACID], armorlist[MAGIC])
