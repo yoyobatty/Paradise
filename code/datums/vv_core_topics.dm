@@ -59,7 +59,7 @@
 			SSuser_verbs.invoke_verb(usr, /datum/user_verb/call_proc_datum, target)
 
 	if(href_list[VV_HK_ADDCOMPONENT])
-		if(!check_rights(NONE))
+		if(!check_rights(R_VAREDIT))
 			return
 
 		var/list/names = list()
@@ -94,7 +94,7 @@
 		log_admin("[key_name(usr)] has added [result] [datumname] to [key_name(target)].")
 		message_admins(SPAN_NOTICE("[key_name_admin(usr)] has added [result] [datumname] to [key_name_admin(target)]."))
 	if(href_list[VV_HK_REMOVECOMPONENT] || href_list[VV_HK_MASSREMOVECOMPONENT])
-		if(!check_rights(NONE))
+		if(!check_rights(R_VAREDIT))
 			return
 		var/mass_remove = href_list[VV_HK_MASSREMOVECOMPONENT]
 		// datum_components is null on anything that never had a component
