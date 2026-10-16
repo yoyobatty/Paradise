@@ -75,17 +75,7 @@
 	to_chat(src, "Variable contains: [translate_bitfield(default, variable, var_value)]")
 
 	if(default == VV_NUM)
-		var/dir_text = ""
-		if(dir < 0 && dir < 16)
-			if(dir & 1)
-				dir_text += "NORTH"
-			if(dir & 2)
-				dir_text += "SOUTH"
-			if(dir & 4)
-				dir_text += "EAST"
-			if(dir & 8)
-				dir_text += "WEST"
-
+		var/dir_text = dir2text(var_value)
 		if(dir_text)
 			to_chat(src, "If a direction, direction is: [dir_text]")
 
@@ -93,7 +83,8 @@
 	var/new_value = value["value"]
 	var/class = value["class"]
 
-	if(!class || !new_value == null && class != VV_NULL)
+	// vv_get_value() clears the class when the prompt is cancelled
+	if(!class)
 		return
 
 	if(class == VV_MESSAGE)
@@ -177,7 +168,9 @@
 					accepted++
 				else
 					rejected++
-				new_value = null
+				// "Many" gives each thing its own new one
+				if(many)
+					new_value = null
 				CHECK_TICK
 
 		else

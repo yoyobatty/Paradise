@@ -168,6 +168,7 @@ GLOBAL_PROTECT(VVmaint_only)
 		if(VV_REGEX)
 			var/reg = input("Enter regex", "Regex", "") as null|text
 			if(!reg)
+				.["class"] = null
 				return
 			.["value"] = regex(reg)
 			if(.["value"] == null)
@@ -237,7 +238,7 @@ GLOBAL_PROTECT(VVmaint_only)
 					descendants += child
 
 			// Prompt for which to pick.
-			var/descendant = input("Pick an atom:", "Inside a Visible Atom", src) in descendants
+			var/descendant = input("Pick an atom:", "Inside a Visible Atom") as null|anything in descendants
 			if(!descendant)
 				.["class"] = null
 				return
@@ -505,20 +506,10 @@ GLOBAL_PROTECT(VVmaint_only)
 
 	to_chat(src, "Variable appears to be <b>[uppertext(default)]</b>.")
 
-	to_chat(src, "Variable contains: [L[index]]")
+	to_chat(src, "Variable contains: [variable]")
 
 	if(default == VV_NUM)
-		var/dir_text = ""
-		if(dir < 0 && dir < 16)
-			if(dir & 1)
-				dir_text += "NORTH"
-			if(dir & 2)
-				dir_text += "SOUTH"
-			if(dir & 4)
-				dir_text += "EAST"
-			if(dir & 8)
-				dir_text += "WEST"
-
+		var/dir_text = dir2text(variable)
 		if(dir_text)
 			to_chat(src, "If a direction, direction is: [dir_text]")
 
@@ -553,7 +544,7 @@ GLOBAL_PROTECT(VVmaint_only)
 				if(!O.vv_edit_var(objectvar, L))
 					to_chat(src, SPAN_WARNING("Your edit was rejected by the object."))
 					return
-			log_world("### ListVarEdit by [src]: [O.type] [objectvar]: REMOVED=[html_encode("[original_var]")]")
+			log_world("### ListVarEdit by [src]: [(O ? O.type : "/list")] [objectvar]: REMOVED=[html_encode("[original_var]")]")
 			log_admin("[key_name(src)] modified [original_name]'s [objectvar]: REMOVED=[original_var]")
 			message_admins("[key_name_admin(src)] modified [original_name]'s [objectvar]: REMOVED=[html_encode("[original_var]")]")
 			return
@@ -660,17 +651,7 @@ GLOBAL_PROTECT(VVmaint_only)
 	to_chat(src, "Variable contains: [translate_bitfield(default, variable, var_value)]")
 
 	if(default == VV_NUM)
-		var/dir_text = ""
-		if(dir < 0 && dir < 16)
-			if(dir & 1)
-				dir_text += "NORTH"
-			if(dir & 2)
-				dir_text += "SOUTH"
-			if(dir & 4)
-				dir_text += "EAST"
-			if(dir & 8)
-				dir_text += "WEST"
-
+		var/dir_text = dir2text(var_value)
 		if(dir_text)
 			to_chat(src, "If a direction, direction is: [dir_text]")
 
@@ -695,6 +676,7 @@ GLOBAL_PROTECT(VVmaint_only)
 		if(VV_LIST)
 			if(!islist(var_value))
 				mod_list(list(), O, original_name, variable)
+				return
 
 			mod_list(var_value, O, original_name, variable)
 			return

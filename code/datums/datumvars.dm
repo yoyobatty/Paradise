@@ -116,12 +116,6 @@
 	. = ..()
 
 	VV_DROPDOWN_OPTION(VV_HK_MANIPULATE_COLOR_MATRIX, "Manipulate Color Matrix")
-	VV_DROPDOWN_OPTION("", "---")
-	VV_DROPDOWN_OPTION(VV_HK_PROC_CALL, "Call Proc")
-	VV_DROPDOWN_OPTION(VV_HK_MARK_OBJECT, "Mark Object")
-	VV_DROPDOWN_OPTION(VV_HK_DELETE, "Delete")
-	VV_DROPDOWN_OPTION(VV_HK_MODIFY_TRAITS, "Modify Traits")
-	VV_DROPDOWN_OPTION("", "---")
 
 /client/vv_do_topic(list/href_list)
 	. = ..()

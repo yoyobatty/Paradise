@@ -97,7 +97,8 @@
 		if(!check_rights(NONE))
 			return
 		var/mass_remove = href_list[VV_HK_MASSREMOVECOMPONENT]
-		var/list/components = target.datum_components.Copy()
+		// datum_components is null on anything that never had a component
+		var/list/components = target.datum_components?.Copy()
 		var/list/names = list()
 		names += "---Components---"
 		if(length(components))
@@ -116,21 +117,25 @@
 		var/list/targets_to_remove_from = list(target)
 		if(mass_remove)
 			var/method = vv_subtype_prompt(target.type)
-			targets_to_remove_from = get_all_of_type(target.type, method)
-
+			if(isnull(method))
+				return
 			if(tgui_alert(usr, "Are you sure you want to mass-delete [path] on [target.type]?", "Mass Remove Confirmation", list("Yes", "No")) != "Yes")
 				return
+			targets_to_remove_from = get_all_of_type(target.type, method)
 
 		var/list/ele_list = list()
 		if(ispath(path, /datum/element))
 			ele_list = get_callproc_args()
+			if(!ele_list)
+				return
 			ele_list.Insert(1, path)
 		for(var/datum/target_to_remove_from as anything in targets_to_remove_from)
 			if(ispath(path, /datum/element))
-				target._RemoveElement(ele_list)
+				target_to_remove_from._RemoveElement(ele_list)
 			else
 				var/list/components_actual = target_to_remove_from.GetComponents(path)
 				for(var/to_delete in components_actual)
 					qdel(to_delete)
 
-		message_admins(SPAN_NOTICE("[key_name_admin(usr)] has [mass_remove ? "mass" : ""] removed [path] component from [mass_remove ? target.type : key_name_admin(target)]."))
+		log_admin("[key_name(usr)] has [mass_remove ? "mass " : ""]removed [path] from [mass_remove ? target.type : key_name(target)].")
+		message_admins(SPAN_NOTICE("[key_name_admin(usr)] has [mass_remove ? "mass " : ""]removed [path] from [mass_remove ? target.type : key_name_admin(target)]."))
