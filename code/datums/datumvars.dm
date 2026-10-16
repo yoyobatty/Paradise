@@ -1,5 +1,8 @@
 // reference: /client/proc/modify_variables(var/atom/O, var/param_var_name = null, var/autodetect_class = 0)
 
+/// How many lists deep VV will show the contents of lists inside lists
+#define VV_MAX_LIST_DEPTH 5
+
 /**
   * Proc to check if a datum allows proc calls on it
   *
@@ -79,13 +82,13 @@
 	return TRUE
 
 //please call . = ..() first and append to the result, that way parent items are always at the top and child items are further down
-//add seperaters by doing . += "---"
+//add seperaters with VV_DROPDOWN_SEPARATOR
 /datum/proc/vv_get_dropdown()
 	SHOULD_CALL_PARENT(TRUE)
 
 	. = list()
 
-	VV_DROPDOWN_OPTION("", "---")
+	VV_DROPDOWN_SEPARATOR
 	VV_DROPDOWN_OPTION(VV_HK_PROC_CALL, "Call Proc")
 	VV_DROPDOWN_OPTION(VV_HK_MARK_OBJECT, "Mark Object")
 	VV_DROPDOWN_OPTION(VV_HK_JUMP_TO, "Jump to Object")
@@ -94,7 +97,7 @@
 	VV_DROPDOWN_OPTION(VV_HK_ADDCOMPONENT, "Add Component/Element")
 	VV_DROPDOWN_OPTION(VV_HK_REMOVECOMPONENT, "Remove Component/Element")
 	VV_DROPDOWN_OPTION(VV_HK_MASSREMOVECOMPONENT, "Mass Remove Component/Element")
-	VV_DROPDOWN_OPTION("", "---")
+	VV_DROPDOWN_SEPARATOR
 
 /**
  * This proc is only called if everything topic-wise is verified. The only verifications that should happen here is things like permission checks!
@@ -134,79 +137,36 @@
 USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Variables", datum/thing in world)
 	client.debug_variables(thing)
 
-/client/proc/debug_variables(datum/D in world)
-	var/static/cookieoffset = rand(1, 9999) //to force cookies to reset after the round.
-
+/**
+ * Opens the View Variables window for a datum, client or list, or refreshes it if it's already open.
+ *
+ * page_state is the href_list of the link that asked for the refresh.
+ * The window adds its search box and scroll position to its links, so a refresh keeps them.
+ */
+/client/proc/debug_variables(datum/D in world, list/page_state)
 	if(!D)
 		return
-
-	var/datum/asset/asset_cache_datum = get_asset_datum(/datum/asset/simple/vv)
-	asset_cache_datum.send(usr)
 
 	var/islist = islist(D)
 	var/isclient = isclient(D)
 	if(!islist && !isclient && !istype(D))
 		return
 
-	var/title = ""
-	var/icon/sprite
-	var/hash
+	var/datum/asset/asset_cache_datum = get_asset_datum(/datum/asset/simple/vv)
+	asset_cache_datum.send(src)
+
 	var/refid
-
-	if(!islist)
-		refid = "[D.UID()]"
-	else
-		refid = "\ref[D]"
-
-	var/type = /list
-	if(!islist)
-		type = D.type
-
-	if(isatom(D))
-		var/atom/A = D
-		if(A.icon && A.icon_state)
-			sprite = new /icon(A.icon, A.icon_state)
-			hash = md5(A.icon)
-			hash = md5(hash + A.icon_state)
-			usr << browse_rsc(sprite, "vv[hash].png")
-
-
-	var/sprite_text
-	if(sprite)
-		sprite_text = "<img src='vv[hash].png'></td><td>"
-
-	var/list/header = islist ? list("<b>/list</b>") : D.vv_get_header()
-
-	var/formatted_type = "[type]"
-	if(length(formatted_type) > 25)
-		var/middle_point = length(formatted_type) / 2
-		var/splitpoint = findtext(formatted_type, "/", middle_point)
-		if(splitpoint)
-			formatted_type = "[copytext(formatted_type, 1, splitpoint)]<br>[copytext(formatted_type, splitpoint)]"
-		else
-			formatted_type = "Type too long" //No suitable splitpoint (/) found.
-
-
-	var/marked
-	if(holder.marked_datum && holder.marked_datum == D)
-		marked = "<br><font size='1' color='red'><b>Marked Object</b></font>"
-
-
-	var/varedited_line = ""
-	if(isatom(D))
-		var/atom/A = D
-		if(A.admin_spawned)
-			varedited_line += "<br><font size='1' color='red'><b>Admin Spawned</b></font>"
-
-
-	if(!islist && D.var_edited)
-		varedited_line += "<br><font size='1' color='red'><b>Var Edited</b></font>"
-
-
-	var/list/dropdownoptions = list()
+	var/title
+	var/refresh_link
+	var/legend
+	var/list/dropdownoptions
 	if(islist)
+		var/list/L = D
+		refid = "\ref[L]"
+		title = "/list ([length(L)])"
+		refresh_link = "byond://?_src_=vars;listrefresh=[refid]"
+		legend = "<b>E</b> edits an entry, <b>C</b> asks for its type first, <b>-</b> removes it."
 		dropdownoptions = list(
-			"<option>---</option>",
 			"<option value='byond://?_src_=vars;listadd=[refid]'>Add Item</option>",
 			"<option value='byond://?_src_=vars;listnulls=[refid]'>Remove Nulls</option>",
 			"<option value='byond://?_src_=vars;listdupes=[refid]'>Remove Dupes</option>",
@@ -214,283 +174,252 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 			"<option value='byond://?_src_=vars;listshuffle=[refid]'>Shuffle</option>"
 		)
 	else
+		refid = D.UID()
+		title = vv_window_title(D)
+		refresh_link = "byond://?_src_=vars;datumrefresh=[refid]"
+		legend = "<b>E</b> edits a variable, <b>C</b> asks for its type first, <b>M</b> changes it on every one of this type."
 		dropdownoptions = D.vv_get_dropdown()
 
-	var/list/names = list()
-	if(!islist)
-		for(var/V in D.vars)
-			names += V
-
+	var/header = vv_header_html(D)
 
 	sleep(1) // Without a sleep here, VV sometimes disconnects clients
-
 
 	var/list/variable_html = list()
 	if(islist)
 		var/list/L = D
 		for(var/i in 1 to length(L))
-			var/key = L[i]
-			var/value
-			if(IS_NORMAL_LIST(L) && !isnum(key))
-				value = L[key]
-			variable_html += debug_variable(i, value, 0, D)
+			variable_html += debug_list_entry(L, i)
 	else
+		var/list/names = list()
+		for(var/V in D.vars)
+			names += V
 		names = sortList(names)
 		for(var/V in names)
-			if(D.can_vv_get(V))
-				variable_html += D.vv_get_var(V)
+			if(!D.can_vv_get(V))
+				continue
+			var/line = D.vv_get_var(V)
+			// Some types hide a var by returning FALSE from vv_get_var()
+			if(istext(line))
+				variable_html += line
 
-	var/html = {"
+	// Put the search box and scroll position back after a refresh
+	var/filter_text = ""
+	var/scroll = 0
+	var/options = ""
+	if(page_state)
+		filter_text = page_state["vv_filter"] || ""
+		scroll = text2num(page_state["vv_scroll"]) || 0
+		options = page_state["vv_options"] || ""
+
+	// Clients with just R_VIEWRUNTIMES don't get the edit buttons
+	var/readonly = !check_rights_client(R_VAREDIT, FALSE, src)
+
+	var/html = {"<!DOCTYPE html>
 <html>
 	<head>
 		<meta charset="UTF-8">
-		<title>[title]</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<title>[html_encode(title)]</title>
 		<link rel="stylesheet" type="text/css" href="[SSassets.transport.get_asset_url("view_variables.css")]">
 		[window_scaling ? "<style>body {zoom: [100 / window_scaling]%;}</style>" : ""]
 	</head>
-	<body onload='selectTextField(); updateSearch()' onkeydown='return checkreload()' onkeyup='updateSearch()'>
-		<script type="text/javascript">
-			function checkreload() {
-				if(event.keyCode == 116){	//F5 (to refresh properly)
-					document.getElementById("refresh_link").click();
-					event.preventDefault ? event.preventDefault() : (event.returnValue = false)
-					return false;
-				}
-				return true;
-			}
-			function updateSearch(){
-				var filter_text = document.getElementById('filter');
-				var filter = filter_text.value.toLowerCase();
-				if(event.keyCode == 13){	//Enter / return
-					var vars_ol = document.getElementById('vars');
-					var lis = vars_ol.getElementsByTagName("li");
-					for(var i = 0; i < lis.length; ++i)
-					{
-						try{
-							var li = lis\[i\];
-							if(li.style.backgroundColor == "#ffee88")
-							{
-								alist = lis\[i\].getElementsByTagName("a")
-								if(alist.length > 0){
-									location.href=alist\[0\].href;
-								}
-							}
-						}catch(err) {   }
-					}
-					return
-				}
-				if(event.keyCode == 38){	//Up arrow
-					var vars_ol = document.getElementById('vars');
-					var lis = vars_ol.getElementsByTagName("li");
-					for(var i = 0; i < lis.length; ++i)
-					{
-						try{
-							var li = lis\[i\];
-							if(li.className == "var visible" && li.style.backgroundColor == "#ffee88")
-							{
-								for(var j = i-1; j >= 0; --j) {
-									var li_new = lis\[j\];
-									if(li_new.className == "var visible") {
-										li.style.backgroundColor = "white";
-										li_new.style.backgroundColor = "#ffee88";
-										return
-									}
-								}
-							}
-						}catch(err) {  }
-					}
-					return
-				}
-				if(event.keyCode == 40){	//Down arrow
-					var vars_ol = document.getElementById('vars');
-					var lis = vars_ol.getElementsByTagName("li");
-					for(var i = 0; i < lis.length; ++i)
-					{
-						try{
-							var li = lis\[i\];
-							if(li.className == "var visible" && li.style.backgroundColor == "#ffee88")
-							{
-								for(var j = i+1; j < lis.length; ++j) {
-									var li_new = lis\[j\];
-									if(li_new.className == "var visible") {
-										li.style.backgroundColor = "white";
-										li_new.style.backgroundColor = "#ffee88";
-										return
-									}
-								}
-							}
-						}catch(err) {  }
-					}
-					return
-				}
-
-				document.cookie="[refid][cookieoffset]search="+encodeURIComponent(filter);
-				var vars_ol = document.getElementById('vars');
-				var lis = vars_ol.getElementsByTagName("li");
-				var first = true;
-				for(var i = 0; i < lis.length; ++i)
-				{
-					try{
-						var li = lis\[i\];
-						li.style.backgroundColor = "white";
-						if(li.innerText.toLowerCase().indexOf(filter) == -1)
-						{
-							li.className = "var";
-						} else {
-							if(first) {
-								li.style.backgroundColor = "#ffee88";
-								first = false;
-							}
-							li.className = "var visible";
-						}
-					}catch(err) {   }
-				}
-			}
-			function selectTextField() {
-				var filter_text = document.getElementById('filter');
-				filter_text.focus();
-				filter_text.select();
-				var lastsearch = getCookie("[refid][cookieoffset]search");
-				if(lastsearch) {
-					filter_text.value = lastsearch;
-					updateSearch();
-				}
-			}
-			function loadPage(list) {
-				if(list.options\[list.selectedIndex\].value == ""){
-					return;
-				}
-				location.href=list.options\[list.selectedIndex\].value;
-			}
-			function getCookie(cname) {
-				var name = cname + "=";
-				var ca = document.cookie.split(';');
-				for(var i=0; i<ca.length; i++) {
-					var c = ca\[i\];
-					while(c.charAt(0)==' ') c = c.substring(1,c.length);
-					if(c.indexOf(name)==0) return c.substring(name.length,c.length);
-				}
-				return "";
-			}
-
-		</script>
-		<div align='center'>
-			<table width='100%'>
-				<tr>
-					<td width='50%'>
-						<table align='center' width='100%'>
-							<tr>
-								<td>
-									[sprite_text]
-									<div align='center'>
-										[header.Join()]
-									</div>
-								</td>
-							</tr>
-						</table>
-						<div align='center'>
-							<b><font size='1'>[formatted_type]</font></b>
-							[marked]
-							[varedited_line]
-						</div>
-					</td>
-					<td width='50%'>
-						<div align='center'>
-							<a id='refresh_link' href='byond://?_src_=vars;[islist ? "listrefresh=\ref[D]" : "datumrefresh=[D.UID()]"]'>Refresh</a>
-							<form>
-								<select name="file" size="1"
-									onchange="loadPage(this.form.elements\[0\])"
-									target="_parent._top"
-									onmouseclick="this.focus()"
-									style="background-color:#ffffff">
-									<option value selected>Select option</option>
-									[dropdownoptions.Join()]
-								</select>
-							</form>
-						</div>
-					</td>
-				</tr>
-			</table>
+	<body class='[readonly ? "vv-readonly" : ""]' data-filter="[url_encode(filter_text)]" data-scroll="[round(scroll)]" data-options="[url_encode(options)]">
+		<div id='vv-header'>[header]</div>
+		<div id='vv-toolbar'>
+			<div class='vv-toolbar-row'>
+				<a id='vv-refresh' class='vv-button' href='[refresh_link]' title='Refresh (F5)'>Refresh</a>
+				<select id='vv-actions'>
+					<option value='' selected>Actions...</option>
+					[dropdownoptions.Join()]
+				</select>
+			</div>
+			<div class='vv-toolbar-row'>
+				<input type='text' id='vv-filter' placeholder='[islist ? "Search entries" : "Search variables"]' autocomplete='off'>
+			</div>
+			<div class='vv-toolbar-row vv-options'>
+				<label title='Search the values as well as the names'><input type='checkbox' id='vv-search-values'>Values</label>
+				[islist ? "" : "<label title='Only show variables that are different from their default value'><input type='checkbox' id='vv-changed-only'>Changed</label>"]
+				<label title='Fold up the lists shown inside variables'><input type='checkbox' id='vv-fold-lists'>Fold lists</label>
+				<span id='vv-count'></span>
+			</div>
 		</div>
-		<hr>
-		<font size='1'>
-			<b>E</b> - Edit, tries to determine the variable type by itself.<br>
-			<b>C</b> - Change, asks you for the var type first.<br>
-			<b>M</b> - Mass modify: changes this variable for all objects of this type.<br>
-		</font>
-		<hr>
-		<table width='100%'>
-			<tr>
-				<td width='20%'>
-					<div align='center'>
-						<b>Search:</b>
-					</div>
-				</td>
-				<td width='80%'>
-					<input type='text' id='filter' name='filter_text' value='' style='width:100%;'>
-				</td>
-			</tr>
-		</table>
-		<hr>
-		<ol id='vars'>
+		<ul id='vv-vars'>
 			[variable_html.Join()]
-		</ol>
-		<script type='text/javascript'>
-			var vars_ol = document.getElementById("vars");
-			var complete_list = vars_ol.innerHTML;
-		</script>
+		</ul>
+		<div id='vv-legend'>[legend] Use the arrow keys and Enter in the search box to pick and edit one.</div>
+		<script type='text/javascript' src='[SSassets.transport.get_asset_url("view_variables.js")]'></script>
 	</body>
 </html>
-	"}
+"}
 
 	if(istype(D, /datum))
 		log_admin("[key_name(usr)] opened VV for [D] ([D.UID()])")
 
-	var/size_string = window_scaling ? "size=[475 * window_scaling]x[650 * window_scaling]" : "size=[475]x[650]"
-	usr << browse(html, "window=variables[refid];[size_string]")
+	var/size_string = window_scaling ? "size=[520 * window_scaling]x[700 * window_scaling]" : "size=520x700"
+	src << browse(html, "window=[VV_WINDOW_ID(refid)];[size_string]")
+
+/// The window title, like "Urist McTest - /mob/living/carbon/human"
+/proc/vv_window_title(datum/D)
+	var/name = "[D]"
+	if(name == "[D.type]")
+		return name
+	return "[name] - [D.type]"
+
+/// The top of a VV window: the sprite, name, type, where it is and tags like "Marked"
+/client/proc/vv_header_html(datum/D)
+	if(islist(D))
+		var/list/L = D
+		return "<div class='vv-header-info'><div class='vv-name-line'><b>/list ([length(L)])</b></div><div class='vv-ref'>\ref[L]</div></div>"
+
+	var/list/html = list()
+	var/atom/A = isatom(D) ? D : null
+	if(A?.icon && A.icon_state)
+		// Diagonal facings fall back to south, since most icons only have four directions
+		var/sprite_dir = (A.dir in GLOB.cardinal) ? A.dir : SOUTH
+		var/icon/sprite = new /icon(A.icon, A.icon_state, sprite_dir, 1)
+		var/hash = md5("[md5(A.icon)][A.icon_state][sprite_dir]")
+		src << browse_rsc(sprite, "vv[hash].png")
+		html += "<img class='vv-sprite' src='vv[hash].png'>"
+
+	var/list/header = D.vv_get_header()
+	if(!length(header))
+		header = list("<b>[html_encode("[D]")]</b>")
+	html += "<div class='vv-header-info'>"
+	html += "<div class='vv-name-line'>[header.Join()]</div>"
+	html += "<div class='vv-type'>[D.type]</div>"
+	html += "<div class='vv-ref'>\ref[D]</div>"
+
+	if(A)
+		var/list/where = list()
+		var/turf/T = get_turf(A)
+		if(A.loc && A.loc != T)
+			where += "In [ADMIN_VV(A.loc, html_encode("[A.loc]"))]"
+		if(T)
+			var/area/our_area = get_area(T)
+			where += "At [ADMIN_VV(our_area, html_encode("[our_area]"))] <a href='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[T.x];Y=[T.y];Z=[T.z]' title='Jump here'>([T.x], [T.y], [T.z])</a>"
+		if(length(where))
+			html += "<div class='vv-where'>[where.Join(", ")]</div>"
+
+	var/list/tags = list()
+	if(holder?.marked_datum == D)
+		tags += "Marked"
+	if(A?.admin_spawned)
+		tags += "Admin spawned"
+	if(D.var_edited)
+		tags += "Var edited"
+	if(QDELETED(D))
+		tags += "Deleted"
+	if(length(tags))
+		html += "<div class='vv-tags'><span class='vv-tag'>[tags.Join("</span><span class='vv-tag'>")]</span></div>"
+
+	html += "</div>"
+	return html.Join()
+
+/// Shows a var's new value in its open VV window, without reloading the window
+/client/proc/vv_update_var(datum/D, var_name)
+	if(!istype(D) && !isclient(D))
+		return
+	if(!(var_name in D.vars) || !D.can_vv_get(var_name))
+		return
+	var/line = D.vv_get_var(var_name)
+	var/list/update = list(
+		"name" = var_name,
+		"line" = istext(line) ? line : null,
+		"header" = vv_header_html(D),
+		"title" = vv_window_title(D)
+	)
+	src << output(url_encode(json_encode(update)), "[VV_WINDOW_ID(D.UID())].browser:vvUpdateVar")
 
 #define VV_HTML_ENCODE(thing) ( sanitize ? html_encode(thing) : thing )
+
+/// A var of a datum with its edit buttons, or an entry of a list shown inside one (when level > 0)
 /proc/debug_variable(name, value, level, datum/owner, sanitize = TRUE)
-	var/header
-	if(owner)
-		if(islist(owner))
-			var/list/debug_list = owner
-			var/index = name
-			if(value)
-				name = debug_list[name] // name is really the index until this line
-			else
-				value = debug_list[name]
-			header = "<li class='vars visible'>(<a href='byond://?_src_=vars;listedit=\ref[owner];index=[index]'>E</a>) (<a href='byond://?_src_=vars;listchange=\ref[owner];index=[index]'>C</a>) (<a href='byond://?_src_=vars;listremove=\ref[owner];index=[index]'>-</a>) "
-		else
-			header = "<li class='vars visible'>(<a href='byond://?_src_=vars;datumedit=[owner.UID()];varnameedit=[name]'>E</a>) (<a href='byond://?_src_=vars;datumchange=[owner.UID()];varnamechange=[name]'>C</a>) (<a href='byond://?_src_=vars;datummass=[owner.UID()];varnamemass=[name]'>M</a>) "
+	var/value_html = _debug_variable_value(name, value, level, owner, sanitize)
+	if(level > 0 || !owner)
+		return "<li>[debug_variable_key(name, sanitize)] = [value_html]</li>"
+
+	var/uid = owner.UID()
+	var/changed_class = ""
+	var/name_title = ""
+	var/default_text = vv_changed_default(owner, name, value)
+	if(default_text)
+		changed_class = " vv-changed"
+		name_title = " title=\"Default: [html_encode(default_text)]\""
+
+	var/edit_links = "<span class='vv-edit'>\
+		<a href='byond://?_src_=vars;datumedit=[uid];varnameedit=[name]' title='Edit'>E</a>\
+		<a href='byond://?_src_=vars;datumchange=[uid];varnamechange=[name]' title='Pick the type, then edit'>C</a>\
+		<a href='byond://?_src_=vars;datummass=[uid];varnamemass=[name]' title='Change it on every one of this type'>M</a>\
+		</span>"
+	return "<li class='vv-var[changed_class]' id='vv-var-[name]' data-name='[name]'>[edit_links]<span class='vv-body'><span class='vv-name'[name_title]>[name]</span> = [value_html]</span></li>"
+
+/// One entry of the list window, with its edit buttons
+/proc/debug_list_entry(list/L, index)
+	var/key = L[index]
+	var/value
+	if(IS_NORMAL_LIST(L) && !isnum(key))
+		value = L[key]
+
+	var/entry
+	// No value means it's a normal entry and not an associated one
+	if(isnull(value))
+		entry = _debug_variable_value(index, key, 1, L, TRUE)
 	else
-		header = "<li>"
+		entry = "[debug_variable_key(key, TRUE)] = [_debug_variable_value(key, value, 1, L, TRUE)]"
 
-	var/name_part = VV_HTML_ENCODE(name)
-	if(level > 0 || islist(owner)) //handling keys in assoc lists
-		if(isdatum(name))
-			var/datum/datum_key = name
-			name_part = "<a href='byond://?_src_=vars;Vars=[datum_key.UID()]'>[VV_HTML_ENCODE(name)] \ref[datum_key]</a>"
-		else if(isclient(name))
-			var/client/client_key = name
-			name_part = "<a href='byond://?_src_=vars;Vars=[client_key.UID()]'>[VV_HTML_ENCODE(client_key)] \ref[client_key]</a> ([client_key] [client_key.type])"
-		else if(islist(name))
-			var/list/list_value = name
-			name_part = "<a href='byond://?_src_=vars;VarsList=\ref[list_value]'> /list ([length(list_value)]) \ref[name]</a>"
+	var/list_ref = "\ref[L]"
+	var/edit_links = "<span class='vv-edit'>\
+		<a href='byond://?_src_=vars;listedit=[list_ref];index=[index]' title='Edit'>E</a>\
+		<a href='byond://?_src_=vars;listchange=[list_ref];index=[index]' title='Pick the type, then edit'>C</a>\
+		<a href='byond://?_src_=vars;listremove=[list_ref];index=[index]' title='Remove'>-</a>\
+		</span>"
+	return "<li class='vv-var' data-name='[index]'>[edit_links]<span class='vv-body'><span class='vv-index'>[index]</span> [entry]</span></li>"
 
-	var/item = _debug_variable_value(name, value, level, owner, sanitize)
+/// How a list key or var name is shown. Datums, clients and lists become links to their own VV
+/proc/debug_variable_key(key, sanitize = TRUE)
+	if(isdatum(key))
+		var/datum/datum_key = key
+		return "<a href='byond://?_src_=vars;Vars=[datum_key.UID()]'>[VV_HTML_ENCODE(datum_key)] \ref[datum_key]</a>"
+	if(isclient(key))
+		var/client/client_key = key
+		return "<a href='byond://?_src_=vars;Vars=[client_key.UID()]'>[VV_HTML_ENCODE(client_key)] \ref[client_key]</a> ([client_key] [client_key.type])"
+	if(islist(key))
+		var/list/list_key = key
+		return "<a href='byond://?_src_=vars;VarsList=\ref[list_key]'>/list ([length(list_key)]) \ref[list_key]</a>"
+	return VV_HTML_ENCODE(key)
 
-	return "[header][name_part] = [item]</li>"
+/**
+ * Returns the default value of a var as text, if it's been changed from it.
+ *
+ * Only checks plain values like numbers, text and paths, since things like lists and datums are almost always made at runtime.
+ */
+/proc/vv_changed_default(datum/owner, var_name, value)
+	if(!isnull(value) && !isnum(value) && !istext(value) && !ispath(value))
+		return
+	var/default
+	try
+		default = initial(owner.vars[var_name])
+	catch
+		return
+	if(!isnull(default) && !isnum(default) && !istext(default) && !ispath(default))
+		return
+	if(default == value)
+		return
+	if(isnull(default))
+		return "null"
+	if(istext(default))
+		return "\"[default]\""
+	return "[default]"
 
 /proc/_debug_variable_value(name, value, level, datum/owner, sanitize)
 
-	. = "<font color='red'>DISPLAY_ERROR:</font> ([value] \ref[value]s)"
+	. = "<font color='red'>DISPLAY_ERROR:</font> ([VV_HTML_ENCODE("[value]")] \ref[value])"
 
 	if(isnull(value))
 		return SPAN_VALUE("null")
 
 	else if(is_color_text(value))
-		return SPAN_VALUE("<span class='colorbox' style='width: 1em; background-color: [value]; border: 1px solid black; display: inline-block'>&nbsp;</span> \"[value]\"")
+		return SPAN_VALUE("<span class='colorbox' style='background-color: [value];'>&nbsp;</span> \"[value]\"")
 
 	else if(istext(value))
 		return SPAN_VALUE("\"[VV_HTML_ENCODE(value)]\"")
@@ -519,27 +448,29 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 
 	else if(islist(value))
 		var/list/L = value
+		var/list_link = "<a href='byond://?_src_=vars;VarsList=\ref[L]'>/list ([length(L)])</a>"
+
+		// Empty, too long or too deep to show here. They can still be opened on their own
+		if(!length(L) || level >= VV_MAX_LIST_DEPTH || name == "underlays" || name == "overlays" || name == "vars" || length(L) > (IS_NORMAL_LIST(L) ? 250 : 300))
+			return list_link
+
 		var/list/items = list()
+		for(var/i in 1 to length(L))
+			var/key = L[i]
+			var/val
+			if(IS_NORMAL_LIST(L) && !isnum(key))
+				val = L[key]
+			if(isnull(val))
+				val = key
+				key = i
 
-		if(length(L) > 0 && !(name == "underlays" || name == "overlays" || name == "vars" || length(L) > (IS_NORMAL_LIST(L) ? 250 : 300)))
-			for(var/i in 1 to length(L))
-				var/key = L[i]
-				var/val
-				if(IS_NORMAL_LIST(L) && !isnum(key))
-					val = L[key]
-				if(isnull(val))
-					val = key
-					key = i
+			items += debug_variable(key, val, level + 1, sanitize = sanitize)
 
-				items += debug_variable(key, val, level + 1, sanitize = sanitize)
-
-			return "<a href='byond://?_src_=vars;VarsList=\ref[L]'>/list ([length(L)])</a><ul>[items.Join()]</ul>"
-
-		else
-			return "<a href='byond://?_src_=vars;VarsList=\ref[L]'>/list ([length(L)])</a>"
+		return "<span class='vv-list'><span class='vv-fold' title='Fold'></span>[list_link]<ul>[items.Join()]</ul></span>"
 
 	else if(name in GLOB.bitfields)
 		return SPAN_VALUE("[VV_HTML_ENCODE(translate_bitfield(VV_BITFIELD, name, value))]")
+
 	else
 		return SPAN_VALUE("[VV_HTML_ENCODE(value)]")
 
@@ -571,7 +502,10 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		return
 
 	// Correct and warn about any VV topic links that aren't using UIDs
+	var/static/list/page_state_params = list("vv_filter", "vv_scroll", "vv_options")
 	for(var/paramname in href_list)
+		if(paramname in page_state_params)
+			continue // Search box and scroll position from the window, not a reference
 		if(findtext(href_list[paramname], "]_"))
 			continue // Contains UID-specific formatting, skip it
 		var/datum/D = locate(href_list[paramname])
@@ -600,18 +534,18 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		var/datum/DAT = locateUID(href_list["datumrefresh"])
 		if(!istype(DAT, /datum) && !isclient(DAT))
 			return
-		src.debug_variables(DAT)
+		src.debug_variables(DAT, href_list)
 
 /// The only VV links that work for clients with just R_VIEWRUNTIMES
 /client/proc/view_var_Topic_view_only(href_list)
 	if(href_list["Vars"])
 		debug_variables(locateUID(href_list["Vars"]))
 	else if(href_list["datumrefresh"])
-		debug_variables(locateUID(href_list["datumrefresh"]))
+		debug_variables(locateUID(href_list["datumrefresh"]), href_list)
 	else if(href_list["VarsList"])
 		debug_variables(locate(href_list["VarsList"]))
 	else if(href_list["listrefresh"])
-		debug_variables(locate(href_list["listrefresh"]))
+		debug_variables(locate(href_list["listrefresh"]), href_list)
 
 /client/proc/view_var_Topic_list(href, href_list, hsrc)
 	if(href_list["VarsList"])
@@ -619,122 +553,92 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		return TRUE
 
 	if(href_list["listrefresh"])
-		debug_variables(locate(href_list["listrefresh"]))
+		debug_variables(locate(href_list["listrefresh"]), href_list)
 		return TRUE
 
-	// Everything below edits the list
+	// Everything below edits a list
 	var/static/list/list_edit_links = list("listedit", "listchange", "listremove", "listadd", "listdupes", "listnulls", "listlen", "listshuffle")
+	var/action
 	for(var/edit_link in list_edit_links)
 		if(href_list[edit_link])
-			if(!check_rights(R_VAREDIT))
-				return TRUE
+			action = edit_link
 			break
+	if(!action)
+		return FALSE
 
-	if(href_list["listedit"] && href_list["index"])
-		var/index = text2num(href_list["index"])
-		if(!index)
-			return TRUE
-
-		var/list/L = locate(href_list["listedit"])
-		if(!istype(L))
-			to_chat(usr, "This can only be used on instances of type /list")
-			return
-
-		mod_list(L, null, "list", "contents", index, autodetect_class = TRUE)
+	if(!check_rights(R_VAREDIT))
 		return TRUE
 
-	if(href_list["listchange"] && href_list["index"])
-		var/index = text2num(href_list["index"])
-		if(!index)
-			return TRUE
-
-		var/list/L = locate(href_list["listchange"])
-		if(!istype(L))
-			to_chat(usr, "This can only be used on instances of type /list")
-			return
-
-		mod_list(L, null, "list", "contents", index, autodetect_class = FALSE)
+	var/list/L = locate(href_list[action])
+	if(!istype(L))
+		to_chat(usr, "This can only be used on instances of type /list")
 		return TRUE
 
-	if(href_list["listremove"] && href_list["index"])
-		var/index = text2num(href_list["index"])
-		if(!index)
+	// Entry buttons go by position, so make sure the entry is still there
+	var/index
+	if(action == "listedit" || action == "listchange" || action == "listremove")
+		index = text2num(href_list["index"])
+		if(!index || index > length(L))
+			to_chat(usr, SPAN_WARNING("That entry isn't in the list anymore."))
+			debug_variables(L, href_list)
 			return TRUE
 
-		var/list/L = locate(href_list["listremove"])
-		if(!istype(L))
-			to_chat(usr, "This can only be used on instances of type /list")
-			return
+	switch(action)
+		if("listedit")
+			mod_list(L, null, "list", "contents", index, autodetect_class = TRUE)
 
-		var/variable = L[index]
-		var/prompt = alert("Do you want to remove item number [index] from list?", "Confirm", "Yes", "No")
-		if(prompt != "Yes")
-			return
-		L.Cut(index, index+1)
-		log_world("### ListVarEdit by [src]: /list's contents: REMOVED=[html_encode("[variable]")]")
-		log_admin("[key_name(src)] modified list's contents: REMOVED=[variable]")
-		message_admins("[key_name_admin(src)] modified list's contents: REMOVED=[variable]")
-		return TRUE
+		if("listchange")
+			mod_list(L, null, "list", "contents", index, autodetect_class = FALSE)
 
-	if(href_list["listadd"])
-		var/list/L = locate(href_list["listadd"])
-		if(!istype(L))
-			to_chat(usr, "This can only be used on instances of type /list")
-			return TRUE
+		if("listremove")
+			var/variable = L[index]
+			var/prompt = alert("Do you want to remove entry [index] ([variable]) from the list?", "Confirm", "Yes", "No")
+			if(prompt != "Yes")
+				return TRUE
+			// The list can change while the prompt is open
+			if(index > length(L) || L[index] != variable)
+				to_chat(usr, SPAN_WARNING("The list changed, nothing was removed."))
+				debug_variables(L, href_list)
+				return TRUE
+			L.Cut(index, index+1)
+			log_world("### ListVarEdit by [src]: /list's contents: REMOVED=[html_encode("[variable]")]")
+			log_admin("[key_name(src)] modified list's contents: REMOVED=[variable]")
+			message_admins("[key_name_admin(src)] modified list's contents: REMOVED=[variable]")
 
-		mod_list_add(L, null, "list", "contents")
-		return TRUE
+		if("listadd")
+			mod_list_add(L, null, "list", "contents")
 
-	if(href_list["listdupes"])
-		var/list/L = locate(href_list["listdupes"])
-		if(!istype(L))
-			to_chat(usr, "This can only be used on instances of type /list")
-			return TRUE
+		if("listdupes")
+			uniqueList_inplace(L)
+			log_world("### ListVarEdit by [src]: /list contents: CLEAR DUPES")
+			log_admin("[key_name(src)] modified list's contents: CLEAR DUPES")
+			message_admins("[key_name_admin(src)] modified list's contents: CLEAR DUPES")
 
-		uniqueList_inplace(L)
-		log_world("### ListVarEdit by [src]: /list contents: CLEAR DUPES")
-		log_admin("[key_name(src)] modified list's contents: CLEAR DUPES")
-		message_admins("[key_name_admin(src)] modified list's contents: CLEAR DUPES")
-		return TRUE
+		if("listnulls")
+			listclearnulls(L)
+			log_world("### ListVarEdit by [src]: /list contents: CLEAR NULLS")
+			log_admin("[key_name(src)] modified list's contents: CLEAR NULLS")
+			message_admins("[key_name_admin(src)] modified list's contents: CLEAR NULLS")
 
-	if(href_list["listnulls"])
-		var/list/L = locate(href_list["listnulls"])
-		if(!istype(L))
-			to_chat(usr, "This can only be used on instances of type /list")
-			return TRUE
+		if("listlen")
+			var/value = vv_get_value(VV_NUM)
+			if(value["class"] != VV_NUM)
+				return TRUE
 
-		listclearnulls(L)
-		log_world("### ListVarEdit by [src]: /list contents: CLEAR NULLS")
-		log_admin("[key_name(src)] modified list's contents: CLEAR NULLS")
-		message_admins("[key_name_admin(src)] modified list's contents: CLEAR NULLS")
-		return TRUE
+			L.len = max(0, value["value"])
+			log_world("### ListVarEdit by [src]: /list len: [length(L)]")
+			log_admin("[key_name(src)] modified list's len: [length(L)]")
+			message_admins("[key_name_admin(src)] modified list's len: [length(L)]")
 
-	if(href_list["listlen"])
-		var/list/L = locate(href_list["listlen"])
-		if(!istype(L))
-			to_chat(usr, "This can only be used on instances of type /list")
-			return TRUE
-		var/value = vv_get_value(VV_NUM)
-		if(value["class"] != VV_NUM)
-			return TRUE
+		if("listshuffle")
+			shuffle_inplace(L)
+			log_world("### ListVarEdit by [src]: /list contents: SHUFFLE")
+			log_admin("[key_name(src)] modified list's contents: SHUFFLE")
+			message_admins("[key_name_admin(src)] modified list's contents: SHUFFLE")
 
-		L.len = value["value"]
-		log_world("### ListVarEdit by [src]: /list len: [length(L)]")
-		log_admin("[key_name(src)] modified list's len: [length(L)]")
-		message_admins("[key_name_admin(src)] modified list's len: [length(L)]")
-		return TRUE
-
-	if(href_list["listshuffle"])
-		var/list/L = locate(href_list["listshuffle"])
-		if(!istype(L))
-			to_chat(usr, "This can only be used on instances of type /list")
-			return TRUE
-
-		shuffle_inplace(L)
-		log_world("### ListVarEdit by [src]: /list contents: SHUFFLE")
-		log_admin("[key_name(src)] modified list's contents: SHUFFLE")
-		message_admins("[key_name_admin(src)] modified list's contents: SHUFFLE")
-		return TRUE
+	// Show the change
+	debug_variables(L, href_list)
+	return TRUE
 
 USER_VERB(debug_global_variables, R_ADMIN|R_VIEWRUNTIMES, "Debug Global Variables", "Debug Global Variables", VERB_CATEGORY_DEBUG, var_search as text)
 	var_search = trim(var_search)
@@ -756,3 +660,4 @@ USER_VERB(debug_global_variables, R_ADMIN|R_VIEWRUNTIMES, "Debug Global Variable
 	to_chat(client, SPAN_DEBUG("GLOB.[var_search] returned [result]."))
 
 #undef VV_HTML_ENCODE
+#undef VV_MAX_LIST_DEPTH

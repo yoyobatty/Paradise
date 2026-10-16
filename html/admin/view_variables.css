@@ -1,4 +1,6 @@
 body {
+	margin: 0;
+	background-color: #ffffff;
 	font-family: Verdana, sans-serif;
 	font-size: 9pt;
 }
@@ -8,17 +10,139 @@ body {
 	display: inline-block;
 }
 
-.var {
+/* Header */
+#vv-header {
+	padding: 8px;
+	overflow: hidden;
+}
+.vv-sprite {
+	float: left;
+	margin-right: 8px;
+}
+.vv-header-info {
+	overflow: hidden;
+}
+.vv-type,
+.vv-ref,
+.vv-where {
+	font-size: 8pt;
+}
+.vv-type {
+	font-weight: bold;
+}
+.vv-tag {
+	margin-right: 6px;
+	color: red;
+	font-size: 8pt;
+	font-weight: bold;
+}
+
+/* Toolbar, stays at the top while scrolling */
+#vv-toolbar {
+	position: -webkit-sticky;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	padding: 2px 8px;
+	background-color: #ffffff;
+	border-top: 1px solid #c0c0c0;
+	border-bottom: 1px solid #c0c0c0;
+}
+.vv-toolbar-row {
+	margin: 3px 0;
+}
+#vv-actions {
+	max-width: 70%;
+	margin-left: 4px;
+}
+#vv-filter {
+	box-sizing: border-box;
+	width: 100%;
+}
+.vv-options label {
+	margin-right: 10px;
+	white-space: nowrap;
+}
+.vv-options input {
+	margin: 0 3px 0 0;
+	vertical-align: middle;
+}
+#vv-count {
+	float: right;
+	color: #808080;
+}
+
+/* Variables */
+#vv-vars {
+	margin: 0;
+	padding: 4px 8px;
+	list-style: none;
+}
+.vv-var.vv-selected {
+	background-color: #ffee88;
+}
+.vv-var.vv-updated {
+	background-color: #c8f0c8;
+}
+.vv-edit a {
+	margin-right: 3px;
+}
+.vv-edit a:before {
+	content: "(";
+}
+.vv-edit a:after {
+	content: ")";
+}
+/* Keeps the brackets out of the link's underline */
+.vv-edit a:before,
+.vv-edit a:after {
+	display: inline-block;
+	color: #000000;
+}
+.vv-readonly .vv-edit {
 	display: none;
 }
-
-.var.visible {
-	display: list-item;
+/* Changed from its default value, hover the name to see the default */
+.vv-changed .vv-name {
+	color: #c05000;
+}
+.vv-index {
+	display: inline-block;
+	min-width: 2em;
+	color: #808080;
 }
 
-.var.selected {
-	background-color: "#ffee88";
+/* Lists shown inside a variable */
+.vv-list ul {
+	margin: 0;
 }
+.vv-folded > ul {
+	display: none;
+}
+.vv-fold {
+	display: inline-block;
+	width: 12px;
+	color: #808080;
+	cursor: pointer;
+}
+.vv-fold:before {
+	content: "\25BE";
+}
+.vv-folded > .vv-fold:before {
+	content: "\25B8";
+}
+
+.colorbox {
+	display: inline-block;
+	width: 1em;
+	border: 1px solid black;
+}
+#vv-legend {
+	padding: 6px 8px 10px 8px;
+	border-top: 1px solid #c0c0c0;
+	font-size: 8pt;
+}
+
 table.matrix {
 	border-collapse: collapse; border-spacing: 0;
 	font-size: 7pt;

@@ -16,6 +16,7 @@
 			return
 
 		modify_variables(D, href_list["varnameedit"], 1)
+		vv_update_var(D, href_list["varnameedit"])
 	if(href_list["varnamechange"] && href_list["datumchange"])
 		if(!check_rights(R_ADMIN | R_VAREDIT))
 			return
@@ -26,6 +27,7 @@
 			return
 
 		modify_variables(D, href_list["varnamechange"], 0)
+		vv_update_var(D, href_list["varnamechange"])
 	if(href_list["varnamemass"] && href_list["datummass"])
 		if(!check_rights(R_ADMIN | R_VAREDIT))
 			return
@@ -36,6 +38,7 @@
 			return
 
 		cmd_mass_modify_object_variables(D, href_list["varnamemass"])
+		vv_update_var(D, href_list["varnamemass"])
 	if(href_list[VV_HK_DELETE])
 		if(!check_rights(R_DEBUG, 0))
 			return
