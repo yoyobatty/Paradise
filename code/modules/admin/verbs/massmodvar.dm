@@ -1,9 +1,7 @@
-/client/proc/cmd_mass_modify_object_variables(atom/A, var_name)
+/client/proc/cmd_mass_modify_object_variables(datum/A, var_name)
 	set category = "Debug"
 	set name = "Mass Edit Variables"
 	set desc="(target) Edit all instances of a target item's variables"
-
-	var/method = 0	//0 means strict type detection while 1 means this type and all subtypes (IE: /obj/item with this set to 1 will set it to ALL itms)
 
 	if(!check_rights(R_VAREDIT))	return
 
@@ -11,17 +9,13 @@
 	if(!vv_varname_lockcheck(var_name))
 		return FALSE
 
-	if(A && A.type)
-		if(typesof(A.type))
-			switch(input("Strict object type detection?") as null|anything in list("Strictly this type","This type and subtypes", "Cancel"))
-				if("Strictly this type")
-					method = 0
-				if("This type and subtypes")
-					method = 1
-				if("Cancel")
-					return
-				if(null)
-					return
+	if(!istype(A))
+		return
+
+	//FALSE means strict type detection while TRUE means this type and all subtypes (IE: /obj/item with this set to TRUE will set it to ALL itms)
+	var/method = vv_subtype_prompt(A.type)
+	if(isnull(method))
+		return
 
 	src.massmodify_variables(A, var_name, method)
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Mass Edit Variables") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
