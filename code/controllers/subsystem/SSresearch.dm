@@ -11,6 +11,14 @@ SUBSYSTEM_DEF(research)
 /datum/controller/subsystem/research/get_stat_details()
 	return "C:[length(backups)]"
 
+/datum/controller/subsystem/research/LateInitialize()
+	// Make the autolathe menu icons now, otherwise the first autolathe opened holds the server up while it makes all of them
+	for(var/datum/design/D as anything in subtypesof(/datum/design))
+		if(!(initial(D.build_type) & AUTOLATHE) || !initial(D.build_path))
+			continue
+		get_autolathe_recipe_icon(initial(D.build_path))
+		CHECK_TICK
+
 /datum/controller/subsystem/research/fire()
 	for(var/obj/machinery/computer/rnd_network_controller/RNC in GLOB.rnd_network_managers)
 		var/rnc_uid = RNC.UID()

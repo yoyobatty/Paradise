@@ -2,6 +2,16 @@
 #define AUTOLATHE_CATEGORY_MENU	2
 #define AUTOLATHE_SEARCH_MENU	3
 
+/// Recipe icons for the autolathe menu by build path, shared since every autolathe shows the same ones
+GLOBAL_LIST_EMPTY(autolathe_recipe_icons)
+
+/// Returns the menu icon for a build path, making it the first time it's asked for
+/proc/get_autolathe_recipe_icon(obj/build_path)
+	. = GLOB.autolathe_recipe_icons[build_path]
+	if(!.)
+		. = icon2base64(icon(initial(build_path.icon), initial(build_path.icon_state), SOUTH, 1))
+		GLOB.autolathe_recipe_icons[build_path] = .
+
 /obj/machinery/autolathe
 	name = "autolathe"
 	desc = "It produces items using metal and glass."
@@ -131,7 +141,6 @@
 					matreq["metal"] = x["amount"]
 				if(x["name"] == "glass")
 					matreq["glass"] = x["amount"]
-			var/obj/item/I = D.build_path
 			var/maxmult = 1
 			if(ispath(D.build_path, /obj/item/stack))
 				maxmult = D.maxstack
@@ -149,7 +158,7 @@
 				"requirements" =  matreq,
 				"hacked" = ("hacked" in categories) ? TRUE : FALSE,
 				"max_multiplier" = maxmult,
-				"image" = "[icon2base64(icon(initial(I.icon), initial(I.icon_state), SOUTH, 1))]"
+				"image" = "[get_autolathe_recipe_icon(D.build_path)]"
 			)))
 		recipiecache = recipes
 	data["recipes"] = recipiecache
