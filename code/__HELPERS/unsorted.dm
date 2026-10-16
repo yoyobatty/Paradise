@@ -1641,9 +1641,15 @@ GLOBAL_DATUM_INIT(dview_mob, /mob/dview, new)
 			/mob/living = "LIVING",
 			/mob = "M"
 		)
-		for(var/tn in TYPES_SHORTCUTS)
-			if(copytext(typename, 1, length("[tn]/") + 1) == "[tn]/")
-				typename = TYPES_SHORTCUTS[tn]+copytext(typename,length("[tn]/"))
+		// The same shortcuts as "/obj/item/" text, made once instead of for every type
+		var/static/list/shortcut_prefixes
+		if(!shortcut_prefixes)
+			shortcut_prefixes = list()
+			for(var/tn in TYPES_SHORTCUTS)
+				shortcut_prefixes["[tn]/"] = TYPES_SHORTCUTS[tn]
+		for(var/prefix in shortcut_prefixes)
+			if(findtextEx(typename, prefix) == 1)
+				typename = shortcut_prefixes[prefix]+copytext(typename,length(prefix))
 				break
 		.[typename] = type
 

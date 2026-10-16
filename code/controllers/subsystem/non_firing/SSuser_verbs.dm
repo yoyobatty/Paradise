@@ -17,6 +17,11 @@ SUBSYSTEM_DEF(user_verbs)
 	setup_verb_list()
 	process_pending_admins()
 
+/datum/controller/subsystem/user_verbs/LateInitialize()
+	// The type lists for picking a path in VV and buildmode, otherwise the first admin to use them holds the server up
+	get_fancy_list_of_atom_types()
+	get_fancy_list_of_datum_types()
+
 /datum/controller/subsystem/user_verbs/Recover()
 	user_verbs_by_type = SSuser_verbs.user_verbs_by_type
 
