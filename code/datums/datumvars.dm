@@ -559,11 +559,13 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 
 /client/proc/view_var_Topic(href, href_list, hsrc)
 	//This should all be moved over to datum/admins/Topic() or something ~Carn
-	if(!check_rights(R_ADMIN|R_MOD, FALSE) \
-		&& !((href_list["datumrefresh"] || href_list["Vars"] || href_list["VarsList"]) && check_rights(R_VIEWRUNTIMES, FALSE)) \
-		&& !((href_list["proc_call"]) && check_rights(R_PROCCALL, FALSE)) \
-	)
-		return // clients with R_VIEWRUNTIMES can still refresh the window/view references/view lists. they cannot edit anything else however.
+	if(!check_rights(R_ADMIN|R_MOD, FALSE))
+		// Clients with R_VIEWRUNTIMES can still open and refresh windows, but nothing else
+		if(href_list[VV_HK_PROC_CALL] && check_rights(R_PROCCALL, FALSE))
+			SSuser_verbs.invoke_verb(usr, /datum/user_verb/call_proc_datum, GET_VV_TARGET)
+		else if(check_rights(R_VIEWRUNTIMES, FALSE))
+			view_var_Topic_view_only(href_list)
+		return
 
 	if(view_var_Topic_list(href, href_list, hsrc))  // done because you can't use UIDs with lists and I don't want to snowflake into the below check to supress warnings
 		return
@@ -600,10 +602,33 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 			return
 		src.debug_variables(DAT)
 
+/// The only VV links that work for clients with just R_VIEWRUNTIMES
+/client/proc/view_var_Topic_view_only(href_list)
+	if(href_list["Vars"])
+		debug_variables(locateUID(href_list["Vars"]))
+	else if(href_list["datumrefresh"])
+		debug_variables(locateUID(href_list["datumrefresh"]))
+	else if(href_list["VarsList"])
+		debug_variables(locate(href_list["VarsList"]))
+	else if(href_list["listrefresh"])
+		debug_variables(locate(href_list["listrefresh"]))
+
 /client/proc/view_var_Topic_list(href, href_list, hsrc)
 	if(href_list["VarsList"])
 		debug_variables(locate(href_list["VarsList"]))
 		return TRUE
+
+	if(href_list["listrefresh"])
+		debug_variables(locate(href_list["listrefresh"]))
+		return TRUE
+
+	// Everything below edits the list
+	var/static/list/list_edit_links = list("listedit", "listchange", "listremove", "listadd", "listdupes", "listnulls", "listlen", "listshuffle")
+	for(var/edit_link in list_edit_links)
+		if(href_list[edit_link])
+			if(!check_rights(R_VAREDIT))
+				return TRUE
+			break
 
 	if(href_list["listedit"] && href_list["index"])
 		var/index = text2num(href_list["index"])
@@ -709,10 +734,6 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		log_world("### ListVarEdit by [src]: /list contents: SHUFFLE")
 		log_admin("[key_name(src)] modified list's contents: SHUFFLE")
 		message_admins("[key_name_admin(src)] modified list's contents: SHUFFLE")
-		return TRUE
-
-	if(href_list["listrefresh"])
-		debug_variables(locate(href_list["listrefresh"]))
 		return TRUE
 
 USER_VERB(debug_global_variables, R_ADMIN|R_VIEWRUNTIMES, "Debug Global Variables", "Debug Global Variables", VERB_CATEGORY_DEBUG, var_search as text)
