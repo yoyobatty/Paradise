@@ -30,12 +30,12 @@
 		if(!check_rights(R_ADMIN | R_VAREDIT))
 			return
 
-		var/atom/A = locateUID(href_list["datummass"])
-		if(!istype(A))
-			to_chat(usr, SPAN_NOTICE("This can only be used on instances of type /atom."))
+		var/datum/D = locateUID(href_list["datummass"])
+		if(!istype(D))
+			to_chat(usr, SPAN_NOTICE("This can only be used on instances of type /datum."))
 			return
 
-		cmd_mass_modify_object_variables(A, href_list["varnamemass"])
+		cmd_mass_modify_object_variables(D, href_list["varnamemass"])
 	if(href_list[VV_HK_DELETE])
 		if(!check_rights(R_DEBUG, 0))
 			return
