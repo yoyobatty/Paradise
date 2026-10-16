@@ -386,6 +386,8 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 	if(islist(key))
 		var/list/list_key = key
 		return "<a href='byond://?_src_=vars;VarsList=\ref[list_key]'>/list ([length(list_key)]) \ref[list_key]</a>"
+	if(istext(key))
+		return "<span class='vv-key'>[VV_HTML_ENCODE(key)]</span>"
 	return VV_HTML_ENCODE(key)
 
 /**
@@ -416,13 +418,13 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 	. = "<font color='red'>DISPLAY_ERROR:</font> ([VV_HTML_ENCODE("[value]")] \ref[value])"
 
 	if(isnull(value))
-		return SPAN_VALUE("null")
+		return "<span class='value vv-null'>null</span>"
 
 	else if(is_color_text(value))
 		return SPAN_VALUE("<span class='colorbox' style='background-color: [value];'>&nbsp;</span> \"[value]\"")
 
 	else if(istext(value))
-		return SPAN_VALUE("\"[VV_HTML_ENCODE(value)]\"")
+		return "<span class='value vv-text'>\"[VV_HTML_ENCODE(value)]\"</span>"
 
 	else if(isicon(value))
 		#ifdef VARSICON
@@ -440,7 +442,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		#endif
 
 	else if(isfile(value))
-		return SPAN_VALUE("'[value]'")
+		return "<span class='value vv-file'>'[value]'</span>"
 
 	else if(istype(value, /datum))
 		var/datum/D = value
@@ -469,13 +471,19 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		return "<span class='vv-list'><span class='vv-fold' title='Fold'></span>[list_link]<ul>[items.Join()]</ul></span>"
 
 	else if(name in GLOB.bitfields)
-		return SPAN_VALUE("[VV_HTML_ENCODE(translate_bitfield(VV_BITFIELD, name, value))]")
+		return "<span class='value vv-num'>[VV_HTML_ENCODE(translate_bitfield(VV_BITFIELD, name, value))]</span>"
+
+	else if(isnum(value))
+		return "<span class='value vv-num'>[VV_HTML_ENCODE(value)]</span>"
+
+	else if(ispath(value))
+		return "<span class='value vv-path'>[VV_HTML_ENCODE(value)]</span>"
 
 	else
 		return SPAN_VALUE("[VV_HTML_ENCODE(value)]")
 
 /datum/proc/debug_variable_value(sanitize)
-	return "<a href='byond://?_src_=vars;Vars=[UID()]'>[VV_HTML_ENCODE(src)] \ref[src]</a> ([type])"
+	return "<a href='byond://?_src_=vars;Vars=[UID()]'>[VV_HTML_ENCODE(src)] \ref[src]</a> <span class='vv-type'>([type])</span>"
 
 /matrix/debug_variable_value(sanitize)
 	return {"<span class='value'>
