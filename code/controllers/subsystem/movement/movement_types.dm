@@ -122,12 +122,13 @@
 
 	owner?.processing_move_loop_flags = flags
 	var/result = move() // Result is an enum value. Enums defined in __DEFINES/movement_defines.dm
+	var/direction = NONE
 	if(moving)
-		var/direction = get_dir(old_loc, moving.loc)
+		direction = get_dir(old_loc, moving.loc)
 		SEND_SIGNAL(moving, COMSIG_MOVABLE_MOVED_FROM_LOOP, src, old_dir, direction)
 	owner?.processing_move_loop_flags = NONE
 
-	SEND_SIGNAL(src, COMSIG_MOVELOOP_POSTPROCESS, result, delay * visual_delay)
+	SEND_SIGNAL(src, COMSIG_MOVELOOP_POSTPROCESS, result, delay * visual_delay, direction)
 
 	if(QDELETED(src) || result != MOVELOOP_SUCCESS) //Can happen
 		return

@@ -70,9 +70,13 @@
 	return MOVELOOP_SKIP_STEP
 
 /// Anything to do post-movement.
-/datum/ai_movement/proc/post_move(datum/move_loop/source, succeeded)
+/datum/ai_movement/proc/post_move(datum/move_loop/source, succeeded, visual_delay, direction)
 	SIGNAL_HANDLER // COMSIG_MOVELOOP_POSTPROCESS
-	if(succeeded != FALSE)
-		return
 	var/datum/ai_controller/controller = source.extra_info
+	if(succeeded != FALSE)
+		// A diagonal step covers more ground, so wait longer after it like players do
+		// pre_move() puts the normal delay back before the next step
+		if(update_moveloop_delay && IS_DIR_DIAGONAL(direction))
+			source.delay = controller.movement_delay * sqrt(2)
+		return
 	increment_pathing_failures(controller)
