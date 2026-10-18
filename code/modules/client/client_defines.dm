@@ -22,6 +22,10 @@
 	///The visual delay to use for the current client.Move(), mostly used for making a client based move look like it came from some other slower source
 	var/visual_delay = 0
 	var/move_delay		= 1
+	/// When we last took a step from standing still, a second movement key pressed right after can still make it diagonal
+	var/rest_step_time = 0
+	/// The direction of that step, cleared once it's been made diagonal
+	var/rest_step_dir = NONE
 	var/moving			= null
 	var/area			= null
 

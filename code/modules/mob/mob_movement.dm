@@ -47,8 +47,11 @@
 #define CONFUSION_MAX					80 SECONDS
 
 
-/client/Move(new_loc, direct)
+/client/Move(new_loc, direct, finishing_diagonal = FALSE)
 	if(world.time < move_delay)
+		// Two keys pressed together often land a tick apart, so the first one already took a straight step
+		if(late_diagonal_key(direct))
+			finish_diagonal_step(direct)
 		return
 
 	input_data.desired_move_dir_add = NONE
@@ -142,16 +145,21 @@
 		if(!isalienhunter(mob)) // i hate grab code
 			add_delay += 7
 
+	var/from_rest = FALSE
+	if(finishing_diagonal)
+		// Count from when the first half of this diagonal step was taken
+		move_delay = rest_step_time
 	//If the move was recent, count using old_move_delay
 	//We want fractional behavior and all
-	if(old_move_delay + world.tick_lag > world.time)
+	else if(old_move_delay + world.tick_lag > world.time)
 		//Steps still only happen on whole ticks, get_step_glide_size() makes the slide match that
 		move_delay = old_move_delay
 	else
 		move_delay = world.time
+		from_rest = TRUE
 
 	var/diagonal_factor = 1
-	if(IS_DIR_DIAGONAL(direct))
+	if(IS_DIR_DIAGONAL(direct) || finishing_diagonal)
 		diagonal_factor = sqrt(2)
 	mob.set_glide_size(get_step_glide_size(add_delay * diagonal_factor)) // set it now in case of pulled objects
 
@@ -186,8 +194,11 @@
 		// Similar to the glide size calculation above, LONG_GLIDE mobs need to slow down and other mobs speed up.
 		// Unline before, we also want to calculate the new movement delay, which is increased for LONG_GLIDE mobs, and unchanged for other mobs.
 		mob.last_movement = world.time
-		if(IS_DIR_DIAGONAL(direct))
+		if(IS_DIR_DIAGONAL(direct) || finishing_diagonal)
 			add_delay *= sqrt(2)
+		if(from_rest && !IS_DIR_DIAGONAL(direct))
+			rest_step_time = world.time
+			rest_step_dir = direct
 
 	var/new_glide_size = 0
 	if(visual_delay)
@@ -220,6 +231,32 @@
 	// The next step can happen on the first tick at or after move_delay + step_delay
 	var/ticks_until_next_step = CEILING((move_delay + step_delay - world.time) / world.tick_lag, 1)
 	return DELAY_TO_GLIDE_SIZE(ticks_until_next_step * world.tick_lag)
+
+/// Returns TRUE if the player is now holding a diagonal, one tick after taking a straight step from standing still with one of its keys.
+/client/proc/late_diagonal_key(direct)
+	if(!rest_step_dir || world.time > rest_step_time + world.tick_lag)
+		return FALSE
+	if(!IS_DIR_DIAGONAL(direct) || !(direct & rest_step_dir))
+		return FALSE
+	// Something else has moved us since that step
+	if(mob?.l_move_time != rest_step_time)
+		return FALSE
+	return TRUE
+
+/// Takes the other half of the diagonal now, so the step that started straight ends on the diagonal tile on time.
+/// The slide carries on from where the mob is drawn, so it curves a little instead of jumping.
+/client/proc/finish_diagonal_step(direct)
+	var/first_step_end = move_delay
+	var/first_step_glide_size = mob.glide_size
+	var/second_dir = direct & ~rest_step_dir
+	rest_step_dir = NONE
+	move_delay = 0
+	Move(get_step(mob, second_dir), second_dir, TRUE)
+	if(!mob || mob.l_move_time == world.time)
+		return
+	// Couldn't take the second half, so carry on with the first step as it was
+	move_delay = max(move_delay, first_step_end)
+	mob.set_glide_size(first_step_glide_size)
 
 
 ///Process_Grab()
