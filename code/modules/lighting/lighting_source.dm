@@ -102,6 +102,9 @@
 		if(top_atom != source_atom)
 			LAZYADD(top_atom.light_sources, src) // Add ourselves to the light sources of our new top atom.
 
+	// update_corners() can reuse the old corners on a check, so a waiting visibility update needs a full update instead
+	if(needs_update == LIGHTING_VIS_UPDATE)
+		needs_update = LIGHTING_FORCE_UPDATE
 	EFFECT_UPDATE(LIGHTING_CHECK_UPDATE)
 
 // Will force an update without checking if it's actually needed.
@@ -110,6 +113,9 @@
 
 // Will cause the light source to recalculate turfs that were removed or added to visibility only.
 /datum/light_source/proc/vis_update()
+	// Same as in update()
+	if(needs_update == LIGHTING_CHECK_UPDATE)
+		needs_update = LIGHTING_FORCE_UPDATE
 	EFFECT_UPDATE(LIGHTING_VIS_UPDATE)
 
 // Macros that apply light to corners.
@@ -185,6 +191,9 @@
 
 /datum/light_source/proc/update_corners()
 	var/update = FALSE
+	// Stays TRUE if only our colour or power changed, then we light the same corners as before
+	var/same_corners = TRUE
+	var/old_power = light_power
 	var/atom/source_atom = src.source_atom
 
 	if(QDELETED(source_atom))
@@ -198,10 +207,12 @@
 	if(source_atom.light_range != light_range)
 		light_range = source_atom.light_range
 		update = TRUE
+		same_corners = FALSE
 
 	if(!top_atom)
 		top_atom = source_atom
 		update = TRUE
+		same_corners = FALSE
 
 	if(!light_range || !light_power)
 		qdel(src)
@@ -212,15 +223,18 @@
 			source_turf = top_atom
 			pixel_turf = source_turf
 			update = TRUE
+			same_corners = FALSE
 	else if(top_atom.loc != source_turf)
 		source_turf = top_atom.loc
 		pixel_turf = get_turf_pixel(top_atom)
 		update = TRUE
+		same_corners = FALSE
 	else
 		var/pixel_loc = get_turf_pixel(top_atom)
 		if(pixel_loc != pixel_turf)
 			pixel_turf = pixel_loc
 			update = TRUE
+			same_corners = FALSE
 
 	if(!isturf(source_turf))
 		if(applied)
@@ -229,6 +243,7 @@
 
 	if(light_range && light_power && !applied)
 		update = TRUE
+		same_corners = FALSE
 
 	if(source_atom.light_color != light_color)
 		light_color = source_atom.light_color
@@ -239,10 +254,15 @@
 		update = TRUE
 
 	if(update)
+		// Only colour or power changed and no visibility update is waiting, so we light the same corners
+		var/reuse_corners = same_corners && needs_update == LIGHTING_CHECK_UPDATE && effect_str
 		needs_update = LIGHTING_CHECK_UPDATE
 		applied = TRUE
 		if(source_atom)
 			source_atom.update_bloom()
+		if(reuse_corners)
+			reapply_lum(light_power / old_power)
+			return
 	else if(needs_update == LIGHTING_CHECK_UPDATE)
 		return //nothing's changed
 
@@ -308,6 +328,28 @@
 	applied_lum_b = lum_b
 
 	UNSETEMPTY(effect_str)
+
+/// Puts our new colour and power on the corners we already light. Strength goes up and down with power.
+/datum/light_source/proc/reapply_lum(power_scale)
+	SETUP_CORNERS_REMOVAL_CACHE
+	var/_lum_r = lum_r
+	var/_lum_g = lum_g
+	var/_lum_b = lum_b
+	var/list/datum/lighting_corner/effect = effect_str
+	for(var/datum/lighting_corner/corner as anything in effect)
+		var/old_strength = effect[corner]
+		var/strength = old_strength
+		if(power_scale != 1)
+			strength *= power_scale
+			effect[corner] = strength
+		var/delta_r = (strength * _lum_r) - (old_strength * _applied_lum_r)
+		var/delta_g = (strength * _lum_g) - (old_strength * _applied_lum_g)
+		var/delta_b = (strength * _lum_b) - (old_strength * _applied_lum_b)
+		ADD_CORNER_LUM(corner, delta_r, delta_g, delta_b)
+
+	applied_lum_r = lum_r
+	applied_lum_g = lum_g
+	applied_lum_b = lum_b
 
 #undef EFFECT_UPDATE
 #undef SETUP_CORNERS_REMOVAL_CACHE
