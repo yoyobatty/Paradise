@@ -142,19 +142,18 @@
 		if(!isalienhunter(mob)) // i hate grab code
 			add_delay += 7
 
-	var/diagonal_factor = 1
-	if(IS_DIR_DIAGONAL(direct))
-		diagonal_factor = sqrt(2)
-	mob.set_glide_size(DELAY_TO_GLIDE_SIZE(add_delay * diagonal_factor)) // set it now in case of pulled objects
-
 	//If the move was recent, count using old_move_delay
 	//We want fractional behavior and all
 	if(old_move_delay + world.tick_lag > world.time)
-		//Yes this makes smooth movement stutter if add_delay is too fractional
-		//Yes this is better then the alternative
+		//Steps still only happen on whole ticks, get_step_glide_size() makes the slide match that
 		move_delay = old_move_delay
 	else
 		move_delay = world.time
+
+	var/diagonal_factor = 1
+	if(IS_DIR_DIAGONAL(direct))
+		diagonal_factor = sqrt(2)
+	mob.set_glide_size(get_step_glide_size(add_delay * diagonal_factor)) // set it now in case of pulled objects
 
 	//Basically an optional override for our glide size
 	//Sometimes you want to look like you're moving with a delay you don't actually have yet
@@ -194,7 +193,7 @@
 	if(visual_delay)
 		new_glide_size = visual_delay
 	else
-		new_glide_size = DELAY_TO_GLIDE_SIZE(add_delay)
+		new_glide_size = get_step_glide_size(add_delay)
 
 	mob.set_glide_size(new_glide_size)
 
@@ -213,6 +212,14 @@
 #undef CONFUSION_LIGHT_COEFFICIENT
 #undef CONFUSION_HEAVY_COEFFICIENT
 #undef CONFUSION_MAX
+
+/// Returns the glide size that slides one tile in exactly the time until the next step can happen.
+/// Steps only happen on whole ticks, so a diagonal run step of 7.07 ticks is really a gap of 7 or 8 ticks.
+/// Sliding for the 7.07 ticks instead makes the mob stop short or jump ahead at the start of each step.
+/client/proc/get_step_glide_size(step_delay)
+	// The next step can happen on the first tick at or after move_delay + step_delay
+	var/ticks_until_next_step = CEILING((move_delay + step_delay - world.time) / world.tick_lag, 1)
+	return DELAY_TO_GLIDE_SIZE(ticks_until_next_step * world.tick_lag)
 
 
 ///Process_Grab()
