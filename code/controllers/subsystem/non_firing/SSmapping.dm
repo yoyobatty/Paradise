@@ -377,20 +377,26 @@ SUBSYSTEM_DEF(mapping)
 		lavaland_theme.replace_mapping_lava()
 	log_startup_progress("Loaded lavaland themes in [stop_watch(theme_watch)]s")
 
+/// Returns every airlock in the station's maintenance areas. Checking each airlock's area is much faster than searching everything in maintenance for airlocks.
+/datum/controller/subsystem/mapping/proc/get_station_maint_airlocks()
+	. = list()
+	for(var/obj/machinery/door/airlock/D in GLOB.airlocks)
+		var/area/station/maintenance/A = get_area(D)
+		if(istype(A) && (A in existing_station_areas))
+			. += D
+
 /datum/controller/subsystem/mapping/proc/make_maint_all_access()
-	for(var/area/station/maintenance/A in existing_station_areas)
-		for(var/obj/machinery/door/airlock/D in A)
-			D.emergency = TRUE
-			D.update_icon()
+	for(var/obj/machinery/door/airlock/D as anything in get_station_maint_airlocks())
+		D.emergency = TRUE
+		D.update_icon()
 	GLOB.minor_announcement.Announce("Access restrictions on maintenance and external airlocks have been removed.")
 	maint_all_access = TRUE
 	SSblackbox.record_feedback("nested tally", "keycard_auths", 1, list("emergency maintenance access", "enabled"))
 
 /datum/controller/subsystem/mapping/proc/revoke_maint_all_access()
-	for(var/area/station/maintenance/A in existing_station_areas)
-		for(var/obj/machinery/door/airlock/D in A)
-			D.emergency = FALSE
-			D.update_icon()
+	for(var/obj/machinery/door/airlock/D as anything in get_station_maint_airlocks())
+		D.emergency = FALSE
+		D.update_icon()
 	GLOB.minor_announcement.Announce("Access restrictions on maintenance and external airlocks have been re-added.")
 	maint_all_access = FALSE
 	SSblackbox.record_feedback("nested tally", "keycard_auths", 1, list("emergency maintenance access", "disabled"))
