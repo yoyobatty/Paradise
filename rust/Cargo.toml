@@ -50,6 +50,12 @@ zeroize = "1.9"
 ed25519-dalek = "3.0"
 base64 = "0.23"
 
+[profile.release]
+# One codegen unit and link-time optimisation let the compiler inline across the whole
+# library and its dependencies. Slower to build, but only the build bot makes release builds.
+codegen-units = 1
+lto = "fat"
+
 [dev-dependencies]
 # diffs between two strings/texts/files, used in tests
 diff = "0.1"
