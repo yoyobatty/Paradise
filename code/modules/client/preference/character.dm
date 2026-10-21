@@ -1826,7 +1826,10 @@
 	var/balance_check = rebuild_quirks()
 	for(var/datum/quirk/to_add in quirks)
 		to_add.apply_quirk_effects(character)
+	// apply_appearance() redraws the body several times over, so drawing waits for UpdateAppearance() at the end of copy_to()
+	character.hold_icon_updates = TRUE
 	apply_appearance(character)
+	character.hold_icon_updates = FALSE
 	if(balance_check > 0)
 		log_debug("[src] spawned in with more quirks than they should have been able to. Quirk balance of [balance_check].")
 	character.add_language(language)
@@ -1930,8 +1933,11 @@
 	character.sync_organ_dna(assimilate = TRUE)
 
 	// Do the initial caching of the player's body icons.
+	// UpdateAppearance() draws the body, so force_update_limbs() and update_eyes() only set the limb and eye colours here
+	character.hold_icon_updates = TRUE
 	character.force_update_limbs()
 	character.update_eyes()
+	character.hold_icon_updates = FALSE
 	character.UpdateAppearance()
 
 //Check if the user has ANY job selected.

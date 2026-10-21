@@ -163,6 +163,8 @@ GLOBAL_LIST_EMPTY(damage_icon_parts)
 
 //BASE MOB SPRITE
 /mob/living/carbon/human/proc/update_body(rebuild_base = FALSE)
+	if(hold_icon_updates)
+		return
 	remove_overlay(LIMBS_LAYER) // So we don't get the old species' sprite splatted on top of the new one's
 	remove_overlay(UNDERWEAR_LAYER)
 
@@ -372,6 +374,8 @@ GLOBAL_LIST_EMPTY(damage_icon_parts)
   * Generates overlays for the hair layer.
   */
 /mob/living/carbon/human/proc/update_hair()
+	if(hold_icon_updates)
+		return
 	remove_overlay(HAIR_LAYER)
 
 	var/obj/item/organ/external/head/O = get_organ("head")
@@ -575,6 +579,8 @@ GLOBAL_LIST_EMPTY(damage_icon_parts)
 /* --------------------------------------- */
 //For legacy support.
 /mob/living/carbon/human/regenerate_icons()
+	if(hold_icon_updates)
+		return
 	..()
 	if(notransform)
 		return
@@ -1476,6 +1482,8 @@ GLOBAL_LIST_EMPTY(damage_icon_parts)
 	update_tail_layer() //just trigger a full update for normal stationary sprites
 
 /mob/living/carbon/human/proc/update_int_organs()
+	if(hold_icon_updates)
+		return
 	remove_overlay(INTORGAN_LAYER)
 
 	var/list/standing = list()

@@ -554,7 +554,8 @@
 	close_spawn_windows()
 
 	check_prefs_are_sane()
-	var/mob/living/carbon/human/new_character = new(loc)
+	// The body is drawn by copy_to() below, once it has the character on it
+	var/mob/living/carbon/human/new_character = new(loc, null, TRUE)
 	new_character.lastarea = get_area(loc)
 	client.prefs.active_character.copy_to(new_character)
 	if(SSticker.random_players)

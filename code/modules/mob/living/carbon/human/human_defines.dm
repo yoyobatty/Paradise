@@ -103,6 +103,8 @@
 	var/original_eye_color = "#000000"
 
 	var/list/overlays_standing[TOTAL_LAYERS]
+	/// TRUE while copy_to() is putting a character on this body, so update_body(), regenerate_icons(), update_hair() and update_int_organs() leave the drawing to it
+	var/hold_icon_updates = FALSE
 	/// Stores what the body last looked like. Prevents updating the body when we don't need to
 	var/previous_damage_appearance
 

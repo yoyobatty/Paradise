@@ -1,13 +1,16 @@
-/mob/living/carbon/human/Initialize(mapload, datum/species/new_species = /datum/species/human)
+/mob/living/carbon/human/Initialize(mapload, datum/species/new_species = /datum/species/human, getting_character = FALSE)
 	icon = null // This is now handled by overlays -- we just keep an icon for the sake of the map editor.
 	create_dna()
 
 	. = ..()
 
+	// copy_to() is about to put a character on this body and draw it, so it isn't drawn here first
+	hold_icon_updates = getting_character
 	setup_dna(new_species)
 	setup_other()
 
 	UpdateAppearance()
+	hold_icon_updates = FALSE
 	GLOB.human_list += src
 	AddComponent(/datum/component/footstep, FOOTSTEP_MOB_HUMAN, 1, -6)
 	RegisterSignal(src, COMSIG_BODY_TRANSFER_TO, PROC_REF(mind_checks))
