@@ -532,7 +532,7 @@ GLOBAL_LIST_EMPTY(allNewscasters)
 					FC.is_public = public
 					FC.admin_locked = usr.can_admin_interact() && admin_locked
 					set_temp("Channel [FC.channel_name] created.", "good")
-					usr.create_log(MISC_LOG, "Newscaster channel [name] created with desc [description].")
+					usr.create_log(MISC_LOG, "Newscaster channel [html_encode(name)] created with desc [html_encode(description)].")
 				if("create_story")
 					var/author = trim(arguments["author"])
 					var/channel = trim(arguments["channel"])
@@ -567,7 +567,7 @@ GLOBAL_LIST_EMPTY(allNewscasters)
 					viewing_channel = FC
 					eject_photo(usr)
 					set_temp("Story published to channel [FC.channel_name].", "good")
-					usr.create_log(MISC_LOG, "Newscaster story [title] created with desc [body].")
+					usr.create_log(MISC_LOG, "Newscaster story [html_encode(title)] created with desc [html_encode(body)].")
 				if("wanted_notice")
 					if(id == "wanted_notice" && !(is_security || usr.can_admin_interact()))
 						return
@@ -596,7 +596,7 @@ GLOBAL_LIST_EMPTY(allNewscasters)
 						NC.alert_news(wanted_notice = TRUE)
 					eject_photo(usr)
 					set_temp("Wanted notice distributed.", "good")
-					usr.create_log(MISC_LOG, "Wanted notice for [name] created with desc [description].")
+					usr.create_log(MISC_LOG, "Wanted notice for [html_encode(name)] created with desc [html_encode(description)].")
 				else
 					return FALSE
 		else

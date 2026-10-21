@@ -72,9 +72,9 @@
 
 /datum/station_trait/random_event_weight_modifier/on_round_start()
 	. = ..()
-	for(var/datum/event_container/E in SSevents.event_containers)
-		if(istype(E, event_severity))
-			event_severity = E
+	for(var/severity in SSevents.event_containers)
+		if(istype(SSevents.event_containers[severity], event_severity))
+			event_severity = SSevents.event_containers[severity]
 	var/modified_event = FALSE
 	for(var/datum/event_meta/E in event_severity.available_events)
 		for(var/i in event_names)
@@ -116,7 +116,7 @@
 	trait_type = STATION_TRAIT_NEGATIVE
 	trait_flags = STATION_TRAIT_MAP_UNRESTRICTED
 	weight = 2
-	event_names = list("Meteor Shower")
+	event_names = list("Meteor Wave")
 	event_severity = /datum/event_container/moderate
 	weight_multiplier = 3
 
@@ -126,6 +126,6 @@
 	trait_type = STATION_TRAIT_NEGATIVE
 	trait_flags = STATION_TRAIT_MAP_UNRESTRICTED
 	weight = 2
-	event_names = list("Pyro Anomaly", "Cryo Anomaly", "Vortex Anomaly", "Bluespace Anomaly", "Flux Anomaly", "Gravitational Anomaly", "Wormholes", "Dimensional Tear") //Added wormholes and dimensional tears to acoid this being too positive
+	event_names = list("Pyro Anomaly", "Cryo Anomaly", "Vortex Anomaly", "Bluespace Anomaly", "Flux Anomaly", "Gravitational Anomaly", "Wormholes", "dimensional tear") //Added wormholes and dimensional tears to acoid this being too positive
 	event_severity = /datum/event_container/moderate
 	weight_multiplier = 2 //Only 2 as there are a *lot* of anomaly events.

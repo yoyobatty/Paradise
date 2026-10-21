@@ -9,6 +9,8 @@
 
 /datum/event/spawn_slaughter/tick()
 	if(!demon || demon.stat == DEAD)
+		// Demons delete themselves when they die, so let go of the dead one before kill() moves this event to finished_events.
+		demon = null
 		kill()
 
 /datum/event/spawn_slaughter/proc/get_slaughter()
@@ -30,6 +32,7 @@
 	var/turf/spawn_loc = get_spawn_loc(player_mind.current)
 	var/obj/effect/dummy/slaughter/holder = new /obj/effect/dummy/slaughter(spawn_loc)
 	var/mob/living/basic/demon/S = new demon(holder)
+	demon = S
 	player_mind.transfer_to(S)
 	player_mind.assigned_role = "Demon"
 	player_mind.special_role = SPECIAL_ROLE_DEMON

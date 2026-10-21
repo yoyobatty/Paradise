@@ -17,7 +17,7 @@
 
 
 /datum/event/anomaly/tick()
-	if(spawned && QDELETED(anomaly_path))
+	if(spawned && noAutoEnd && QDELETED(anomaly_path))
 		// Add 15 minutes for cleanup
 		endWhen = activeFor + 450
 		noAutoEnd = FALSE

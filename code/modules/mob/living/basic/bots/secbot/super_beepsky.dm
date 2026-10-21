@@ -45,7 +45,7 @@
 
 /mob/living/basic/bot/secbot/griefsky/on_entered(datum/source, atom/movable/movable_target)
 	. = ..()
-	if(!ismob(movable_target) || !ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] == movable_target)
+	if(!ismob(movable_target) || ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] != movable_target)
 		return
 	visible_message(SPAN_WARNING("[src] flails his swords and cuts [movable_target]!"))
 	playsound(src, 'sound/voice/beepsky/beepskyspinsabre.ogg' , 100, TRUE, -1)

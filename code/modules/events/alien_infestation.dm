@@ -23,7 +23,7 @@ GLOBAL_LIST_INIT(xeno_things, list("xenos" = list(), "eggs" = list()))
 
 /datum/event/alien_infestation/process()
 	// Check for completion every minute
-	if(!activeFor % 30)
+	if(!(activeFor % 30))
 		if(successSpawn && !length(event_category_cost(EVENT_XENOS)))
 			kill()
 	. = ..()

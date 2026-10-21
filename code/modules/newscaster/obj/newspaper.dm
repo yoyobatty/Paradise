@@ -72,7 +72,7 @@
 				var/temp_page=0
 				for(var/datum/feed_channel/NP in news_content)
 					temp_page++
-					dat += "<b>[NP.channel_name]</b> <font size=2>\[page [temp_page+1]\]</font><br>"
+					dat += "<b>[html_encode(NP.channel_name)]</b> <font size=2>\[page [temp_page+1]\]</font><br>"
 				dat += "</ul>"
 			if(scribble_page==curr_page)
 				dat += "<br><i>There is a small scribble near the end of this page... It reads: \"[scribble]\"</i>"
@@ -81,7 +81,7 @@
 			for(var/datum/feed_channel/NP in news_content)
 				pages++ //Let's get it right again.
 			var/datum/feed_channel/C = news_content[curr_page]
-			dat += "<font size=4><b>[C.channel_name]</b></font><font size=1> \[created by: <font color='maroon'>[C.author]</font>\]</font><br><br>"
+			dat += "<font size=4><b>[html_encode(C.channel_name)]</b></font><font size=1> \[created by: <font color='maroon'>[html_encode(C.author)]</font>\]</font><br><br>"
 			if(C.censored)
 				dat += "This channel was deemed dangerous to the general welfare of the station and therefore marked with a <b><font color='red'>D-Notice</b></font>. Its contents were not transferred to the newspaper at the time of printing."
 			else
@@ -91,15 +91,16 @@
 					dat += "<ul>"
 					var/i = 0
 					for(var/datum/feed_message/MESSAGE in C.messages)
-						var/title = (MESSAGE.censor_flags & NEWSCASTER_CENSOR_STORY) ? "\[REDACTED\]" : MESSAGE.title
-						var/body = (MESSAGE.censor_flags & NEWSCASTER_CENSOR_STORY) ? "\[REDACTED\]" : MESSAGE.body
+						// The announcer stores station announcements already encoded, so decode them first or they show up encoded twice.
+						var/title = (MESSAGE.censor_flags & NEWSCASTER_CENSOR_STORY) ? "\[REDACTED\]" : html_encode(html_decode(MESSAGE.title))
+						var/body = (MESSAGE.censor_flags & NEWSCASTER_CENSOR_STORY) ? "\[REDACTED\]" : html_encode(html_decode(MESSAGE.body))
 						i++
 						dat += "<b>[title]</b> <br>"
 						dat += "[body] <br>"
 						if(MESSAGE.img)
 							user << browse_rsc(MESSAGE.img, "tmp_photo[i].png")
 							dat += "<img src='tmp_photo[i].png' width = '180'><br>"
-						dat += "<font size=1>\[Story by <font color='maroon'>[MESSAGE.author]</font>\]</font><br><br>"
+						dat += "<font size=1>\[Story by <font color='maroon'>[html_encode(MESSAGE.author)]</font>\]</font><br><br>"
 					dat += "</ul>"
 			if(scribble_page==curr_page)
 				dat += "<br><i>There is a small scribble near the end of this page... It reads: \"[scribble]\"</i>"
@@ -109,8 +110,8 @@
 				pages++
 			if(important_message!=null)
 				dat += "<div style='float:center;'><font size=4><b>Wanted Issue:</b></font></div><br><br>"
-				dat += "<b>Criminal name</b>: <font color='maroon'>[important_message.author]</font><br>"
-				dat += "<b>Description</b>: [important_message.body]<br>"
+				dat += "<b>Criminal name</b>: <font color='maroon'>[html_encode(important_message.author)]</font><br>"
+				dat += "<b>Description</b>: [html_encode(important_message.body)]<br>"
 				dat += "<b>Photo:</b>: "
 				if(important_message.img)
 					user << browse_rsc(important_message.img, "tmp_photow.png")

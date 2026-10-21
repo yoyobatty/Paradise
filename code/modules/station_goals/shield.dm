@@ -285,16 +285,18 @@
 			qdel(M)
 
 /obj/machinery/satellite/meteor_shield/toggle(user)
-	if(..(user))
-		return TRUE
+	if(!..(user))
+		return FALSE
 	if(emagged)
 		if(active)
 			change_meteor_chance(2)
 		else
 			change_meteor_chance(0.5)
+	return TRUE
 
 /obj/machinery/satellite/meteor_shield/proc/change_meteor_chance(mod)
-	for(var/datum/event_container/container in SSevents.event_containers)
+	for(var/severity in SSevents.event_containers)
+		var/datum/event_container/container = SSevents.event_containers[severity]
 		for(var/datum/event_meta/M in container.available_events)
 			if(M.skeleton.type == /datum/event/meteor_wave)
 				M.weight_mod *= mod

@@ -187,5 +187,5 @@
   */
 /datum/feed_channel/proc/get_announce_text(title)
 	if(length(title))
-		return "Breaking news from [channel_name]: [title]"
-	return "Breaking news from [channel_name]"
+		return "Breaking news from [html_encode(channel_name)]: [html_encode(title)]"
+	return "Breaking news from [html_encode(channel_name)]"

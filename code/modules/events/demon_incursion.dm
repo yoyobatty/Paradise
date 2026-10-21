@@ -84,7 +84,7 @@
 	var/mob/living/simple_animal/hostile/asteroid/elite/created_mob = new selected_elite(elite_portal.loc)
 	created_mob.faction = list("nether")
 	elite_portal.visible_message(SPAN_USERDANGER("[created_mob] emerges from [elite_portal]!"))
-	notify_ghosts("\A [created_mob] has emerged from an incursion portal in \the [get_area(src)]!", enter_link="<a href=byond://?src=[UID()];follow=1>(Click to help)</a>", source = created_mob, action = NOTIFY_FOLLOW)
+	notify_ghosts("\A [created_mob] has emerged from an incursion portal in \the [get_area(created_mob)]!", enter_link="<a href=byond://?src=[UID()];follow=1>(Click to help)</a>", source = created_mob, action = NOTIFY_FOLLOW)
 	qdel(elite_portal)
 	playsound(created_mob.loc,'sound/effects/phasein.ogg', 200, FALSE, 50, TRUE, TRUE)
 
@@ -319,7 +319,7 @@
 		if(!density_check)
 			continue
 		spawnable_turfs += possible_loc
-	if(!spawnable_turfs)
+	if(!length(spawnable_turfs))
 		return
 	var/turf/spawn_loc = pick_n_take(spawnable_turfs)
 	linked_incursion.spawn_portal(spawn_loc)

@@ -47,7 +47,8 @@ SUBSYSTEM_DEF(events)
 		EC.process()
 
 /datum/controller/subsystem/events/proc/event_complete(datum/event/E)
-	if(!E.event_meta)	// datum/event is used here and there for random reasons, maintaining "backwards compatibility"
+	// The Trigger Event verb and the carp infestation trait make a meta with no skeleton, and acquire_event() runtimes if one goes back into available_events.
+	if(!E.event_meta?.skeleton)	// datum/event is used here and there for random reasons, maintaining "backwards compatibility"
 		log_debug("Event of '[E.type]' with missing meta-data has completed.")
 		return
 
