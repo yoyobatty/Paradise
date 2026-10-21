@@ -144,11 +144,104 @@ pub(crate) fn flow_air(prev: &ZLevel, next: &mut ZLevel) -> Result<AirflowOutcom
             && outcome.max_thermal_energy_delta < THERMAL_CHANGE_SIGNIFICANCE
         {
             // We've stabilized.
-            return Ok(outcome);
+            break;
         }
     }
 
+    conserve_gas(prev, next);
     Ok(outcome)
+}
+
+/// The loop in flow_air() stops once the air is close enough, and that close enough answer makes
+/// or loses a little gas every tick wherever air keeps flowing, like next to a scrubber.
+/// This works each tile out again as its old gas, plus what flowed in from each neighbour, minus
+/// what flowed out to it. A pair of tiles uses the same flow from both sides, so the gas that
+/// leaves one tile is exactly what arrives in the other. If the loop got the exact answer, this
+/// changes nothing.
+pub(crate) fn conserve_gas(prev: &ZLevel, next: &mut ZLevel) {
+    let mut conserved: Vec<[f32; GAS_COUNT]> = Vec::with_capacity(MAP_SIZE * MAP_SIZE);
+    // Only used for tiles that were empty after flow_air(), see below.
+    let mut inflow_temperatures: Vec<f32> = vec![0.0; MAP_SIZE * MAP_SIZE];
+    for my_index in 0..MAP_SIZE * MAP_SIZE {
+        let my_tile = prev.get_tile(my_index);
+        let my_new_tile = next.get_tile(my_index);
+
+        // flow_air() leaves these alone, so we do too.
+        match my_tile.mode {
+            AtmosMode::Space | AtmosMode::ExposedTo { .. } => {
+                conserved.push(my_new_tile.gases.values);
+                continue;
+            }
+            _ => (),
+        }
+
+        let x = (my_index / MAP_SIZE) as i32;
+        let y = (my_index % MAP_SIZE) as i32;
+        let mut values = my_tile.gases.values;
+        // A tile with no heat capacity at all has no temperature to keep, see below.
+        let no_temperature = my_new_tile.heat_capacity() <= 0.0;
+        let mut inflow_heat: f32 = 0.0;
+        let mut inflow_heat_capacity: f32 = 0.0;
+        for (dir, (dx, dy)) in DIRECTIONS.iter().enumerate() {
+            let neighbor_index = match ZLevel::maybe_get_index(x + dx, y + dy) {
+                Some(value) => value,
+                None => continue,
+            };
+            let new_neighbor = next.get_tile(neighbor_index);
+            let axis = DIRECTION_AXIS[dir];
+
+            // Same wall check as flow_air_once_at_index(). There's no pressure check here: it only
+            // matters when both tiles are empty, and then nothing flows anyway.
+            if dx + dy > 0 {
+                if my_new_tile.wall[axis] {
+                    continue;
+                }
+            } else if new_neighbor.wall[axis] {
+                continue;
+            }
+
+            for i in 0..GAS_COUNT {
+                let gas_flow_in;
+                let gas_flow_out;
+                if dx + dy > 0 {
+                    gas_flow_in = my_new_tile.gas_flow[axis][i][GAS_FLOW_IN];
+                    gas_flow_out = my_new_tile.gas_flow[axis][i][GAS_FLOW_OUT];
+                } else {
+                    gas_flow_in = new_neighbor.gas_flow[axis][i][GAS_FLOW_OUT];
+                    gas_flow_out = new_neighbor.gas_flow[axis][i][GAS_FLOW_IN];
+                }
+                let gas_in = gas_flow_in * new_neighbor.gases.values[i];
+                values[i] += gas_in - gas_flow_out * my_new_tile.gases.values[i];
+                if no_temperature {
+                    inflow_heat += gas_in * SPECIFIC_HEATS[i] * new_neighbor.temperature();
+                    inflow_heat_capacity += gas_in * SPECIFIC_HEATS[i];
+                }
+            }
+        }
+        if inflow_heat_capacity > 0.0 {
+            inflow_temperatures[my_index] = inflow_heat / inflow_heat_capacity;
+        }
+        conserved.push(values);
+    }
+
+    for (my_index, values) in conserved.into_iter().enumerate() {
+        let my_new_tile = next.get_tile_mut(my_index);
+        if my_new_tile.gases.values == values {
+            continue;
+        }
+        // Keep the temperature flow_air() worked out. A tile with no heat capacity has no
+        // temperature yet, so it gets the temperature of the gas flowing in, not a little gas at 0 K.
+        let temperature = if my_new_tile.heat_capacity() > 0.0 {
+            my_new_tile.temperature()
+        } else {
+            inflow_temperatures[my_index]
+        };
+        for i in 0..GAS_COUNT {
+            my_new_tile.gases.values[i] = values[i].max(0.0);
+        }
+        my_new_tile.gases.set_dirty();
+        my_new_tile.thermal_energy = temperature * my_new_tile.heat_capacity();
+    }
 }
 
 /// Let the air flow at every active tile by one step.
@@ -982,5 +1075,54 @@ pub(crate) fn adjust_hotspot(tile: &mut Tile, thermal_energy_delta: f32) {
 mod tests {
     use super::*;
 
-    // TODO
+    /// Adds up every mole of each gas on the level.
+    fn total_gas(level: &ZLevel) -> [f64; GAS_COUNT] {
+        let mut total = [0.0; GAS_COUNT];
+        for index in 0..MAP_SIZE * MAP_SIZE {
+            for (i, amount) in total.iter_mut().enumerate() {
+                *amount += level.get_tile(index).gases.values[i] as f64;
+            }
+        }
+        total
+    }
+
+    // A sealed room with lots of gas on one side and almost none on the other.
+    // Moving the gas around shouldn't make or lose any of it.
+    #[test]
+    fn flow_air_conserves_gas() {
+        let mut prev = ZLevel::new();
+        for x in 9..=30 {
+            for y in 9..=20 {
+                let tile = prev.get_tile_mut(ZLevel::maybe_get_index(x, y).unwrap());
+                tile.mode = AtmosMode::Sealed;
+                if x == 9 || x == 30 || y == 9 || y == 20 {
+                    // The room's walls.
+                    tile.airtight_directions = AirtightDirections::all();
+                    continue;
+                }
+                let amount = if x < 15 { 500.0 } else { 0.5 };
+                tile.gases.set_oxygen(amount);
+                tile.gases.set_toxins(amount / 10.0);
+                tile.thermal_energy = tile.heat_capacity() * 293.15;
+            }
+        }
+        let mut next = ZLevel::new();
+        next.copy_from(&prev);
+
+        // The same steps a tick does before flow_air().
+        find_walls(&mut next);
+        update_wind(&prev, &mut next);
+        flow_air(&prev, &mut next).unwrap();
+
+        let before = total_gas(&prev);
+        let after = total_gas(&next);
+        for i in 0..GAS_COUNT {
+            assert!(
+                (after[i] - before[i]).abs() <= before[i] * 1e-5 + 1e-6,
+                "gas {i}: {} moles before, {} after",
+                before[i],
+                after[i]
+            );
+        }
+    }
 }
