@@ -122,7 +122,7 @@
 			continue
 		if(check_requirements(candidate))
 			continue
-		if(candidate.health < candidate.maxHealth)
+		if(should_show_effect && candidate.health < candidate.maxHealth)
 			new /obj/effect/temp_visual/cosmic_gem(get_turf(candidate))
 
 		if(damage_message && prob(message_probability))
