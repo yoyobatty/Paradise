@@ -539,10 +539,12 @@
 	return data
 
 /obj/machinery/power/apc/proc/update()
+	var/channel_changed = FALSE
+	var/old_emergency_power = emergency_power
 	if(operating && !shorted)
-		machine_powernet.set_power_channel(PW_CHANNEL_LIGHTING, (lighting_channel > APC_CHANNEL_SETTING_AUTO_OFF))
-		machine_powernet.set_power_channel(PW_CHANNEL_EQUIPMENT, (equipment_channel > APC_CHANNEL_SETTING_AUTO_OFF))
-		machine_powernet.set_power_channel(PW_CHANNEL_ENVIRONMENT, (environment_channel > APC_CHANNEL_SETTING_AUTO_OFF))
+		channel_changed |= machine_powernet.set_power_channel(PW_CHANNEL_LIGHTING, (lighting_channel > APC_CHANNEL_SETTING_AUTO_OFF))
+		channel_changed |= machine_powernet.set_power_channel(PW_CHANNEL_EQUIPMENT, (equipment_channel > APC_CHANNEL_SETTING_AUTO_OFF))
+		channel_changed |= machine_powernet.set_power_channel(PW_CHANNEL_ENVIRONMENT, (environment_channel > APC_CHANNEL_SETTING_AUTO_OFF))
 		if(lighting_channel > APC_CHANNEL_SETTING_AUTO_OFF)
 			emergency_power = TRUE
 			if(emergency_power_timer)
@@ -552,12 +554,14 @@
 			if(!emergency_power_timer)
 				emergency_power_timer = addtimer(CALLBACK(src, PROC_REF(turn_emergency_power_off)), 2 MINUTES, TIMER_UNIQUE|TIMER_STOPPABLE)
 	else
-		machine_powernet.set_power_channel(PW_CHANNEL_LIGHTING, FALSE)
-		machine_powernet.set_power_channel(PW_CHANNEL_EQUIPMENT, FALSE)
-		machine_powernet.set_power_channel(PW_CHANNEL_ENVIRONMENT, FALSE)
+		channel_changed |= machine_powernet.set_power_channel(PW_CHANNEL_LIGHTING, FALSE)
+		channel_changed |= machine_powernet.set_power_channel(PW_CHANNEL_EQUIPMENT, FALSE)
+		channel_changed |= machine_powernet.set_power_channel(PW_CHANNEL_ENVIRONMENT, FALSE)
 		if(!emergency_power_timer)
 			emergency_power_timer = addtimer(CALLBACK(src, PROC_REF(turn_emergency_power_off)), 2 MINUTES, TIMER_UNIQUE|TIMER_STOPPABLE)
-	machine_powernet.power_change()
+	// Each channel that changed already ran power_change(), the last one with every channel as it is now, so it's only needed again if none changed or emergency_power did
+	if(!channel_changed || emergency_power != old_emergency_power)
+		machine_powernet.power_change()
 
 /obj/machinery/power/apc/proc/can_use(mob/user, loud = 0) //used by attack_hand() and Topic()
 	if(user.can_admin_interact())

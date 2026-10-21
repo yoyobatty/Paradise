@@ -77,22 +77,23 @@
 		M.power_change()			// reverify power status (to update icons etc.)
 	SEND_SIGNAL(src, COMSIG_POWERNET_POWER_CHANGE)
 
-/// sets a power channel on or off and adjusts total power usage accordingly
+/// sets a power channel on or off and adjusts total power usage accordingly, returns TRUE if it changed
 /datum/local_powernet/proc/set_power_channel(channel, new_state)
 	switch(channel)
 		if(PW_CHANNEL_EQUIPMENT)
 			if(equipment_powered == new_state)
-				return
+				return FALSE
 			equipment_powered = new_state
 		if(PW_CHANNEL_LIGHTING)
 			if(lighting_powered == new_state)
-				return
+				return FALSE
 			lighting_powered = new_state
 		if(PW_CHANNEL_ENVIRONMENT)
 			if(environment_powered == new_state)
-				return
+				return FALSE
 			environment_powered = new_state
 	power_change()
+	return TRUE
 
 /// checks to see if the given channel in this local powernet has power
 /datum/local_powernet/proc/has_power(channel)
