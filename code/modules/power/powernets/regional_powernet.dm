@@ -54,6 +54,12 @@
 	if(is_empty())
 		qdel(src) //powernet datums are useless if they have no nodes/cables
 
+/// remove cables that have already been moved to another powernet, if the powernet is empty after, delete it
+/datum/regional_powernet/proc/remove_moved_cables(list/moved_cables)
+	cables -= moved_cables
+	if(is_empty())
+		qdel(src)
+
 /// add a cable to the current powernet
 /datum/regional_powernet/proc/add_cable(obj/structure/cable/C)
 	if(C.powernet)

@@ -600,18 +600,26 @@ GLOBAL_LIST_EMPTY(station_turfs)
 */
 /turf/proc/power_list(atom/source, direction, cable_only = FALSE)
 	. = list()
+	var/obj/structure/cable/source_cable = istype(source, /obj/structure/cable) ? source : null
+	// Machines are only returned when there's no direction, so otherwise only the cables on the turf need looking at
+	if(cable_only || direction)
+		for(var/obj/structure/cable/C in src)
+			if(C == source)
+				continue	//we don't want to return source
+			if(C.d1 == direction || C.d2 == direction)
+				if(source_cable && !(source_cable.connect_type & C.connect_type))
+					continue
+				. += C // one of the cables ends matches the supplied direction, add it to connnections
+		return
 	for(var/obj/AM in src)
 		if(AM == source)
 			continue	//we don't want to return source
 		if(istype(AM, /obj/structure/cable))
 			var/obj/structure/cable/C = AM
 			if(C.d1 == direction || C.d2 == direction)
-				if(istype(source, /obj/structure/cable))
-					var/obj/structure/cable/source_cable = source
-					if(!(source_cable.connect_type & C.connect_type))
-						continue
+				if(source_cable && !(source_cable.connect_type & C.connect_type))
+					continue
 				. += C // one of the cables ends matches the supplied direction, add it to connnections
-		if(cable_only || direction)
 			continue
 		if(istype(AM, /obj/machinery/power) && !istype(AM, /obj/machinery/power/apc))
 			. += AM

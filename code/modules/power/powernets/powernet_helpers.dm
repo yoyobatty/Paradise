@@ -3,27 +3,57 @@
 //////////////////////////////////////////
 
 /// remove the old powernet and replace it with a new one throughout the network.
-/proc/propagate_network(obj/O, datum/regional_powernet/PN)
+/// connection_cache is optional, process_defered_powernets() passes one so rebuilds in the same tick can reuse each cable's get_connections().
+/proc/propagate_network(obj/O, datum/regional_powernet/PN, list/connection_cache)
+	// Cables still to be looked at. Each cable goes on PN when it's added here, so a cable already on PN has been added.
 	var/list/worklist = list()
 	var/list/found_machines = list()
+	// The old powernets that cables were moved out of, each with a list of the cables it lost
+	var/list/moved_cables = list()
+
+	if(istype(O, /obj/structure/cable)) //start propagating from the passed object
+		var/obj/structure/cable/first_cable = O
+		if(first_cable.powernet != PN) //makepowernets() has already put it on PN
+			PN.add_cable(first_cable)
+		worklist += first_cable
+	else if(O.anchored && istype(O, /obj/machinery/power))
+		found_machines[O] = TRUE
+
 	var/index = 1
-	var/obj/P = null
-
-	worklist += O //start propagating from the passed object
-
 	while(index <= length(worklist)) //until we've exhausted all power objects
-		P = worklist[index] //get the next power object found
+		var/obj/structure/cable/current_cable = worklist[index] //get the next cable found
 		index++
 
-		if(istype(P, /obj/structure/cable))
-			var/obj/structure/cable/C = P
-			if(C.powernet != PN) //add it to the powernet, if it isn't already there
-				PN.add_cable(C)
-			worklist |= C.get_connections() //get adjacents power objects, with or without a powernet
+		var/list/connections
+		if(connection_cache)
+			connections = connection_cache[current_cable]
+			if(!connections)
+				connections = current_cable.get_connections()
+				connection_cache[current_cable] = connections
+		else
+			connections = current_cable.get_connections() //get adjacents power objects, with or without a powernet
 
-		else if(P.anchored && istype(P, /obj/machinery/power))
-			var/obj/machinery/power/M = P
-			found_machines |= M //we wait until the powernet is fully propagates to connect the machines
+		for(var/obj/connection as anything in connections)
+			if(istype(connection, /obj/structure/cable))
+				var/obj/structure/cable/cable = connection
+				if(cable.powernet == PN)
+					continue
+				if(cable.powernet)
+					var/list/lost_cables = moved_cables[cable.powernet]
+					if(!lost_cables)
+						lost_cables = list()
+						moved_cables[cable.powernet] = lost_cables
+					lost_cables += cable
+				cable.powernet = PN
+				PN.cables += cable
+				worklist += cable
+
+			else if(connection.anchored && istype(connection, /obj/machinery/power))
+				found_machines[connection] = TRUE //we wait until the powernet is fully propagates to connect the machines
+
+	// Take the moved cables off their old powernets in one go, instead of a remove_cable() call for each one
+	for(var/datum/regional_powernet/old_powernet as anything in moved_cables)
+		old_powernet.remove_moved_cables(moved_cables[old_powernet])
 
 	//now that the powernet is set, connect found machines to it
 	for(var/obj/machinery/power/PM in found_machines)
