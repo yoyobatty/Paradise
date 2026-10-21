@@ -249,10 +249,10 @@
 			if(bodytemperature >= dna.species.cold_level_2 && bodytemperature <= dna.species.cold_level_1)
 				throw_alert("temp", /atom/movable/screen/alert/cold, 1)
 				take_overall_damage(burn=mult*COLD_DAMAGE_LEVEL_1, updating_health = TRUE, used_weapon = "Low Body Temperature")
-			if(bodytemperature >= dna.species.cold_level_3 && bodytemperature < dna.species.cold_level_2)
+			else if(bodytemperature >= dna.species.cold_level_3 && bodytemperature < dna.species.cold_level_2)
 				throw_alert("temp", /atom/movable/screen/alert/cold, 2)
 				take_overall_damage(burn=mult*COLD_DAMAGE_LEVEL_2, updating_health = TRUE, used_weapon = "Low Body Temperature")
-			if(bodytemperature > -INFINITY && bodytemperature < dna.species.cold_level_3)
+			else if(bodytemperature > -INFINITY && bodytemperature < dna.species.cold_level_3)
 				throw_alert("temp", /atom/movable/screen/alert/cold, 3)
 				take_overall_damage(burn=mult*COLD_DAMAGE_LEVEL_3, updating_health = TRUE, used_weapon = "Low Body Temperature")
 			else
