@@ -139,8 +139,8 @@
 	var/next_rubble
 	// Has a river already been generated this storm?
 	var/generated_river = FALSE
-	// What tiles can we hit with a rock?
-	var/list/valid_targets = list()
+	// Every tile on the lavaland levels, found once per storm and checked for outdoor floor each volley, since falling rocks and mining change which tiles are floor
+	var/list/lavaland_turfs
 
 /datum/weather/volcano/New()
 	next_rubble = world.time + 10 SECONDS // Short delay
@@ -153,20 +153,27 @@
 		new_river.generate(nodes = 4, ignore_bridges = TRUE, warning = TRUE)
 	if(world.time >= next_rubble)
 		next_rubble = world.time + rand(3 DECISECONDS, 2 SECONDS)
-		for(var/area/lavaland/surface/outdoors/N in GLOB.all_areas)
-			if(istype(N, /area/lavaland/surface/outdoors/outpost/no_boulder))
-				continue // No hitting the no boulder area
-			for(var/turf/simulated/floor/T in N) // dont waste our time hitting walls
-				valid_targets += T
-		if(isnull(valid_targets)) // prevents a runtime when coding without lavaland enabled. Or theres somehow ZERO turfs.
-			return
+		if(!lavaland_turfs)
+			lavaland_turfs = list()
+			for(var/z in levels_by_trait(ORE_LEVEL))
+				lavaland_turfs += block(1, 1, z, world.maxx, world.maxy, z)
 		var/hits = 0
+		var/looked_at = 0
 		var/target
-		while(hits <= 150 && length(valid_targets)) //sling a bunch of rocks around the map
-			target = pick(valid_targets)
+		while(hits <= 150 && looked_at < length(lavaland_turfs)) //sling a bunch of rocks around the map
+			// Move a random tile we haven't looked at yet this volley up to the front, so no tile is picked twice in one volley
+			looked_at++
+			var/pick_index = rand(looked_at, length(lavaland_turfs))
+			var/turf/candidate = lavaland_turfs[pick_index]
+			lavaland_turfs[pick_index] = lavaland_turfs[looked_at]
+			lavaland_turfs[looked_at] = candidate
+			if(!istype(candidate, /turf/simulated/floor)) // dont waste our time hitting walls
+				continue
+			if(!istype(candidate.loc, /area/lavaland/surface/outdoors) || istype(candidate.loc, /area/lavaland/surface/outdoors/outpost/no_boulder))
+				continue // Only outside, and no hitting the no boulder area
+			target = candidate
 			new /obj/effect/temp_visual/rock_target(target)
 			hits++
-			valid_targets -= target
 		//just play the play from the last hit in the bundle, it reaches across the map anyways
 		INVOKE_ASYNC(src, PROC_REF(generate_boom), target)
 
