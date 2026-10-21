@@ -277,6 +277,11 @@ GLOBAL_DATUM_INIT(canister_icon_container, /datum/canister_icons, new())
 		else if(valve_open && holding_tank)
 			investigate_log("[key_name(user)] started a transfer into [holding_tank].<br>", INVESTIGATE_ATMOS)
 
+/obj/machinery/atmospherics/portable/canister/handle_atom_del(atom/A)
+	if(A == holding_tank)
+		valve_open = FALSE
+	return ..()
+
 /obj/machinery/atmospherics/portable/canister/attack_ai(mob/user)
 	add_hiddenprint(user)
 	return attack_hand(user)

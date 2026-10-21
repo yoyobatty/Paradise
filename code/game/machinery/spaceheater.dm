@@ -171,14 +171,14 @@
 					if(Adjacent(usr) && !issilicon(usr))
 						usr.put_in_hands(cell)
 					cell.add_fingerprint(usr)
-				for(var/obj/item/stock_parts/cell/C in component_parts)
-					component_parts -= C
-				cell = null
-				RefreshParts()
-				usr.visible_message(
-					SPAN_NOTICE("[usr] removes the power cell from [src]."),
-					SPAN_NOTICE("You remove the power cell from [src].")
-					)
+					for(var/obj/item/stock_parts/cell/C in component_parts)
+						component_parts -= C
+					cell = null
+					RefreshParts()
+					usr.visible_message(
+						SPAN_NOTICE("[usr] removes the power cell from [src]."),
+						SPAN_NOTICE("You remove the power cell from [src].")
+						)
 
 			if("cellinstall")
 				if(panel_open && !cell)

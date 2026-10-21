@@ -23,6 +23,17 @@
 	attacher = null
 	return ..()
 
+/obj/item/transfer_valve/handle_atom_del(atom/A)
+	if(A == tank_one || A == tank_two)
+		if(A == tank_one)
+			tank_one = null
+		else
+			tank_two = null
+		// Shut the valve too, or split_gases() would empty the next tank attached and leave it with no volume.
+		valve_open = FALSE
+		update_icon()
+	return ..()
+
 /obj/item/transfer_valve/IsAssemblyHolder()
 	return TRUE
 

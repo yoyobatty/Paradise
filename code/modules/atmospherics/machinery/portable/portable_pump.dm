@@ -121,6 +121,12 @@
 		else if(on && holding_tank && direction == DIRECTION_OUT)
 			investigate_log("[key_name(user)] started a transfer into [holding_tank].<br>", INVESTIGATE_ATMOS)
 
+/obj/machinery/atmospherics/portable/pump/handle_atom_del(atom/A)
+	// A tank that bursts while being filled turns the pump off, so the pump doesn't empty itself into the room.
+	if(A == holding_tank)
+		on = FALSE
+	return ..()
+
 /obj/machinery/atmospherics/portable/pump/attack_ai(mob/user)
 	add_hiddenprint(user)
 	return attack_hand(user)

@@ -43,11 +43,18 @@ Thus, the two variables affect pump operation are set in New():
 /obj/machinery/atmospherics/binary/volume_pump/AltClick(mob/living/user)
 	if(can_use_shortcut(user))
 		set_max(user)
-		investigate_log("was set to [target_pressure] kPa by [key_name(user)]", INVESTIGATE_ATMOS)
+		investigate_log("was set to [transfer_rate] L/s by [key_name(user)]", INVESTIGATE_ATMOS)
 
 /obj/machinery/atmospherics/binary/volume_pump/AIAltClick(mob/living/silicon/user)
 	set_max(user)
-	investigate_log("was set to [target_pressure] kPa by [key_name(user)]", INVESTIGATE_ATMOS)
+	investigate_log("was set to [transfer_rate] L/s by [key_name(user)]", INVESTIGATE_ATMOS)
+
+/obj/machinery/atmospherics/binary/volume_pump/set_max(mob/living/user)
+	if(!has_power())
+		return
+	transfer_rate = MAX_TRANSFER_RATE
+	if(user)
+		to_chat(user, SPAN_NOTICE("You set the transfer rate of [src] to maximum."))
 
 /obj/machinery/atmospherics/binary/volume_pump/on
 	on = TRUE
@@ -79,7 +86,7 @@ Thus, the two variables affect pump operation are set in New():
 	if((input_starting_pressure < 0.01) || (output_starting_pressure > 9000))
 		return 1
 
-	var/transfer_ratio = max(1, transfer_rate/air1.volume)
+	var/transfer_ratio = min(1, transfer_rate/air1.volume)
 
 	var/datum/gas_mixture/removed = air1.remove_ratio(transfer_ratio)
 

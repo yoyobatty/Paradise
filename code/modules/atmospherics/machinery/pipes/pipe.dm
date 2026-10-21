@@ -24,7 +24,7 @@
 	if(ghost_pipeline)
 		var/datum/gas_mixture/ghost_copy = new()
 		ghost_copy.copy_from(ghost_pipeline)
-		T.blind_release_air(ghost_copy.remove(volume / ghost_pipeline.volume))
+		T.blind_release_air(ghost_copy.remove_ratio(volume / ghost_pipeline.volume))
 
 	for(var/obj/machinery/atmospherics/meter/meter in T)
 		if(meter.target == src)

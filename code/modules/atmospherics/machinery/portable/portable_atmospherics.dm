@@ -119,6 +119,12 @@
 	update_icon()
 	return TRUE
 
+/obj/machinery/atmospherics/portable/handle_atom_del(atom/A)
+	if(A == holding_tank)
+		holding_tank = null
+		update_icon()
+	return ..()
+
 /obj/machinery/atmospherics/portable/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(istype(used, /obj/item/tank))
 		if(!(stat & BROKEN))
