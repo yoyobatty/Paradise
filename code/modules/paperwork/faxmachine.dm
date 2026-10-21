@@ -302,9 +302,8 @@ GLOBAL_LIST_EMPTY(fax_blacklist)
 			A.name = copyitem.name
 			A.from_department = department
 			A.to_department = destination
-			A.origin = src
-			A.message = copyitem
-			A.sent_by = sender
+			A.message = copy_for_records()
+			A.sent_by = sender?.UID()
 			A.sent_at = world.time
 
 			success = F.receivefax(A)
@@ -312,6 +311,19 @@ GLOBAL_LIST_EMPTY(fax_blacklist)
 		visible_message("[src] beeps, \"Message transmitted successfully.\"")
 	else
 		visible_message("[src] beeps, \"Error transmitting message.\"")
+
+/// Copies the inserted document for the fax records, kept out of the world so nobody can take or destroy it
+/obj/machinery/photocopier/faxmachine/proc/copy_for_records()
+	var/obj/item/record
+	if(istype(copyitem, /obj/item/paper))
+		record = papercopy(copyitem, scanning = TRUE)
+	else if(istype(copyitem, /obj/item/photo))
+		record = photocopy(copyitem, scanning = TRUE)
+	else if(istype(copyitem, /obj/item/paper_bundle))
+		record = bundlecopy(copyitem, scanning = TRUE)
+	if(record)
+		record.moveToNullspace()
+	return record
 
 /obj/machinery/photocopier/faxmachine/proc/receivefax(datum/fax/incoming)
 	if(stat & (BROKEN|NOPOWER))

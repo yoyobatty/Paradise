@@ -51,6 +51,11 @@
 			ui_users[user] = AC
 		AC.ui_interact(user)
 
+/obj/structure/mirror/ui_close(mob/user)
+	// Forget the user once their window closes, since a deleted mob still kept in ui_users is a hard delete.
+	qdel(ui_users[user])
+	ui_users -= user
+
 /obj/structure/mirror/obj_break(damage_flag, mapload)
 	if(!broken && !(flags & NODECONSTRUCT))
 		icon_state = broken_icon_state
@@ -211,6 +216,7 @@
 				curse(user)
 
 /obj/structure/mirror/magic/ui_close(mob/user)
+	..()
 	curse(user)
 
 /obj/structure/mirror/magic/proc/curse(mob/living/user)

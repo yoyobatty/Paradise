@@ -8,6 +8,7 @@ GLOBAL_LIST_EMPTY(adminfaxes)
 	var/to_department = null
 	var/origin = null
 	var/message = null
+	/// The mob who sent it, or its UID for department faxes so GLOB.faxes doesn't keep deleted mobs
 	var/sent_by = null
 	var/sent_at = null
 
@@ -68,8 +69,8 @@ USER_VERB(fax_panel, R_ADMIN, "Fax Panel", "Lets admins check all faxes sent dur
 		html += "<td>[F.from_department]</td>"
 		html += "<td>[F.to_department]</td>"
 		html += "<td>[station_time_timestamp("hh:mm:ss", F.sent_at)]</td>"
-		if(F.sent_by)
-			var/mob/living/S = F.sent_by
+		var/mob/living/S = locateUID(F.sent_by)
+		if(S)
 			html += "<td>[ADMIN_PP(S,"[S.name]")]</td>"
 		else
 			html += "<td>Unknown</td>"
