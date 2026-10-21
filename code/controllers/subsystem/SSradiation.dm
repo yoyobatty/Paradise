@@ -26,7 +26,7 @@ PROCESSING_SUBSYSTEM_DEF(radiation)
 	warned_atoms[ref] = TRUE
 	var/atom/master = contamination.parent
 	SSblackbox.record_feedback("tally", "contaminated", 1, master.type)
-	var/msg = "has become contaminated with enough radiation to emit radiation waves || Source: [contamination.source] || Strength: [contamination.alpha_strength + contamination.beta_strength + contamination.gamma_strength]"
+	var/msg = "has become contaminated with enough radiation to emit radiation waves || Source: [contamination.source_name] || Strength: [contamination.alpha_strength + contamination.beta_strength + contamination.gamma_strength]"
 	master.investigate_log(msg, INVESTIGATE_RADIATION)
 
 /datum/controller/subsystem/processing/radiation/fire(resumed)

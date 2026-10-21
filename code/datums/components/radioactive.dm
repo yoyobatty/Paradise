@@ -9,7 +9,10 @@
 /datum/component/radioactive
 	dupe_mode = COMPONENT_DUPE_UNIQUE_PASSARGS
 
-	var/source
+	/// UID of what contaminated us. Not a reference, so a deleted source like an irradiated meteor can still be garbage collected.
+	var/source_uid
+	/// Name of what contaminated us, for the logs
+	var/source_name
 	///the half-life measured in ticks
 	var/hl3_release_date
 	var/alpha_strength
@@ -26,7 +29,10 @@
 			beta_strength = _strength
 		if(GAMMA_RAD)
 			gamma_strength = _strength
-	source = _source
+	if(isdatum(_source))
+		var/datum/source_datum = _source
+		source_uid = source_datum.UID()
+	source_name = "[_source]"
 	hl3_release_date = _half_life
 	RegisterSignal(parent, COMSIG_PARENT_EXAMINE, PROC_REF(rad_examine))
 	RegisterSignal(parent, COMSIG_ADMIN_DECONTAMINATE, PROC_REF(admin_decontaminate))
@@ -161,9 +167,9 @@
 	if(ismob(parent))
 		var/mob/M = parent
 		M.radiation = 0
-	if(ismob(source))
-		var/mob/M = source
-		M.radiation = 0
+	var/mob/source_mob = locateUID(source_uid)
+	if(ismob(source_mob))
+		source_mob.radiation = 0
 	qdel(src)
 
 #undef RAD_AMOUNT_LOW
