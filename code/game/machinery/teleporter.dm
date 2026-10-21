@@ -306,7 +306,10 @@
 */
 /obj/machinery/computer/teleporter/proc/gate_helper()
 	area_bypass = FALSE
-	var/obj/machinery/teleport/station/trg = target
+	// Without advanced_beacon_locking, target is the far station's turf rather than the station itself.
+	var/obj/machinery/teleport/station/trg = locate(/obj/machinery/teleport/station) in get_turf(target)
+	if(!(trg in power_station.linked_stations))
+		return
 	trg.linked_stations |= power_station
 	trg.stat &= ~NOPOWER
 	if(trg.teleporter_hub)

@@ -415,8 +415,7 @@
 			m = min(m, cable.amount)
 			if(m)
 				use_cable(m)
-				var/obj/item/stack/cable_coil/CC = new (get_turf(chassis))
-				CC.amount = m
+				new /obj/item/stack/cable_coil(get_turf(chassis), m)
 		else
 			occupant_message("There's no more cable on the reel.")
 

@@ -28,8 +28,7 @@
 	if(!(flags & NODECONSTRUCT))
 		new /obj/item/stack/sheet/metal(loc, 5)
 		if(state >= MACHINE_FRAME_WIRED)
-			var/obj/item/stack/cable_coil/A = new /obj/item/stack/cable_coil(loc)
-			A.amount = 5
+			new /obj/item/stack/cable_coil(loc, 5)
 		if(circuit)
 			circuit.forceMove(loc)
 			circuit = null
@@ -180,8 +179,7 @@
 						if(istype(P, /obj/item/stack))
 							var/obj/item/stack/S = P
 							var/camt = min(S.get_amount(), req_components[I])
-							var/obj/item/stack/NS = new S.merge_type(src)
-							NS.amount = camt
+							var/obj/item/stack/NS = new S.merge_type(src, camt, FALSE)
 							NS.update_icon()
 							S.use(camt)
 							components += NS

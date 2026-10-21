@@ -82,8 +82,6 @@
 	var/ranged = FALSE
 	/// stores cooldown between activations.
 	var/cooldown = 0
-	/// If the spellblade has traits, has it applied them?
-	var/applied_traits = FALSE
 	COOLDOWN_DECLARE(enchant_cooldown)
 
 /datum/enchantment/proc/on_hit(mob/living/target, mob/living/user, obj/item/melee/spellblade/S)
@@ -99,7 +97,10 @@
 /datum/enchantment/proc/on_gain(obj/item/melee/spellblade/S, mob/living/user)
 	return
 
-/datum/enchantment/proc/toggle_traits(obj/item/I, mob/living/user)
+/datum/enchantment/proc/grant_traits(obj/item/I, mob/living/user)
+	return
+
+/datum/enchantment/proc/revoke_traits(obj/item/I, mob/living/user)
 	return
 
 /datum/enchantment/proc/on_apply_to_blade(obj/item/melee/spellblade/S)
@@ -114,9 +115,10 @@
 
 /datum/enchantment/lightning/on_gain(obj/item/melee/spellblade/S, mob/living/user)
 	..()
-	RegisterSignal(S, list(COMSIG_ITEM_PICKUP, COMSIG_ITEM_DROPPED), PROC_REF(toggle_traits))
+	RegisterSignal(S, COMSIG_ITEM_EQUIPPED, PROC_REF(grant_traits))
+	RegisterSignal(S, COMSIG_ITEM_DROPPED, PROC_REF(revoke_traits))
 	if(user)
-		toggle_traits(S, user)
+		grant_traits(S, user)
 
 /datum/enchantment/lightning/on_hit(mob/living/target, mob/living/user, obj/item/melee/spellblade/S)
 	. = ..()
@@ -124,13 +126,14 @@
 		zap(target, user, list(user), power)
 		COOLDOWN_START(src, enchant_cooldown, cooldown)
 
-/datum/enchantment/lightning/toggle_traits(obj/item/I, mob/living/user)
+/datum/enchantment/lightning/grant_traits(obj/item/I, mob/living/user)
+	SIGNAL_HANDLER // COMSIG_ITEM_EQUIPPED
+	ADD_TRAIT(user, TRAIT_SHOCKIMMUNE, "[UID()]")
+
+/datum/enchantment/lightning/revoke_traits(obj/item/I, mob/living/user)
+	SIGNAL_HANDLER // COMSIG_ITEM_DROPPED
 	var/enchant_ID = UID() // so it only removes the traits applied by this specific enchant.
-	if(applied_traits)
-		REMOVE_TRAIT(user, TRAIT_SHOCKIMMUNE, "[enchant_ID]")
-	else
-		ADD_TRAIT(user, TRAIT_SHOCKIMMUNE, "[enchant_ID]")
-	applied_traits = !applied_traits
+	REMOVE_TRAIT(user, TRAIT_SHOCKIMMUNE, "[enchant_ID]")
 
 /datum/enchantment/lightning/proc/zap(mob/living/target, mob/living/source, protected_mobs, voltage)
 	source.Beam(target, "lightning[rand(1,12)]", 'icons/effects/effects.dmi', time = 2 SECONDS, maxdistance = 7, beam_type = /obj/effect/ebeam/chain)
@@ -157,20 +160,21 @@
 
 /datum/enchantment/fire/on_gain(obj/item/melee/spellblade/S, mob/living/user)
 	..()
-	RegisterSignal(S, list(COMSIG_ITEM_PICKUP, COMSIG_ITEM_DROPPED), PROC_REF(toggle_traits))
+	RegisterSignal(S, COMSIG_ITEM_EQUIPPED, PROC_REF(grant_traits))
+	RegisterSignal(S, COMSIG_ITEM_DROPPED, PROC_REF(revoke_traits))
 	if(user)
-		toggle_traits(S, user)
+		grant_traits(S, user)
 
-/datum/enchantment/fire/toggle_traits(obj/item/I, mob/living/user)
+/datum/enchantment/fire/grant_traits(obj/item/I, mob/living/user)
+	SIGNAL_HANDLER // COMSIG_ITEM_EQUIPPED
+	ADD_TRAIT(user, TRAIT_RESISTHEAT, "[UID()]")
+	ADD_TRAIT(user, TRAIT_NOFIRE, "[UID()]")
+
+/datum/enchantment/fire/revoke_traits(obj/item/I, mob/living/user)
+	SIGNAL_HANDLER // COMSIG_ITEM_DROPPED
 	var/enchant_ID = UID() // so it only removes the traits applied by this specific enchant.
-	if(applied_traits)
-		REMOVE_TRAIT(user, TRAIT_NOFIRE, "[enchant_ID]")
-		REMOVE_TRAIT(user, TRAIT_RESISTHEAT, "[enchant_ID]")
-		applied_traits = FALSE
-	else
-		ADD_TRAIT(user, TRAIT_RESISTHEAT, "[enchant_ID]")
-		ADD_TRAIT(user, TRAIT_NOFIRE, "[enchant_ID]")
-		applied_traits = TRUE
+	REMOVE_TRAIT(user, TRAIT_NOFIRE, "[enchant_ID]")
+	REMOVE_TRAIT(user, TRAIT_RESISTHEAT, "[enchant_ID]")
 
 /datum/enchantment/fire/on_hit(mob/living/target, mob/living/user, obj/item/melee/spellblade/S)
 	. = ..()

@@ -1163,8 +1163,7 @@ GLOBAL_LIST_INIT(aalarm_modes, list(
 	if(!I.use_tool(src, user, 0, volume = I.tool_volume))
 		return
 	if(wires.is_all_cut()) // all wires cut
-		var/obj/item/stack/cable_coil/new_coil = new /obj/item/stack/cable_coil(loc)
-		new_coil.amount = 5
+		new /obj/item/stack/cable_coil(loc, 5)
 		buildstage = AIR_ALARM_UNWIRED
 		update_icon(UPDATE_ICON_STATE)
 		return

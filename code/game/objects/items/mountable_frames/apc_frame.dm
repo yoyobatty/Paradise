@@ -25,8 +25,7 @@
 			return
 
 		else
-			var/obj/item/stack/cable_coil/C = new /obj/item/stack/cable_coil(T)
-			C.amount = 10
+			new /obj/item/stack/cable_coil(T, 10)
 			to_chat(user, SPAN_NOTICE("You cut the cables and disassemble the unused power terminal."))
 			qdel(E)
 	return TRUE

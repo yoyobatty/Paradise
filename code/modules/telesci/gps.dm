@@ -56,7 +56,6 @@ GLOBAL_LIST_EMPTY(GPS_list)
 
 /obj/item/gps/dropped(mob/user, silent)
 	REMOVE_TRAIT(user, TRAIT_HAS_GPS, "GPS[UID()]")
-	REMOVE_TRAIT(user, TRAIT_CAN_VIEW_HEALTH, "HEALTH[UID()]")
 	return ..()
 
 /obj/item/gps/emp_act(severity)

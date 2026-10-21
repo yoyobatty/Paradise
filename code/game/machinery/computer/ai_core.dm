@@ -204,8 +204,7 @@
 		to_chat(user, SPAN_NOTICE("You remove the cables."))
 		state = SCREWED_CORE
 		update_icon(UPDATE_ICON_STATE)
-		var/obj/item/stack/cable_coil/A = new /obj/item/stack/cable_coil( loc )
-		A.amount = 5
+		new /obj/item/stack/cable_coil(loc, 5)
 
 /obj/structure/ai_core/wrench_act(mob/living/user, obj/item/I)
 	. = TRUE

@@ -26,8 +26,7 @@
 	if(!istype(I, /obj/item/wirecutters))
 		return
 
-	var/obj/item/stack/cable_coil/CC = new(user.loc)
-	CC.amount = 5
+	new /obj/item/stack/cable_coil(user.loc, 5)
 	new/obj/item/stack/sheet/glass(user.loc)
 	use(1)
 	return ITEM_INTERACT_COMPLETE

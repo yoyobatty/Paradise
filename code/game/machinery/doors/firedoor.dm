@@ -552,8 +552,7 @@
 		return
 	user.visible_message(SPAN_NOTICE("[user] removes the wires from [src]."), \
 						SPAN_NOTICE("You remove the wiring from [src], exposing the circuit board."))
-	var/obj/item/stack/cable_coil/B = new(get_turf(src))
-	B.amount = 5
+	new /obj/item/stack/cable_coil(get_turf(src), 5)
 	constructionStep = CONSTRUCTION_GUTTED
 	update_icon()
 

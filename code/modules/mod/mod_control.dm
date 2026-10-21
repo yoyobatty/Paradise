@@ -590,7 +590,6 @@
 		if(part.loc == src)
 			continue
 		retract(null, part)
-	return ..()
 
 /obj/item/mod/control/update_icon_state()
 	if(current_disguise || isnull(chameleon_action) || active)
@@ -636,9 +635,7 @@
 	if(active)
 		finish_activation(on = FALSE)
 		mod_link?.end_call()
-	var/mob/old_wearer = wearer
 	unset_wearer()
-	old_wearer.drop_item()
 
 /obj/item/mod/control/proc/quick_module(mob/user)
 	if(!length(modules))

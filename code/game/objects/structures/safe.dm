@@ -189,7 +189,7 @@ GLOBAL_LIST_EMPTY(safes)
 
 /obj/structure/safe/item_interaction(mob/living/user, obj/item/I, list/modifiers)
 	if(open)
-		if(I.flags && ABSTRACT)
+		if(I.flags & ABSTRACT)
 			return ITEM_INTERACT_COMPLETE
 		if(broken && istype(I, /obj/item/safe_internals) && do_after(user, 2 SECONDS, target = src))
 			to_chat(user, SPAN_NOTICE("You replace the broken mechanism."))

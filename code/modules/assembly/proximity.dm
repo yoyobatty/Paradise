@@ -34,7 +34,7 @@
 /obj/item/assembly/prox_sensor/activate()
 	if(!..())
 		return FALSE //Cooldown check
-	timing = !timing
+	set_timing(!timing)
 	update_icon()
 	return FALSE
 

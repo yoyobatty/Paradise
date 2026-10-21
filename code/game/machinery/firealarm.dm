@@ -205,8 +205,7 @@ FIRE ALARM
 		return
 	update_icon()
 	WIRECUTTER_SNIP_MESSAGE
-	var/obj/item/stack/cable_coil/new_coil = new /obj/item/stack/cable_coil(drop_location())
-	new_coil.amount = 5
+	new /obj/item/stack/cable_coil(drop_location(), 5)
 	buildstage = FIRE_ALARM_UNWIRED
 
 

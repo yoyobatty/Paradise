@@ -56,9 +56,14 @@
 		playsound(src, 'sound/machines/triple_beep.ogg', 40, extrarange = -10)
 		toggle_scan()
 
-/obj/item/assembly/health/pickup(mob/user)
-	..()
+/obj/item/assembly/health/equipped(mob/user, slot, initial)
+	. = ..()
 	ADD_TRAIT(user, TRAIT_CAN_VIEW_HEALTH, "HEALTH[UID()]")
+
+/obj/item/assembly/health/dropped(mob/user, silent)
+	. = ..()
+	if(user)
+		REMOVE_TRAIT(user, TRAIT_CAN_VIEW_HEALTH, "HEALTH[UID()]")
 
 /obj/item/assembly/health/proc/toggle_scan()
 	if(!secured)

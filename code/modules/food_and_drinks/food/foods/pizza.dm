@@ -663,8 +663,7 @@
 
 		user.unequip(src)
 		user.visible_message(SPAN_NOTICE("[user] removes the insides of [src]!"))
-		var/obj/item/stack/cable_coil/C = new /obj/item/stack/cable_coil(src.loc)
-		C.amount = 3
+		var/obj/item/stack/cable_coil/C = new /obj/item/stack/cable_coil(src.loc, 3)
 		C.add_fingerprint(user)
 		var/obj/item/bombcore/miniature/minibomb = new(loc)
 		minibomb.add_fingerprint(user)

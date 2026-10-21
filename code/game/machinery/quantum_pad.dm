@@ -67,6 +67,8 @@
 		var/obj/item/multitool/M = I
 		if(panel_open)
 			M.set_multitool_buffer(user, src)
+		else if(!istype(M.buffer, /obj/machinery/quantumpad) || M.buffer == src)
+			to_chat(user, SPAN_WARNING("There is no other quantum pad in [I]'s buffer!"))
 		else
 			linked_pad = M.buffer
 			to_chat(user, SPAN_NOTICE("You link [src] to the one in [I]'s buffer."))

@@ -62,8 +62,7 @@
 		circuit.forceMove(location)
 		circuit = null
 	if(state >= STATE_WIRES)
-		var/obj/item/stack/cable_coil/C = new(location)
-		C.amount = 5
+		new /obj/item/stack/cable_coil(location, 5)
 	if(state == STATE_GLASS)
 		new /obj/item/stack/sheet/glass(location, 2)
 
@@ -141,8 +140,7 @@
 
 	if(state == STATE_WIRES)
 		to_chat(user, SPAN_NOTICE("You remove the cables."))
-		var/obj/item/stack/cable_coil/C = new(drop_location())
-		C.amount = 5
+		new /obj/item/stack/cable_coil(drop_location(), 5)
 		state = STATE_NOWIRES
 		I.play_tool_sound(src)
 		update_icon()

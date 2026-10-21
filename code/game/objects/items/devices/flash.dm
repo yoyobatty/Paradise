@@ -224,7 +224,7 @@
 /obj/item/flash/emp_act(severity)
 	if(!try_use_flash())
 		return FALSE
-	for(var/mob/living/carbon/M in viewers(3, null))
+	for(var/mob/living/carbon/M in viewers(3, get_turf(src)))
 		flash_carbon(M, null, 20 SECONDS, 0)
 	burn_out()
 	return ..()
