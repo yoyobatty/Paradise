@@ -398,7 +398,7 @@
 		return
 
 	var/list/players = list()
-	for(var/mob/living/player in viewers(3))
+	for(var/mob/living/player in viewers(3, user))
 		players += player
 
 	var/mob/living/M = tgui_input_list(user, "Who do you wish to deal a card to?", "Deal Card", players)
@@ -416,7 +416,7 @@
 		return
 
 	var/list/players = list()
-	for(var/mob/living/player in viewers(3))
+	for(var/mob/living/player in viewers(3, user))
 		if(!player.incapacitated())
 			players += player
 	var/dcard = tgui_input_number(user, "How many card(s) do you wish to deal? You may deal up to [length(cards)] card\s.", "Deal Cards", 1, length(cards), 1)

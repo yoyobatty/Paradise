@@ -1235,7 +1235,7 @@
 		to_chat(user, SPAN_WARNING("You stop entering the exosuit!"))
 
 /obj/mecha/proc/moved_inside(mob/living/carbon/human/H as mob)
-	if(H && H.client && (H in range(1)))
+	if(H && H.client && (H in range(1, src)))
 		occupant = H
 		H.stop_pulling()
 		H.forceMove(src)
@@ -1287,7 +1287,7 @@
 	return FALSE
 
 /obj/mecha/proc/mmi_moved_inside(obj/item/mmi/mmi_as_oc, mob/user)
-	if(mmi_as_oc && (user in range(1)))
+	if(mmi_as_oc && (user in range(1, src)))
 		if(!mmi_as_oc.brainmob || !mmi_as_oc.brainmob.client)
 			to_chat(user, "Consciousness matrix not detected.")
 			return FALSE

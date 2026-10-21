@@ -23,7 +23,7 @@
 	if(iseffect(target))
 		to_chat(user, SPAN_WARNING("\The [target] doesn't seem solid enough to label!"))
 		return ITEM_INTERACT_COMPLETE
-	if(!mode == LABEL_MODE_OFF)
+	if(mode != LABEL_MODE_OFF)
 		apply_label(target, user)
 		return ITEM_INTERACT_COMPLETE
 	if(remove_label(target, user))

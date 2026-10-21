@@ -222,7 +222,7 @@
 		show_to(user)
 	else
 		..()
-		for(var/mob/M in range(1))
+		for(var/mob/M in range(1, get_turf(src)))
 			if(M.s_active == src)
 				close(M)
 		orient2hud(user)

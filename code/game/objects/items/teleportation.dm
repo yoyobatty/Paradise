@@ -66,7 +66,7 @@
 				locations["[com.id] (Inactive)"] = com.target
 	var/list/turfs = list()
 	var/area/each_area
-	for(var/turf/each_turf in orange(10))
+	for(var/turf/each_turf in orange(10, user))
 		if(each_turf.x > world.maxx - 8 || each_turf.x < 8)
 			continue // Putting them at the edge is dumb.
 		if(each_turf.y > world.maxy - 8 || each_turf.y < 8)

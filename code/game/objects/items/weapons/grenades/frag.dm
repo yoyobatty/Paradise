@@ -40,7 +40,7 @@
 
 /obj/item/grenade/frag/holy/prime()
 	playsound(loc, 'sound/effects/pray.ogg', 150, TRUE)
-	for(var/turf/t in view(5))
+	for(var/turf/t in view(5, get_turf(src)))
 		t.Bless()
 		for(var/mob/living/basic/revenant/rev in t)
 			rev.reveal(2 SECONDS)

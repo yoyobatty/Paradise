@@ -145,7 +145,7 @@
 		if(ispath(item.dog_fashion, /datum/dog_fashion/head))
 			possible_headwear += item
 	if(!length(possible_headwear))
-		for(var/obj/item/item in orange(1))
+		for(var/obj/item/item in orange(1, src))
 			if(ispath(item.dog_fashion, /datum/dog_fashion/head) && Adjacent(item))
 				possible_headwear += item
 	if(!length(possible_headwear))

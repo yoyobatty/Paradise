@@ -65,14 +65,14 @@
 	qdel(holder)
 	if(!QDELETED(target))
 		if(mobloc.is_blocked_turf(exclude_mobs = TRUE))
-			for(var/turf/T in orange(7))
+			for(var/turf/T in orange(7, mobloc))
 				if(isspaceturf(T))
 					continue
 				if(target.Move(T))
 					target.remove_CC()
 					REMOVE_TRAIT(target, TRAIT_IMMOBILIZED, "jaunt")
 					return
-			for(var/turf/space/S in orange(7))
+			for(var/turf/space/S in orange(7, mobloc))
 				if(target.Move(S))
 					break
 		REMOVE_TRAIT(target, TRAIT_IMMOBILIZED, "jaunt")

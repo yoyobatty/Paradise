@@ -347,7 +347,7 @@
 /obj/structure/statue/cyberiad/Destroy()
 	. = ..()
 	// Delete all the nearby cyberiad statue parts
-	for(var/obj/structure/statue/cyberiad/bigass_statue in range(2))
+	for(var/obj/structure/statue/cyberiad/bigass_statue in range(2, src))
 		qdel(bigass_statue)
 
 // Top layer of the statue is not dense

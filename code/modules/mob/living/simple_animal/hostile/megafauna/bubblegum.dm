@@ -132,7 +132,7 @@ Difficulty: Hard
 	loot = list(/obj/effect/decal/cleanable/blood/gibs/bubblegum) //You'll get it in phase 2.
 	crusher_loot = list(/obj/effect/decal/cleanable/blood/gibs/bubblegum)
 	RegisterSignal(src, COMSIG_HOSTILE_FOUND_TARGET, PROC_REF(i_see_you))
-	for(var/mob/living/carbon/human/H in range(18)) //suprise motherfucker bubblegum wakes up fast
+	for(var/mob/living/carbon/human/H in range(18, src)) //suprise motherfucker bubblegum wakes up fast
 		to_chat(H, SPAN_COLOSSUS("<b>You DARE to insult my body with these constructs? I curse you as you curse ME!</b>"))
 		FindTarget(list(H), 1) //From down town with the pile driver
 
@@ -667,7 +667,7 @@ Difficulty: Hard
 		second_life_portal = new /obj/effect/portal/advanced(get_turf(E), get_turf(src), null, 2 HOURS, src, FALSE)
 		break
 	RegisterSignal(src, COMSIG_HOSTILE_FOUND_TARGET, PROC_REF(i_see_you))
-	for(var/mob/living/carbon/human/H in range(20))
+	for(var/mob/living/carbon/human/H in range(20, src))
 		if(stat == DEAD)
 			continue
 		to_chat(H, SPAN_COLOSSUS("<b>MY HANDS WILL RELISH ENDING YOU... HERE AND NOW!</b>"))

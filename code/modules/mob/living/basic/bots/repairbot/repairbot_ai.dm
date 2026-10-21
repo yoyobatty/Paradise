@@ -116,7 +116,11 @@
 	action_cooldown = 5 SECONDS
 
 /datum/ai_behavior/bot_search/deconstructable/valid_target(datum/ai_controller/basic_controller/bot/controller, atom/my_target)
-	return (!(my_target.flags & INDESTRUCTIBLE) && !isspaceturf(my_target))
+	if(isobj(my_target))
+		var/obj/target_obj = my_target
+		if(target_obj.resistance_flags & INDESTRUCTIBLE)
+			return FALSE
+	return !isspaceturf(my_target)
 
 ///subtree to control bot speech
 /datum/ai_planning_subtree/repairbot_speech

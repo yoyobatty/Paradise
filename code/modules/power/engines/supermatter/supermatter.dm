@@ -954,9 +954,9 @@
 
 	//Some poor sod got eaten, go ahead and irradiate people nearby.
 	radiation_pulse(src, 12000, GAMMA_RAD, TRUE)
-	for(var/mob/living/L in range(10))
+	for(var/mob/living/L in range(10, src))
 		investigate_log("has irradiated [key_name(L)] after consuming [AM].", INVESTIGATE_SUPERMATTER)
-		if(L in view())
+		if(L in view(src))
 			L.show_message(SPAN_DANGER("As [src] slowly stops resonating, you find your skin covered in new radiation burns."), 1,
 				SPAN_DANGER("The unearthly ringing subsides and you notice you have new radiation burns."), 2)
 		else

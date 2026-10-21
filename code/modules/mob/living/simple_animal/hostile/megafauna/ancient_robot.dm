@@ -849,7 +849,7 @@ Difficulty: Hard
 	qdel(src)
 
 /obj/projectile/energy/tesla_bolt/Bump(atom/A) // Don't want the projectile hitting the legs
-	if(!istype(/mob/living/simple_animal/hostile/ancient_robot_leg, A))
+	if(!istype(A, /mob/living/simple_animal/hostile/ancient_robot_leg))
 		return ..()
 	var/turf/target_turf = get_turf(A)
 	loc = target_turf

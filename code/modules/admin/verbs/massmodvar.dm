@@ -93,7 +93,7 @@
 	var/new_value = value["value"]
 	var/class = value["class"]
 
-	if(!class || !new_value == null && class != VV_NULL)
+	if(!class || (isnull(new_value) && class != VV_NULL))
 		return
 
 	if(class == VV_MESSAGE)

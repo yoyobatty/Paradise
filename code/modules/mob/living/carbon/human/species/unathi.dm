@@ -134,7 +134,7 @@
 	if(user.getStaminaLoss() >= 50)
 		to_chat(user, SPAN_WARNING("Rest before tail lashing again!"))
 		return
-	for(var/mob/living/carbon/human/C in orange(1))
+	for(var/mob/living/carbon/human/C in orange(1, user))
 		if(!user.Adjacent(C))
 			continue
 		var/obj/item/organ/external/E = C.get_organ(pick("l_leg", "r_leg", "l_foot", "r_foot", "groin"))
