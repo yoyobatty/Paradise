@@ -36,6 +36,7 @@
 		if(select_monitor && (powermonitor.stat & (NOPOWER|BROKEN)))
 			powermonitor = null
 			return
+		powermonitor.powernet = powermonitor.find_powernet()
 		if(powermonitor.powernet)
 			data["poweravail"] = DisplayPower(powermonitor.powernet.smoothed_available_power)
 			data["powerdemand"] = DisplayPower(powermonitor.powernet.smoothed_demand)

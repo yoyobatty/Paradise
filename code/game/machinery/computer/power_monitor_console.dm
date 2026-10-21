@@ -92,6 +92,8 @@
 /obj/machinery/computer/monitor/proc/record()
 	if(world.time >= next_record)
 		next_record = world.time + record_interval
+		// A grid rebuild can move our cable onto a new powernet and delete the old one, so look it up every time
+		powernet = find_powernet()
 		if(!powernet)
 			return
 
