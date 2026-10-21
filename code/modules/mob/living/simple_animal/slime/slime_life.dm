@@ -387,18 +387,18 @@
 		emote(pick("bounce", "sway", "light", "vibrate", "jiggle"))
 	else
 		var/t = 10
-		var/slimes_near = 0
-		var/dead_slimes = 0
-		for(var/mob/living/L in view(7,src))
-			if(isslime(L) && L != src)
-				++slimes_near
-				if(L.stat == DEAD)
-					++dead_slimes
 		if(nutrition < get_hunger_nutrition())
 			t += 10
 		if(nutrition < get_starve_nutrition())
 			t += 10
 		if(prob(2) && prob(t))
+			var/slimes_near = 0
+			var/dead_slimes = 0
+			for(var/mob/living/L in view(7,src))
+				if(isslime(L) && L != src)
+					++slimes_near
+					if(L.stat == DEAD)
+						++dead_slimes
 			var/phrases = list()
 			if(Target)
 				phrases += "[Target]... look yummy..."
