@@ -110,7 +110,8 @@
 				pages++
 			if(important_message!=null)
 				dat += "<div style='float:center;'><font size=4><b>Wanted Issue:</b></font></div><br><br>"
-				dat += "<b>Criminal name</b>: <font color='maroon'>[html_encode(important_message.author)]</font><br>"
+				// The title is "WANTED: " followed by the name, and the author is whoever put the notice up.
+				dat += "<b>Criminal name</b>: <font color='maroon'>[html_encode(copytext(important_message.title, 9))]</font><br>"
 				dat += "<b>Description</b>: [html_encode(important_message.body)]<br>"
 				dat += "<b>Photo:</b>: "
 				if(important_message.img)
