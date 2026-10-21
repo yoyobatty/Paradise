@@ -579,7 +579,7 @@ GLOBAL_LIST_EMPTY(timers_by_proc)
 // Allows us to track what types generate the most timers. Just invokes the global addtimer
 /datum/proc/addtimer(datum/callback/callback, wait = 0, flags = 0)
 	var/timer_function = "[type][callback.delegate]"
-	if(timer_function in GLOB.timers_by_proc)
+	if(GLOB.timers_by_proc[timer_function])
 		GLOB.timers_by_proc[timer_function]++
 	else
 		GLOB.timers_by_proc[timer_function] = 1

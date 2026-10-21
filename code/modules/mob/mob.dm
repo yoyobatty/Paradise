@@ -1430,7 +1430,7 @@ GLOBAL_LIST_INIT(slot_equipment_priority, list( \
  * Show an overlay of radiation levels on radioactive objects.
  */
 /mob/proc/show_rads(range)
-	for(var/turf/place in range(range, src))
+	for(var/turf/place in RANGE_TURFS(range, src))
 		var/list/rads = SSradiation.get_turf_radiation(place)
 		if(!rads || (rads[1] + rads[2] + rads[3]) < RAD_BACKGROUND_RADIATION)
 			continue

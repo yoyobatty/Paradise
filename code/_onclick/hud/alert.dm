@@ -679,6 +679,7 @@ so as to remain in compliance with the most up-to-date laws."
 	var/action = NOTIFY_JUMP
 	var/show_time_left = FALSE // If true you need to call START_PROCESSING manually
 	var/image/time_left_overlay // The last image showing the time left
+	var/obj/time_left_holder // Holds the time left text, kept between updates so process() doesn't make and delete an obj every second
 	var/image/signed_up_overlay // image showing that you're signed up
 	var/datum/candidate_poll/poll // If set, on Click() it'll register the player as a candidate
 
@@ -691,24 +692,25 @@ so as to remain in compliance with the most up-to-date laws."
 		if(time_left_overlay)
 			overlays -= time_left_overlay
 
-		var/obj/O = new
-		O.maptext = "<span style='font-family: \"Small Fonts\"; font-weight: bold; font-size: 32px; color: [(timeleft <= 10 SECONDS) ? "red" : "white"];'>[CEILING(timeleft / 10, 1)]</span>"
-		O.maptext_width = O.maptext_height = 128
-		var/matrix/M = new
-		M.Translate(4, 16)
-		O.transform = M
+		if(!time_left_holder)
+			time_left_holder = new
+			time_left_holder.maptext_width = time_left_holder.maptext_height = 128
+			var/matrix/M = new
+			M.Translate(4, 16)
+			time_left_holder.transform = M
+		time_left_holder.maptext = "<span style='font-family: \"Small Fonts\"; font-weight: bold; font-size: 32px; color: [(timeleft <= 10 SECONDS) ? "red" : "white"];'>[CEILING(timeleft / 10, 1)]</span>"
 
-		var/image/I = image(O)
+		var/image/I = image(time_left_holder)
 		I.layer = FLOAT_LAYER
 		I.plane = FLOAT_PLANE + 1
 		overlays += I
 
 		time_left_overlay = I
-		qdel(O)
 	..()
 
 /atom/movable/screen/alert/notify_action/Destroy()
 	target = null
+	QDEL_NULL(time_left_holder)
 	if(signed_up_overlay)
 		overlays -= signed_up_overlay
 		qdel(signed_up_overlay)

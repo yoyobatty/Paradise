@@ -146,6 +146,9 @@
 	for(var/obj/effect/meteor/M in GLOB.meteor_list)
 		if(istype(M, /obj/effect/meteor/fake))
 			continue  // Meteor? What meteor?
+		// A meteor already in next_targets passed the checks below when it was added, so skip it, unless it's a tunguska that could still take over
+		if(next_targets[M] && !istype(M, /obj/effect/meteor/tunguska))
+			continue
 		if(!is_station_level(M.z))
 			continue  // don't worry about endlessly looping
 		if(istype(M, /obj/effect/meteor/tunguska) && !overridden)
@@ -153,8 +156,9 @@
 				change_targets(M)  // TUNGUSKAAAAAAA
 			overridden = TRUE
 			continue
-		if(!(M in next_targets))
-			next_targets.Add(M)
+		// Meteors are added as keys, so this is a lookup instead of a search through every meteor queued so far
+		if(!next_targets[M])
+			next_targets[M] = TRUE
 
 	if(QDELETED(follow_target) && length(next_targets) && !overridden)
 		change_targets(get_next_target())

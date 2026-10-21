@@ -35,7 +35,7 @@
 	if(parent_area_type)
 		alarms_on_net = list()
 		for(var/obj/machinery/alarm/air_alarm in GLOB.air_alarms)
-			if(air_alarm.alarm_area.type in typesof(parent_area_type))
+			if(istype(air_alarm.alarm_area, parent_area_type))
 				alarms_on_net |= air_alarm
 
 	var/list/data = list()
