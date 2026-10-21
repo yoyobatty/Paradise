@@ -90,7 +90,7 @@
 								SPAN_USERDANGER("[A] has hit [D] with a [atk_verb]!"))
 
 	D.apply_damage(damage, BRUTE, null, armor_block)
-	D.apply_effect(damage, STAMINA, armor_block)
+	D.apply_damage(damage, STAMINA, null, armor_block)
 	if(D.getStaminaLoss() > 50)
 		var/knockout_prob = D.getStaminaLoss() + rand(-15,15)
 		if((D.stat != DEAD) && prob(knockout_prob))

@@ -32,7 +32,9 @@
 			flashlight = "uflashlight_attached-on"
 		. += image(icon = 'icons/tgmc/objects/attachments.dmi', icon_state = flashlight, pixel_x = 5, pixel_y = -2)
 
-/obj/item/gun/projectile/automatic/pistol/ui_action_click()
+/obj/item/gun/projectile/automatic/pistol/ui_action_click(mob/user, actiontype)
+	if(actiontype == /datum/action/item_action/toggle_firemode)
+		return ..()
 	toggle_gunlight()
 
 //M1911//

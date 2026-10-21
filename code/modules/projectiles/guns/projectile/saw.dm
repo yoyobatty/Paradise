@@ -39,6 +39,12 @@
 		..()
 		update_icon()
 
+/obj/item/gun/projectile/automatic/l6_saw/on_autofire_start(mob/living/shooter)
+	if(cover_open)
+		to_chat(shooter, SPAN_NOTICE("[src]'s cover is open! Close it before firing!"))
+		return FALSE
+	return ..()
+
 /obj/item/gun/projectile/automatic/l6_saw/attack_hand(mob/user)
 	if(loc != user)
 		..()

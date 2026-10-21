@@ -9,6 +9,7 @@
 //	Advanced grab "G"
 
 /datum/martial_art/wrestling/harm_act(mob/living/carbon/human/A, mob/living/carbon/human/D)
+	MARTIAL_ARTS_ACT_CHECK
 	D.grabbedby(A,1)
 	var/obj/item/grab/G = A.get_active_hand()
 	if(G && prob(50))
@@ -40,6 +41,7 @@
 	return
 
 /datum/martial_art/wrestling/disarm_act(mob/living/carbon/human/A, mob/living/carbon/human/D)
+	MARTIAL_ARTS_ACT_CHECK
 	if(istype(A.get_inactive_hand(),/obj/item/grab))
 		var/obj/item/grab/G = A.get_inactive_hand()
 		if(G.affecting == D)
@@ -49,6 +51,7 @@
 	return 1
 
 /datum/martial_art/wrestling/grab_act(mob/living/carbon/human/A, mob/living/carbon/human/D)
+	MARTIAL_ARTS_ACT_CHECK
 	D.grabbedby(A,1)
 	D.visible_message(SPAN_DANGER("[A] holds [D] down!"), \
 								SPAN_USERDANGER("[A] holds [D] down!"))

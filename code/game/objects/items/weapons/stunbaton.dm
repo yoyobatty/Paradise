@@ -53,8 +53,9 @@
 		cell = null
 		return
 
-	if(isrobot(loc?.loc)) // First loc is the module
-		var/mob/living/silicon/robot/R = loc.loc
+	// loc is the robot while the baton is selected, and the robot's module while it is stowed.
+	var/mob/living/silicon/robot/R = isrobot(loc) ? loc : loc?.loc
+	if(isrobot(R))
 		cell = R.cell
 		return
 

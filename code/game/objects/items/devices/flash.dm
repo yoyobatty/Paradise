@@ -102,7 +102,7 @@
 	times_used++
 	if(times_used == (max_uses - 1))
 		to_chat(user, SPAN_WARNING("[src] is getting dangerously hot! Don't use it for a few seconds or it will burn out!"))
-	else if(times_used == max_uses)
+	else if(times_used >= max_uses)
 		burn_out()
 
 	if(user && HAS_TRAIT(user, TRAIT_CLUMSY) && prob(50))

@@ -306,7 +306,8 @@
 
 /obj/item/gun/projectile/revolver/doublebarrel/sawoff(mob/user)
 	. = ..()
-	weapon_weight = WEAPON_MEDIUM
+	if(.)
+		weapon_weight = WEAPON_MEDIUM
 
 /obj/item/gun/projectile/revolver/doublebarrel/attack_self__legacy__attackchain(mob/living/user)
 	var/num_unloaded = 0

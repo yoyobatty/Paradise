@@ -216,7 +216,7 @@
 		return FINISH_ATTACK
 
 	add_fingerprint(user)
-	if(cell.charge < stam_hitcost || (SECSWORD_STUN && cell.charge < burn_hitcost))
+	if(cell.charge < stam_hitcost || (state == SECSWORD_STUN && cell.charge < burn_hitcost))
 		state = SECSWORD_OFF
 		armor_penetration_percentage = 0
 		to_chat(user, SPAN_NOTICE("[src] does not have enough charge!"))
@@ -281,6 +281,10 @@
 			return ..()
 		return
 	// Burn
+	. = ..()
+	// Only burn if the parent attack() landed, since it is what checks for shields and pacifism.
+	if(. || QDELETED(M))
+		return
 	var/mob/living/L = M
 	if(ishuman(L))
 		var/mob/living/carbon/human/H = L
@@ -289,7 +293,6 @@
 	else
 		L.apply_damage(burn_damage, BURN)
 	deduct_charge(burn_hitcost)
-	return ..()
 
 /obj/item/melee/secsword/proc/slap(mob/living/carbon/human/target, mob/living/user)
 	user.do_attack_animation(target, ATTACK_EFFECT_DISARM)

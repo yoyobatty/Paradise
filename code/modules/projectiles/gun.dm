@@ -290,6 +290,7 @@
 						shoot_live_shot(user, target, TRUE, message)
 					else
 						shoot_live_shot(user, target, FALSE, message)
+					chambered.leave_residue(user)
 			else
 				shoot_with_empty_chamber(user)
 				break
@@ -517,10 +518,14 @@
 		SPAN_USERDANGER("[user] pulls the trigger!")
 	)
 
-	if(chambered && chambered.BB)
-		chambered.BB.damage *= 5
+	var/obj/projectile/execution_bullet = chambered?.BB
+	if(execution_bullet)
+		execution_bullet.damage *= 5
 
 	process_fire(target, user, 1, params)
+	// process_fire() can refuse to shoot, like when a pacifist pulls the trigger, so take the bonus back off a bullet that is still chambered.
+	if(execution_bullet && chambered?.BB == execution_bullet)
+		execution_bullet.damage /= 5
 
 /obj/item/gun/proc/on_scope_success()
 	return

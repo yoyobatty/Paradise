@@ -28,6 +28,9 @@
 	if(!silent)
 		user.visible_message(SPAN_DANGER("[user] manages to [break_cuffs ? "break" : "remove"] [src]!"), SPAN_NOTICE("You successfully [break_cuffs ? "break" : "remove"] [src]."))
 	user.unequip(src)
+	// Single use restraints like the energy bola are deleted by unequip(), so there is nothing left to drop.
+	if(QDELETED(src))
+		return TRUE
 
 	if(break_cuffs)
 		qdel(src)

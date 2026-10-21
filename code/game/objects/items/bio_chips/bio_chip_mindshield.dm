@@ -23,7 +23,7 @@
 			SSticker.mode.remove_revolutionary(target.mind)
 		if(IS_CULTIST(target))
 			to_chat(target, SPAN_WARNING("You feel the [cult_source] try to invade your mind!"))
-		return TRUE
+			return TRUE
 
 	to_chat(target, SPAN_NOTICE("Your mind feels hardened - more resistant to brainwashing."))
 	return TRUE

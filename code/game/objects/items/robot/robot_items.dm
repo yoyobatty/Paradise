@@ -31,7 +31,7 @@ Keeping it in for adminabuse but the malf one is /obj/item/melee/baton/borg_stun
 
 	user.do_attack_animation(target)
 	target.Weaken(10 SECONDS)
-	target.apply_effect(STUTTER, 10 SECONDS)
+	target.apply_effect(10 SECONDS, STUTTER)
 
 	target.visible_message(SPAN_DANGER("[user] has prodded [target] with [src]!"), \
 					SPAN_USERDANGER("[user] has prodded you with [src]!"))

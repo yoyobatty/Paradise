@@ -102,7 +102,9 @@
 		current_target.visible_message(SPAN_DANGER("[src] is trying to put zipties on [current_target]!"),\
 			SPAN_DANGER("[src] is trying to put zipties on you!"))
 
-		if(!do_after(src, 4 SECONDS, current_target))
+		if(!do_after(src, 4 SECONDS, target = current_target))
+			return
+		if(current_target.handcuffed)
 			return
 		current_target.handcuffed = new cuff_type(current_target)
 		current_target.update_handcuffed()

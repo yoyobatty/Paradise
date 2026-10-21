@@ -437,8 +437,9 @@
 		alert_thrown = FALSE
 		owner.clear_alert("drunk")
 		owner.sound_environment_override = SOUND_ENVIRONMENT_NONE
-	if(owner.mind && istype(owner.mind.martial_art, DRUNK_BRAWLING))
-		owner.mind.martial_art.remove(owner)
+	if(owner.mind)
+		var/datum/martial_art/drunk_brawling/brawling = locate() in owner.mind.known_martial_arts
+		brawling?.remove(owner)
 	return ..()
 
 /datum/status_effect/transient/drunkenness/tick()
@@ -482,8 +483,10 @@
 			if(!istype(M.martial_art, DRUNK_BRAWLING))
 				var/datum/martial_art/drunk_brawling/MA = new
 				MA.teach(owner, TRUE)
-		else if(istype(M.martial_art, DRUNK_BRAWLING))
-			M.martial_art.remove(owner)
+		else
+			// Drunken brawling can be known while a stronger style like CQC is the active martial_art, so look for it in known_martial_arts.
+			var/datum/martial_art/drunk_brawling/brawling = locate() in M.known_martial_arts
+			brawling?.remove(owner)
 	// THRESHOLD_CONFUSION (80 SECONDS)
 	if(actual_strength >= THRESHOLD_CONFUSION && prob(0.33))
 		owner.AdjustConfused(6 SECONDS / alcohol_resistance, bound_lower = 2 SECONDS, bound_upper = 1 MINUTES)

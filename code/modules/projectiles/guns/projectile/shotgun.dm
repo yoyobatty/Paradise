@@ -153,7 +153,7 @@
 			user.visible_message("[src] goes click!", SPAN_NOTICE("[src] you are holding goes click."))
 	if(magazine.ammo_count())	//Spill the mag onto the floor
 		user.visible_message(SPAN_DANGER("[user.name] opens [src] up and the shells go goes flying around!"), SPAN_USERDANGER("You open [src] up and the shells go goes flying everywhere!!"))
-		while(get_ammo() > 0)
+		while(get_ammo(0) > 0)
 			var/obj/item/ammo_casing/CB
 			CB = magazine.get_round(0)
 			if(CB)

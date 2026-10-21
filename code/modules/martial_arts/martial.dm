@@ -177,7 +177,8 @@
 	deltimer(combo_timer)
 	H.mind.known_martial_arts.Remove(MA)
 	H.mind.martial_art = get_highest_weight(H)
-	remove_verb(H, /mob/living/carbon/human/proc/martial_arts_help)
+	if(has_explaination_verb)
+		remove_verb(H, /mob/living/carbon/human/proc/martial_arts_help)
 
 ///	Returns the martial art with the highest weight from all the ones someone knows.
 /datum/martial_art/proc/get_highest_weight(mob/living/carbon/human/H)
