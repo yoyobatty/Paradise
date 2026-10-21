@@ -617,8 +617,11 @@
 		return
 
 	if(!offline && !starting_up)
-		var/light_range = clamp((final_power / (50 KW)), 2, 30)
-		set_light(light_range, max(reactivity_multiplier, 3), REACTOR_LIGHT_COLOR)
+		// Rounded to a tenth so the light, which can reach 30 tiles, isn't redone every run for changes too small to see
+		var/new_light_range = round(clamp((final_power / (50 KW)), 2, 30), 0.1)
+		var/new_light_power = round(max(reactivity_multiplier, 3), 0.1)
+		if(new_light_range != light_range || new_light_power != light_power || light_color != REACTOR_LIGHT_COLOR)
+			set_light(new_light_range, new_light_power, REACTOR_LIGHT_COLOR)
 	else
 		remove_light()
 
