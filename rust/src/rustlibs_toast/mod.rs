@@ -2,7 +2,7 @@ use byondapi::value::ByondValue;
 #[cfg(target_os = "windows")]
 use notify_rust::Notification;
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn create_toast(_title: ByondValue, _text: ByondValue) -> eyre::Result<ByondValue> {
     #[cfg(target_os = "windows")]
     Notification::new()

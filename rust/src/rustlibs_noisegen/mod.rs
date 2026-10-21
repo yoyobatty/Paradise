@@ -1,7 +1,7 @@
 use byondapi::value::ByondValue;
 use dbpnoise::gen_noise;
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn dbp_generate(
     seed: ByondValue,
     accuracy: ByondValue,

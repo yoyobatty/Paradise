@@ -15,7 +15,7 @@ thread_local! {
     static FILE_MAP: RefCell<HashMap<OsString, File>> = RefCell::new(HashMap::new());
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn log_write(path: ByondValue, data: ByondValue) -> eyre::Result<ByondValue> {
     FILE_MAP.with(|cell| -> eyre::Result<ByondValue> {
         let mut map = cell.borrow_mut();
@@ -41,7 +41,7 @@ fn log_write(path: ByondValue, data: ByondValue) -> eyre::Result<ByondValue> {
     })
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn log_close_all() -> eyre::Result<ByondValue> {
     FILE_MAP.with(|cell| {
         let mut map = cell.borrow_mut();

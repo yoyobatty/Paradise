@@ -4,7 +4,7 @@ use std::{
     io::{BufReader, BufWriter, Read, Write},
 };
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn file_read(path: ByondValue) -> eyre::Result<ByondValue> {
     read(&path.get_string()?)
 }
@@ -21,7 +21,7 @@ fn read(path: &str) -> eyre::Result<ByondValue> {
     Ok(content.try_into()?)
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn file_write(data: ByondValue, path: ByondValue) -> eyre::Result<ByondValue> {
     let data: String = data.get_string()?;
     let path: String = path.get_string()?;

@@ -51,7 +51,7 @@ struct LocalResponse {
     rows: Option<Vec<serde_json::Value>>,
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn sql_connect_pool(options_p: ByondValue) -> Result<ByondValue> {
     let options: ConnectOptions = ConnectOptions {
         host: options_p.read_string("host").unwrap(),
@@ -87,7 +87,7 @@ fn sql_connect_pool(options_p: ByondValue) -> Result<ByondValue> {
     Ok(response_datum)
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn sql_query_blocking(mut options_p: ByondValue) -> Result<ByondValue> {
     // Sort our params now
     let mut local_params: Params = Params::Empty;
@@ -120,7 +120,7 @@ fn sql_query_blocking(mut options_p: ByondValue) -> Result<ByondValue> {
     Ok(ByondValue::null())
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn sql_query_async(mut options_p: ByondValue) -> Result<ByondValue> {
     let mut local_params: Params = Params::Empty;
 
@@ -147,7 +147,7 @@ fn sql_query_async(mut options_p: ByondValue) -> Result<ByondValue> {
 }
 
 // hopefully won't panic if queries are running
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn sql_disconnect_pool(options_p: ByondValue) -> Result<ByondValue> {
     let handle_p = options_p.get_string().unwrap();
     let handle = match handle_p.parse::<usize>() {
@@ -161,7 +161,7 @@ fn sql_disconnect_pool(options_p: ByondValue) -> Result<ByondValue> {
     }
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn sql_connected(options_p: ByondValue) -> Result<ByondValue> {
     let handle_p = options_p.get_string().unwrap();
     let handle = match handle_p.parse::<usize>() {
@@ -175,7 +175,7 @@ fn sql_connected(options_p: ByondValue) -> Result<ByondValue> {
     }
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn sql_check_query(mut query: ByondValue) -> Result<ByondValue> {
     // logging::setup_panic_handler();
     let id = query.read_var("query_id")?.get_number()? as usize;

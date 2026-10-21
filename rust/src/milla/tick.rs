@@ -49,8 +49,15 @@ pub(crate) fn tick(buffers: &Buffers) -> Result<(), eyre::Error> {
                 results.push(result);
             }));
         }
-        for handle in handles {
-            let _ = handle.join();
+        for (z, handle) in handles.into_iter().enumerate() {
+            // A thread that panicked never pushed a result, so its Z level would be left half done.
+            if let Err(payload) = handle.join() {
+                result = Err(eyre::eyre!(
+                    "MILLA worker thread for z-level {} panicked: {}",
+                    z + 1,
+                    crate::logging::panic_message(&payload)
+                ));
+            }
         }
         let readable_results = handle_results.read().unwrap();
         for index in 0..readable_results.len() {

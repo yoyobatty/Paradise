@@ -18,7 +18,7 @@ use std::thread;
 use std::time::Instant;
 
 /// BYOND API for ensuring the buffers are usable.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_initialize(byond_z: ByondValue) -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     env::set_var("RUST_BACKTRACE", "1");
@@ -41,7 +41,7 @@ pub(crate) fn internal_initialize(z: i32) -> eyre::Result<ByondValue> {
 }
 
 /// BYOND API for defining an environment that a tile can be exposed to.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_create_environment(
     oxygen: ByondValue,
     carbon_dioxide: ByondValue,
@@ -113,7 +113,7 @@ pub(crate) fn internal_create_environment(
 }
 
 /// BYOND API for loading a block of turfs into MILLA with their default air.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_load_turfs(
     data_property: ByondValue,
     low_corner: ByondValue,
@@ -174,7 +174,7 @@ fn milla_load_turfs(
 }
 
 /// BYOND API for setting the atmos details of a tile.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_set_tile(
     turf: ByondValue,
     airtight_north: ByondValue,
@@ -229,7 +229,7 @@ fn milla_set_tile(
 
 /// BYOND API for setting the directions a tile is airtight in.
 /// Like set_tile, just with a smaller set of fields.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_set_tile_airtight(
     turf: ByondValue,
     airtight_north: ByondValue,
@@ -384,7 +384,7 @@ pub(crate) fn internal_set_tile(
 }
 
 /// BYOND API for fetching the atmos details of a tile.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_get_tile(turf: ByondValue, list: ByondValue) -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     let (x, y, z) = byond_xyz(&turf)?.coordinates();
@@ -428,7 +428,7 @@ pub(crate) fn internal_get_tile(x: i32, y: i32, z: i32) -> Result<Tile> {
 /// * Turfs that are hot eough to cause fires.
 /// * Turfs that just passed the threshold for showing plasma or sleeping gas.
 /// * Turfs with strong airflow out.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_get_interesting_tiles() -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     let interesting_tiles = INTERESTING_TILES.lock().unwrap();
@@ -440,7 +440,7 @@ fn milla_get_interesting_tiles() -> eyre::Result<ByondValue> {
 }
 
 /// BYOND API for getting a single random interesting tile.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_get_random_interesting_tile() -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     let interesting_tiles = INTERESTING_TILES.lock().unwrap();
@@ -456,7 +456,7 @@ fn milla_get_random_interesting_tile() -> eyre::Result<ByondValue> {
 }
 
 /// BYOND API for capping the superconductivity of a tile.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_reduce_superconductivity(
     turf: ByondValue,
     north: ByondValue,
@@ -525,7 +525,7 @@ pub(crate) fn internal_reduce_superconductivity(
 }
 
 /// BYOND API for resetting the superconductivity of a tile.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_reset_superconductivity(turf: ByondValue) -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     let (x, y, z) = byond_xyz(&turf)?.coordinates();
@@ -558,7 +558,7 @@ pub(crate) fn internal_reset_superconductivity(x: i32, y: i32, z: i32) -> Result
 }
 
 /// BYOND API for a heat source creating a hotspot on a tile.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_create_hotspot(
     turf: ByondValue,
     temperature: ByondValue,
@@ -625,7 +625,7 @@ pub(crate) fn internal_create_hotspot(
 }
 
 /// BYOND API for a heat source creating a hotspot on a tile.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_extinguish_hotspot(turf: ByondValue) -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     let (x, y, z) = byond_xyz(&turf)?.coordinates();
@@ -658,7 +658,7 @@ pub(crate) fn internal_extinguish_hotspot(x: i32, y: i32, z: i32) -> Result<()> 
 }
 
 /// BYOND API for tracking the pressure of all nearby tiles next tick.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_track_pressure_tiles(
     turf: ByondValue,
     byond_radius: ByondValue,
@@ -697,7 +697,7 @@ fn internal_track_pressure_tiles(x: i32, y: i32, z: i32, radius: i32) -> eyre::R
 }
 
 /// BYOND API for getting the tracked pressure tiles.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_get_tracked_pressure_tiles() -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     let tracked_pressures = internal_get_tracked_pressure_tiles()?
@@ -744,7 +744,7 @@ fn internal_get_tracked_pressure_tiles() -> eyre::Result<Vec<f32>> {
 }
 
 /// BYOND API for starting an atmos tick.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
     // Looked up here, on BYOND's own thread, where it costs nothing. Looked up from the tick thread
     // it's one more wait for BYOND's thread on top of the call itself.
@@ -752,7 +752,17 @@ fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
     thread::spawn(move || -> Result<(), eyre::Error> {
         let now = Instant::now();
         let buffers = BUFFERS.get_or_init(Buffers::new);
-        let result = tick::tick(buffers);
+        // If the tick panics, report it like any other tick error. Otherwise this thread just
+        // ends, BYOND never hears that the tick finished, and atmos stops without a word.
+        let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            tick::tick(buffers)
+        })) {
+            Ok(result) => result,
+            Err(payload) => Err(eyre::eyre!(
+                "MILLA tick panicked: {}",
+                crate::logging::panic_message(&payload)
+            )),
+        };
         TICK_TIME.store(
             now.elapsed().as_millis() as usize,
             std::sync::atomic::Ordering::Relaxed,
@@ -770,7 +780,7 @@ fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
 }
 
 /// BYOND API for asking how long the prior tick took.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_get_tick_time() -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     Ok(ByondValue::from(
@@ -779,7 +789,7 @@ fn milla_get_tick_time() -> eyre::Result<ByondValue> {
 }
 
 /// BYOND API for freezing a specific z-level.
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn milla_set_zlevel_frozen(
     byond_z: ByondValue,
     byond_frozen: ByondValue,

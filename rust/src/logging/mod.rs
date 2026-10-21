@@ -40,3 +40,27 @@ pub(crate) fn setup_panic_handler() {
         let _ = std::fs::write(format!("data/rustlibs_panic_{}.txt", file_end), msg.clone());
     }))
 }
+
+/// Runs the body of a function BYOND called, and turns a panic into an error.
+/// BYOND then reports the error as a runtime. A panic that reaches BYOND takes down DreamDaemon.
+/// Used by `#[rustlibs_macros::bind]`, you shouldn't need to call this yourself.
+pub(crate) fn catch_panic<T, E>(call: impl FnOnce() -> Result<T, E>) -> Result<T, E>
+where
+    E: From<eyre::Report>,
+{
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(call)) {
+        Ok(result) => result,
+        Err(payload) => Err(eyre::eyre!("Rust panic: {}", panic_message(&payload)).into()),
+    }
+}
+
+/// Gets the message out of a caught panic.
+pub(crate) fn panic_message(payload: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        message.to_string()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}

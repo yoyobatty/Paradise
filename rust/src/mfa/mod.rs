@@ -17,14 +17,14 @@ fn instance_totp_manager(secret: String, accname: String) -> TOTP {
     .unwrap() // who needs safety lmao
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn mfa_generate_secret() -> eyre::Result<ByondValue> {
     let mfa_secret = Secret::generate_secret().to_encoded().to_string();
 
     Ok(ByondValue::new_str(mfa_secret)?)
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn mfa_generate_qr(secret: ByondValue, ckey: ByondValue) -> eyre::Result<ByondValue> {
     let secret_str = secret.get_string()?;
     let ckey_str = ckey.get_string()?;
@@ -40,7 +40,7 @@ fn mfa_generate_qr(secret: ByondValue, ckey: ByondValue) -> eyre::Result<ByondVa
     ))?)
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn mfa_verify_code(secret: ByondValue, code: ByondValue) -> eyre::Result<ByondValue> {
     // Code MUST be a string to avoid 0 prefixing issues
     let secret_str = secret.get_string()?;

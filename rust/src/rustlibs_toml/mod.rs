@@ -1,6 +1,6 @@
 use byondapi::value::ByondValue;
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn toml_file_to_json(path: ByondValue) -> eyre::Result<ByondValue> {
     let path: String = path.get_string()?;
     Ok(serde_json::to_string(&match toml_file_to_json_impl(&path) {
@@ -20,7 +20,7 @@ fn toml_file_to_json_impl(path: &str) -> eyre::Result<String> {
     )?)?)
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn toml_encode(value: ByondValue) -> eyre::Result<ByondValue> {
     let path: String = value.get_string()?;
     Ok(serde_json::to_string(&match toml_encode_impl(&path) {

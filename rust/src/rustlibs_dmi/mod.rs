@@ -2,7 +2,7 @@ use byondapi::value::ByondValue;
 use png::{Decoder, Encoder, OutputInfo, Reader};
 use std::fs::File;
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn dmi_strip_metadata(path: ByondValue) -> eyre::Result<ByondValue> {
     strip_metadata(&path.get_string()?)?;
     Ok(ByondValue::null())

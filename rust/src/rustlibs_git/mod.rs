@@ -2,7 +2,7 @@ use byondapi::value::ByondValue;
 use chrono::{DateTime, TimeZone, Utc};
 use git2::Repository;
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn git_revparse(rev: ByondValue) -> eyre::Result<ByondValue> {
     let rev_str: String = rev.get_string()?;
     if let Some(rev_id) = internal_git_revparse(rev_str) {
@@ -17,7 +17,7 @@ fn internal_git_revparse(rev_str: String) -> Option<String> {
     Some(rev.id().to_string())
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn git_commit_date(rev: ByondValue, ts_format: ByondValue) -> eyre::Result<ByondValue> {
     let rev_str: String = rev.get_string()?;
     let ts_format_str: String = ts_format.get_string()?;

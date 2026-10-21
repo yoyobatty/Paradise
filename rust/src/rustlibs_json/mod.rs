@@ -4,7 +4,7 @@ use std::cmp;
 
 const VALID_JSON_MAX_RECURSION_DEPTH: usize = 8;
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn json_is_valid(text: ByondValue) -> eyre::Result<ByondValue> {
     let value = match serde_json::from_str::<Value>(&text.get_string()?) {
         Ok(value) => value,

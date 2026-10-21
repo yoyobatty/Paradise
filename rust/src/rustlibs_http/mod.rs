@@ -117,19 +117,19 @@ fn submit_request(prep: RequestPrep) -> Result<String> {
 }
 
 // Exported methods
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn http_start_client() -> Result<ByondValue> {
     HTTP_CLIENT.with(|cell| cell.replace(Some(ureq::agent())));
     Ok(ByondValue::null())
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn http_shutdown_client() -> Result<ByondValue> {
     HTTP_CLIENT.with(|cell| cell.replace(None));
     Ok(ByondValue::null())
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn http_submit_async_request(mut request: ByondValue) -> Result<ByondValue> {
     let method = request.read_var("method")?.get_string()?;
     let url = request.read_var("url")?.get_string()?;
@@ -171,7 +171,7 @@ fn http_submit_async_request(mut request: ByondValue) -> Result<ByondValue> {
     Ok(ByondValue::null())
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn http_check_job(mut request: ByondValue) -> Result<ByondValue> {
     // logging::setup_panic_handler();
     let id = request.read_var("id")?.get_number()? as usize;

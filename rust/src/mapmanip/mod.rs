@@ -454,7 +454,7 @@ fn mapmanip_orientation_randomize(map: &mut GridMap) -> eyre::Result<()> {
 }
 
 ///
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn mapmanip_read_dmm_file(path: ByondValue) -> eyre::Result<ByondValue> {
     internal_mapmanip_read_dmm_file(path)
 }

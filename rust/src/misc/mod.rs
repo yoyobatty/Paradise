@@ -7,13 +7,13 @@ use zeroize::Zeroize;
 
 const ED25519_SECRET_KEY_LEN: usize = 32;
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn misc_new_uuid() -> eyre::Result<ByondValue> {
     let uuid: String = Uuid::new_v4().to_string();
     Ok(ByondValue::new_str(uuid)?)
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn misc_unix_timestamp() -> eyre::Result<ByondValue> {
     let ts = format!(
         "{:.6}",
@@ -26,7 +26,7 @@ fn misc_unix_timestamp() -> eyre::Result<ByondValue> {
     Ok(ByondValue::new_str(ts)?)
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn misc_ed25519_sign(secret_key: ByondValue, message: ByondValue) -> eyre::Result<ByondValue> {
     let key_str = secret_key.get_string()?;
     let msg_bytes = &message.get_string()?.into_bytes();

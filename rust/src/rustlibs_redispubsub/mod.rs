@@ -155,7 +155,7 @@ fn get_messages() -> HashMap<String, Vec<String>> {
     result
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn redis_connect(raw_addr: ByondValue) -> eyre::Result<ByondValue> {
     match connect(raw_addr.get_string().unwrap().as_str())
         .err()
@@ -166,19 +166,19 @@ fn redis_connect(raw_addr: ByondValue) -> eyre::Result<ByondValue> {
     }
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn redis_disconnect() -> eyre::Result<ByondValue> {
     disconnect();
     Ok(ByondValue::null())
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn redis_subscribe(raw_channel: ByondValue) -> eyre::Result<ByondValue> {
     subscribe(raw_channel.get_string().unwrap().as_str());
     Ok(ByondValue::null())
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn redis_get_messages() -> eyre::Result<ByondValue> {
     // Create a byondAPI list to send our data back
     let mut byond_list = ByondValue::new_list().unwrap();
@@ -212,7 +212,7 @@ fn redis_get_messages() -> eyre::Result<ByondValue> {
     Ok(byond_list)
 }
 
-#[byondapi::bind]
+#[rustlibs_macros::bind]
 fn redis_publish(raw_channel: ByondValue, raw_message: ByondValue) -> eyre::Result<ByondValue> {
     publish(
         raw_channel.get_string().unwrap().as_str(),

@@ -12,6 +12,8 @@ crate-type = ["cdylib"]
 atomic_float = "1.0.0"
 bitflags = "2.5.0"
 byondapi = "0.5.14"
+# Our own attribute macros, see rustlibs_macros/src/lib.rs
+rustlibs_macros = { path = "rustlibs_macros" }
 eyre = "0.6.12"
 rand = { version = "0.8.6", features = ["small_rng"] }
 scc = "2.1.1"
