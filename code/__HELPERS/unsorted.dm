@@ -672,6 +672,9 @@ Returns 1 if the chain up to the area contains the given typepath
 	var/steps = 1
 
 	if(current != target_turf)
+		// The walk below can't reach a target on another z-level or more than length + 1 tiles away
+		if(current && target_turf && (current.z != target_turf.z || get_dist(current, target_turf) > length + 1))
+			return FALSE
 		current = get_step_towards(current, target_turf)
 		while(current != target_turf)
 			if(steps > length)
