@@ -37,7 +37,7 @@
 		/datum/supply_packs/science/plasma,
 		/datum/supply_packs/medical/supplies
 	)
-	for(var/datum/supply_packs/crate in crate_types)
+	for(var/crate in crate_types)
 		var/datum/supply_packs/new_crate = new crate()
 		new_crate.create_package(pick_n_take(empty_shuttle_turfs))
 
@@ -124,7 +124,6 @@
 /datum/shuttle_loan_situation/russian_party/spawn_items(list/spawn_list, list/empty_shuttle_turfs)
 	var/datum/supply_packs/organic/party/party_crate = new()
 	party_crate.create_package(pick_n_take(empty_shuttle_turfs))
-	spawn_list.Add(/datum/supply_packs/organic/party)
 	spawn_list.Add(/mob/living/basic/soviet)
 	spawn_list.Add(/mob/living/basic/soviet/ranged/mosin)
 	spawn_list.Add(/mob/living/basic/bear)

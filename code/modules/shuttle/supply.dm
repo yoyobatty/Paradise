@@ -777,7 +777,7 @@
 		item.reason = "We don't need samples of mundane species \"[capitalize(seed.species)]\"."
 		manifest.line_items += item
 		SSblackbox.record_feedback("tally", "cargo seeds sold", 1, "boring")
-	else if(SSeconomy.discovered_plants[seed.type] && SSeconomy.discovered_plants[seed.type] < seed.potency)
+	else if(SSeconomy.discovered_plants[seed.type] && SSeconomy.discovered_plants[seed.type] >= seed.potency)
 		item.reason = "New sample of \"[capitalize(seed.species)]\" is not more potent than existing sample ([SSeconomy.discovered_plants[seed.type]] potency)."
 		manifest.line_items += item
 		SSblackbox.record_feedback("tally", "cargo seeds sold", 1, "repeat")

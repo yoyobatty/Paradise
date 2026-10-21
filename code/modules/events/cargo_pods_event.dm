@@ -50,7 +50,8 @@
 	var/obj/structure/closet/crate/cargo_pod/pod = new /obj/structure/closet/crate/cargo_pod(T)
 	for(var/I in pack_to_drop.contains)
 		new I(pod)
-	if(pack_to_drop.containertype && istype(pack_to_drop.containertype, /obj/structure/closet/critter))
+	if(ispath(pack_to_drop.containertype, /obj/structure/closet/critter))
 		var/obj/structure/closet/critter/crittercrate = pack_to_drop.containertype
-		for(var/I in 1 to crittercrate.amount)
-			new crittercrate.content_mob(pod)
+		var/critter_type = initial(crittercrate.content_mob)
+		for(var/I in 1 to initial(crittercrate.amount))
+			new critter_type(pod)

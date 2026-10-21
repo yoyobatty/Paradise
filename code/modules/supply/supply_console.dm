@@ -308,9 +308,8 @@
 			var/successes = 0
 			for(var/i in 1 to amount)
 				var/datum/supply_order/order = SSeconomy.generate_supply_order(params["crate"], idname, idrank, reason)
-				if(istype(order))
+				if(istype(order) && order_crate(user, order, selected_account))
 					successes++
-					order_crate(user, order, selected_account)
 					if(successes == 1)
 						playsound(loc, 'sound/machines/ping.ogg', 15, FALSE)
 						to_chat(user, SPAN_NOTICE("Order Sent."))
@@ -367,12 +366,20 @@
 			var/paid_for = FALSE
 			if(!order.requires_cargo_approval && pay_with_account(selected_account, order.object.get_cost(), "[order.object.name] Crate Purchase", "Cargo Requests Console", user, account_database.vendor_account))
 				paid_for = TRUE
+			// approve_crate() can't do anything with a personal order that doesn't need cargo's approval, so drop it if it couldn't be paid for
+			if(!paid_for && !order.requires_cargo_approval)
+				qdel(order)
+				return FALSE
 			SSeconomy.process_supply_order(order, paid_for) //add order to shopping list
+			return TRUE
+		qdel(order)
+		return FALSE
 	else //if its a department account with pin or higher security or need QM approval, go ahead and add this to the departments section in request list
 		SSeconomy.process_supply_order(order, FALSE)
 		if(order.ordered_by_department.crate_auto_approve && order.ordered_by_department.auto_approval_cap >= order.object.get_cost())
 			approve_crate(user, order.ordernum)
 		investigate_log("| [key_name(user)] has placed an order for [order.object.amount] [order.object.name] with reason: '[order.comment]'", INVESTIGATE_CARGO)
+	return TRUE
 
 /obj/machinery/computer/supplycomp/proc/approve_crate(mob/user, order_num)
 	for(var/datum/supply_order/department_order in SSeconomy.request_list)
