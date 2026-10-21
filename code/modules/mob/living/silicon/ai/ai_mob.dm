@@ -545,11 +545,12 @@ GLOBAL_LIST_INIT(ai_verbs_default, list(
 			var/datum/money_account_database/main_station/station_db = GLOB.station_money_database
 			station_db.credit_account(account, powered_ai.bluespace_miner_rate, "Bluespace Miner Production", "AI Bluespace Miner Subsystem", FALSE)
 
-		// Update power consumption if powering a bluespace miner
-		if(bluespace_miner_power == powered_ai.bluespace_miner_rate * 2.5)
-			return
-		bluespace_miner_power = powered_ai.bluespace_miner_rate * 2.5
-		update_active_power_consumption(power_channel, active_power_consumption + bluespace_miner_power)
+	// Update power consumption if powering a bluespace miner
+	var/miner_power = powered_ai.bluespace_miner ? powered_ai.bluespace_miner_rate * 2.5 : 0
+	if(bluespace_miner_power == miner_power)
+		return
+	update_active_power_consumption(power_channel, active_power_consumption - bluespace_miner_power + miner_power)
+	bluespace_miner_power = miner_power
 
 /mob/living/silicon/ai/update_icons()
 	. = ..()

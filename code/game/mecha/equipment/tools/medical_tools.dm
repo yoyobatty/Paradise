@@ -44,6 +44,7 @@
 	return FALSE
 
 /obj/item/mecha_parts/mecha_equipment/medical/sleeper/Destroy()
+	go_out()
 	for(var/atom/movable/AM in src)
 		AM.forceMove(get_turf(src))
 	return ..()

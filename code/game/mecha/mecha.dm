@@ -720,6 +720,18 @@
 		E.detach(loc)
 		qdel(E)
 	equipment.Cut()
+	QDEL_LIST_ASSOC_VAL(select_actions)
+	QDEL_NULL(eject_action)
+	QDEL_NULL(internals_action)
+	QDEL_NULL(lights_action)
+	QDEL_NULL(stats_action)
+	QDEL_NULL(defense_action)
+	QDEL_NULL(overload_action)
+	QDEL_NULL(thrusters_action)
+	QDEL_NULL(smoke_action)
+	QDEL_NULL(zoom_action)
+	QDEL_NULL(phasing_action)
+	QDEL_NULL(switch_damtype_action)
 	QDEL_NULL(cell)
 	QDEL_NULL(internal_tank)
 	QDEL_NULL(radio)
@@ -785,12 +797,7 @@
 	if(W.GetID())
 		if(add_req_access || maint_access)
 			if(internals_access_allowed(usr))
-				var/obj/item/card/id/id_card
-				if(istype(W, /obj/item/card/id))
-					id_card = W
-				else
-					var/obj/item/pda/pda = W
-					id_card = pda.id
+				var/obj/item/card/id/id_card = W.GetID()
 				output_maintenance_dialog(id_card, user)
 				return
 			else

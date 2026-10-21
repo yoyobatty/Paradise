@@ -778,6 +778,7 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 			QDEL_NULL(U)
 		if(istype(U, /obj/item/borg/upgrade/ai)) // So you can change the shell module but not drop the BORIS module.
 			continue
+		QDEL_LIST_CONTENTS(U.actions)
 		U.forceMove(get_turf(src))
 
 /mob/living/silicon/robot/proc/reset_module()
@@ -804,6 +805,7 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 
 	spill_upgrades()
 	speed = 0 // Strip lingering upgrade effects.
+	floorbuffer = FALSE
 	ionpulse = FALSE
 	weapons_unlock = FALSE
 	add_language("Robot Talk", TRUE)

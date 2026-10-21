@@ -74,9 +74,8 @@
 	else if(istype(used, /obj/item/gps))
 		// TODO: Provide some kind of message if there's already an inserted GPS.
 		// For now, just do nothing.
-		if(!inserted_gps)
+		if(!inserted_gps && user.transfer_item_to(used, src))
 			inserted_gps = used
-			user.transfer_item_to(used, src)
 			user.visible_message(SPAN_NOTICE("[user] inserts [used] into [src]'s GPS device slot."))
 			SStgui.update_uis(src)
 

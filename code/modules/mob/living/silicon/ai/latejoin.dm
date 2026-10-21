@@ -11,7 +11,7 @@ GLOBAL_LIST_EMPTY(empty_playable_ai_cores)
 	cryo_AI()
 
 /mob/living/silicon/ai/proc/cryo_AI()
-	var/dead_aicore = new /obj/structure/ai_core/deactivated(loc)
+	var/dead_aicore = new /obj/structure/ai_core/deactivated(get_turf(src))
 	GLOB.empty_playable_ai_cores += dead_aicore
 	GLOB.global_announcer.autosay("[src] has been moved to intelligence storage.", "Artificial Intelligence Oversight", follow_target_override = dead_aicore)
 

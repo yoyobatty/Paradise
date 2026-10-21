@@ -58,6 +58,12 @@
 		else
 			. += "ai"
 
+/obj/item/aicard/handle_atom_del(atom/A)
+	..()
+	if(A == held_ai)
+		held_ai = null
+		update_appearance(UPDATE_NAME|UPDATE_OVERLAYS)
+
 /obj/item/aicard/activate_self(mob/user)
 	if(..())
 		return ITEM_INTERACT_COMPLETE

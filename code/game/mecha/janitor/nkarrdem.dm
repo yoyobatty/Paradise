@@ -18,6 +18,11 @@
 	/// Action that controls the floor buffer
 	var/datum/action/innate/mecha/mech_toggle_floorbuffer/floorbuffer_action = new
 
+/obj/mecha/nkarrdem/Destroy()
+	. = ..()
+	// Deleted after the parent call, since go_out() in /obj/mecha/Destroy() still removes this button from the pilot.
+	QDEL_NULL(floorbuffer_action)
+
 /obj/mecha/nkarrdem/examine_more(mob/user)
 	..()
 	. = list()

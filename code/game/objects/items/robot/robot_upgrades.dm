@@ -228,7 +228,7 @@
 		repair_tick = 1
 		return
 
-	if(cyborg && (cyborg.stat != DEAD) && on)
+	if(cyborg && (cyborg.stat != DEAD) && on && (loc == cyborg))
 		if(!cyborg.cell)
 			to_chat(cyborg, SPAN_WARNING("Self-repair module deactivated. Please, insert the power cell."))
 			deactivate()

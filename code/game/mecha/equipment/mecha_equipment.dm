@@ -34,7 +34,7 @@
 		chassis.occupant_message(SPAN_DANGER("[src] is destroyed!"))
 		chassis.log_append_to_last("[src] is destroyed.",1)
 		SEND_SOUND(chassis.occupant, sound(get_destroy_sound(), volume = 50))
-		detach(chassis)
+		detach()
 	return ..()
 
 
@@ -133,7 +133,8 @@
 
 /obj/item/mecha_parts/mecha_equipment/proc/detach(atom/moveto = null)
 	moveto = moveto || get_turf(chassis)
-	if(Move(moveto))
+	// Destroy() calls this too, and equipment that is being deleted can't Move(), so it's only taken off the mech.
+	if(QDELETED(src) || Move(moveto))
 		chassis.equipment -= src
 		if(chassis.selected == src)
 			chassis.selected = null
@@ -149,6 +150,8 @@
 	if(chassis.select_actions[src])
 		var/datum/action/innate/mecha/select_module/select_action = chassis.select_actions[src]
 		select_action.Remove(chassis.occupant)
+		chassis.select_actions -= src
+		qdel(select_action)
 
 /obj/item/mecha_parts/mecha_equipment/Topic(href,href_list)
 	if(!chassis)

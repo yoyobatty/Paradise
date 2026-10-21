@@ -63,9 +63,10 @@
 		if(!length(potential_losses))
 			return
 		var/datum/ai_program/program = pick_n_take(potential_losses)
-		if(!program.upgrade_level)
+		// Only take back upgrades that cost bandwidth, so a program with no upgrades isn't uninstalled.
+		if(!program.bandwidth_used)
 			continue
-		while(program.upgrade_level > 0 && bandwidth < 0)
+		while(program.bandwidth_used > 0 && bandwidth < 0)
 			program.downgrade(assigned_ai)
 
 /datum/program_picker/proc/reset_programs()
@@ -238,10 +239,11 @@
 	if(!istype(user))
 		return
 	upgrade_level--
-	if(!upgrade_level <= 0)
+	if(upgrade_level <= 0)
 		uninstall(user)
 		return
 	to_chat(user, SPAN_WARNING("Program update data lost: [src.program_name]!"))
+	bandwidth_used--
 	user.program_picker.bandwidth++
 	if(!upgrade) // Passives need to be handled in their own procs
 		var/datum/spell/ai_spell/removed_spell = new power_type
@@ -682,6 +684,7 @@
 	if(!istype(user))
 		return
 	user.bluespace_miner_rate = 100
+	user.bluespace_miner = FALSE
 
 //////////////////////////////
 // MARK: Multimarket Analysis
