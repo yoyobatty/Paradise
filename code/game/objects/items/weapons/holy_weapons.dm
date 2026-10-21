@@ -51,8 +51,8 @@
 
 /obj/item/nullrod/attack(mob/living/target, mob/living/user, params)
 	. = ..()
-	// ERT null rods are sanctified and do extra damage.
-	if(!sanctify_force)
+	// ERT null rods are sanctified and do extra damage, but only when the hit lands.
+	if(. || !sanctify_force)
 		return
 
 	if(isliving(target))

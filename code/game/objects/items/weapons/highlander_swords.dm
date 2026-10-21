@@ -25,6 +25,7 @@
 	return ..()
 
 /obj/item/claymore/highlander/equipped(mob/user, slot)
+	. = ..()
 	if(!ishuman(user) || !user.mind)
 		return
 	var/mob/living/carbon/human/H = user

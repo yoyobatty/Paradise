@@ -427,7 +427,7 @@
 			)
 			human_target.SetSleeping(60 SECONDS)
 			human_target.adjustBrainLoss(25)
-	return FINISH_ATTACK
+	return FINISH_ATTACK | MELEE_COOLDOWN_PREATTACK
 
 /obj/item/bostaff/hit_reaction(mob/living/carbon/human/owner, atom/movable/hitby, attack_text = "the attack", final_block_chance = 0, damage = 0, attack_type = MELEE_ATTACK)
 	if(HAS_TRAIT(src, TRAIT_WIELDED))

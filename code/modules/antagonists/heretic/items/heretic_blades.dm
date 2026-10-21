@@ -139,7 +139,7 @@
 
 /obj/item/melee/sickly_blade/void/pre_attack(atom/target, mob/living/user, params)
 	if(..())
-		return
+		return FINISH_ATTACK
 
 	if(user == target)
 		if(chilling)

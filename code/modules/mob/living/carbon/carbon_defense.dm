@@ -2,12 +2,12 @@
 	if(!skipcatch)
 		if(in_throw_mode && !HAS_TRAIT(src, TRAIT_HANDS_BLOCKED) && !restrained())  //Makes sure player is in throw mode
 			if(!isitem(AM) || !isturf(AM.loc))
-				return FALSE
+				return ..()
 			if(get_active_hand())
-				return FALSE
+				return ..()
 			if(AM.GetComponent(/datum/component/two_handed))
 				if(get_inactive_hand())
-					return FALSE
+					return ..()
 
 			throw_mode_off()
 			put_in_active_hand(AM)

@@ -9,10 +9,14 @@ emp_act
 
 
 /mob/living/carbon/human/bullet_act(obj/projectile/P, def_zone)
-	if(!dna.species.bullet_act(P, src, def_zone))
+	var/species_result = dna.species.bullet_act(P, src, def_zone)
+	if(species_result == -1)
 		add_attack_logs(P.firer, src, "hit by [P.type] but got deflected by species '[dna.species]'")
 		P.reflect_back(src) //It has to be here, not on species. Why? Who knows. Testing showed me no reason why it doesn't work on species, and neither did tracing. It has to be here, or it gets qdel'd by bump.
 		return -1
+	if(!species_result)
+		add_attack_logs(P.firer, src, "hit by [P.type] but got stopped by species '[dna.species]'")
+		return FALSE
 	if(P.is_reflectable(REFLECTABILITY_ENERGY))
 		var/can_reflect = check_reflect(def_zone)
 		var/reflected = FALSE
@@ -469,8 +473,6 @@ emp_act
 
 	if(user != src)
 		user.do_attack_animation(src)
-		if(check_shields(I, I.force, "the [I.name]", MELEE_ATTACK))
-			return
 
 	send_item_attack_message(I, user, hit_area)
 

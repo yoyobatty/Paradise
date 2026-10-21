@@ -513,7 +513,8 @@
 				if(organ.receive_damage(damage_amount, 0, sharp, used_weapon))
 					H.UpdateDamageIcon()
 			else //no bodypart, we deal damage with a more general method.
-				H.adjustBruteLoss(damage_amount)
+				// adjustBruteLoss() applies brute_mod itself, so only the physiology modifier goes in here.
+				H.adjustBruteLoss(ARMOUR_EQUATION(damage, total_armour, H.physiology.brute_mod))
 		if(BURN)
 			var/damage_amount = ARMOUR_EQUATION(damage, total_armour, burn_mod * H.physiology.burn_mod)
 			if(damage_amount)
@@ -523,7 +524,8 @@
 				if(organ.receive_damage(0, damage_amount, sharp, used_weapon))
 					H.UpdateDamageIcon()
 			else
-				H.adjustFireLoss(damage_amount)
+				// adjustFireLoss() applies burn_mod itself, so only the physiology modifier goes in here.
+				H.adjustFireLoss(ARMOUR_EQUATION(damage, total_armour, H.physiology.burn_mod))
 		if(TOX)
 			var/damage_amount = ARMOUR_EQUATION(damage, total_armour, H.physiology.tox_mod)
 			H.adjustToxLoss(damage_amount)
@@ -1082,7 +1084,7 @@ It'll return null if the organ doesn't correspond, so include null checks when u
 /datum/species/proc/water_act(mob/living/carbon/human/M, volume, temperature, source, method = REAGENT_TOUCH)
 	M.adjust_bodytemperature(clamp((temperature + M.bodytemperature) * 0.5 - M.bodytemperature, BODYTEMP_COOLING_MAX, BODYTEMP_HEATING_MAX)) // Approximation for gradual heating or cooling.
 
-/datum/species/proc/bullet_act(obj/projectile/P, mob/living/carbon/human/H) //return TRUE if hit, FALSE if stopped/reflected/etc
+/datum/species/proc/bullet_act(obj/projectile/P, mob/living/carbon/human/H) //return TRUE if hit, FALSE if stopped, -1 to reflect it back
 	return TRUE
 
 /datum/species/proc/spec_hitby(atom/movable/AM, mob/living/carbon/human/H)

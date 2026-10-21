@@ -16,7 +16,8 @@
 	if(ishuman(target) && target.check_shields(user, punch_damage, "[user]'s' [picked_hit_type]"))
 		user.do_attack_animation(target)
 		playsound(target.loc, 'sound/weapons/punchmiss.ogg', 25, TRUE, -1)
-		return FALSE
+		// Returning FALSE here would make species harm() throw a normal punch instead.
+		return TRUE
 	if(is_emped)
 		do_the_punch(user, user)
 	else

@@ -406,6 +406,26 @@ RESTRICT_TYPE(/mob/living/basic)
 		var/damage = rand(attacker.melee_damage_lower, attacker.melee_damage_upper)
 		return attack_threshold_check(damage, attacker.melee_damage_type)
 
+/mob/living/basic/ex_act(severity)
+	..()
+	var/bomb_armor = getarmor(armor_type = BOMB)
+	switch(severity)
+		if(EXPLODE_DEVASTATE)
+			if(prob(bomb_armor))
+				adjustBruteLoss(500)
+			else
+				gib()
+		if(EXPLODE_HEAVY)
+			var/bloss = 60
+			if(prob(bomb_armor))
+				bloss = bloss / 1.5
+			adjustBruteLoss(bloss)
+		if(EXPLODE_LIGHT)
+			var/bloss = 30
+			if(prob(bomb_armor))
+				bloss = bloss / 1.5
+			adjustBruteLoss(bloss)
+
 /mob/living/basic/on_lying_down(new_lying_angle)
 	..()
 	if(icon_resting && stat != DEAD)

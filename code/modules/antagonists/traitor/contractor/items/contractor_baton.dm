@@ -24,5 +24,7 @@
 
 /obj/item/melee/classic_baton/telescopic/contractor/baton_knockdown(mob/living/target, mob/living/user)
 	. = ..()
+	if(!.)
+		return
 	target.Jitter(jitter_amount)
 	target.AdjustStuttering(stutter_amount)

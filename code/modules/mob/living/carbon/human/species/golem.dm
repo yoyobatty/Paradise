@@ -424,7 +424,7 @@
 			H.visible_message(SPAN_DANGER("[P] gets reflected by [H]'s glass skin!"), \
 			SPAN_USERDANGER("[P] gets reflected by [H]'s glass skin!"))
 
-			return FALSE //Reflect back must be handled on the human bullet act for some arcane reason
+			return -1 //Reflect back must be handled on the human bullet act for some arcane reason
 	return TRUE
 
 /datum/unarmed_attack/golem/glass

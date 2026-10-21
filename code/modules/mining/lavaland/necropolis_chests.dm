@@ -578,16 +578,21 @@
 		input_list += GRAB_SLASH
 	if(user.a_intent == INTENT_HELP)
 		input_list += HELP_SLASH
-	if(ishostile(target) || isbasicmob(target))
-		user.changeNext_move(CLICK_CD_RAPID)
 	if(length(input_list) > 4)
 		reset_inputs(user, TRUE)
 	if(check_input(target, user))
 		reset_inputs(null, TRUE)
+		user.changeNext_move((ishostile(target) || isbasicmob(target)) ? CLICK_CD_RAPID : CLICK_CD_MELEE)
 		return FINISH_ATTACK
 	else
 		timerid = addtimer(CALLBACK(src, PROC_REF(reset_inputs), user, FALSE), 5 SECONDS, TIMER_UNIQUE|TIMER_OVERRIDE|TIMER_STOPPABLE)
 		return ..()
+
+/obj/item/cursed_katana/attack(mob/living/target, mob/living/user, params)
+	. = ..()
+	// attack_by() sets the normal melee cooldown just before this, so the faster swing against fauna has to go here.
+	if(ishostile(target) || isbasicmob(target))
+		user.changeNext_move(CLICK_CD_RAPID)
 
 /obj/item/cursed_katana/hit_reaction(mob/living/carbon/human/owner, atom/movable/hitby, attack_text = "the attack", final_block_chance = 0, damage = 0, attack_type = MELEE_ATTACK)
 	if(attack_type == PROJECTILE_ATTACK)

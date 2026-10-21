@@ -614,7 +614,7 @@
 	if(attack_type == UNARMED_ATTACK && prob(hit_reaction_chance))
 		owner.visible_message(SPAN_DANGER("[owner] fends off [attack_text] with [src]!"))
 		return 1
-	return 0
+	return ..()
 
 // We use after_attack here so it still does damage, unlike the stool's chance to break before the attack. Don't ask me why stools do separate stuff. I blame oldcoders.
 /obj/item/chair/after_attack(atom/target, mob/user, proximity_flag, click_parameters)

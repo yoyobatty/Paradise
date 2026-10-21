@@ -116,6 +116,8 @@
 		return ..()
 
 	var/mob/living/carbon/human/human_target = target
+	// These moves end the attack chain before attack_by(), which is what normally sets the melee cooldown.
+	user.changeNext_move(CLICK_CD_MELEE)
 
 	switch(user.a_intent)
 		if(INTENT_HELP)

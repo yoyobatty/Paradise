@@ -19,8 +19,8 @@
 
 	SEND_SIGNAL(user, COMSIG_MOB_ITEM_ATTACK, M, user)
 
-	. = __attack_core(M, user)
-	if(.)
+	// Nothing is returned here because /mob/living/attack_by() passes it back to melee_attack_chain(), where TRUE would skip afterattack.
+	if(__attack_core(M, user))
 		M.attacked_by(src, user, def_zone)
 
 /**

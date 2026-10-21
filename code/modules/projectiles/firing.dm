@@ -53,7 +53,8 @@
 		BB.stamina = BB.stamina * energy_casing.lens_damage_multiplier
 		BB.speed = BB.speed * energy_casing.lens_speed_multiplier
 
-	if(target && get_dist(user, target) <= 1) //Point blank shot must always hit
+	// Turfs get a normal shot so it keeps flying past a nearby floor, and Adjacent() stops point blank hits through windoors or around corners.
+	if(target && !isturf(target) && get_dist(user, target) <= 1 && curloc.Adjacent(target)) //Point blank shot must always hit
 		BB.starting = curloc
 		BB.prehit(target)
 		target.bullet_act(BB, BB.def_zone)
