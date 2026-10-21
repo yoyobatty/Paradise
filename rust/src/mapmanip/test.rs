@@ -20,6 +20,8 @@ fn all_test_dmm() -> Vec<std::path::PathBuf> {
         .unwrap()
         .map(|r| r.unwrap().path())
         .filter(|p| p.extension().unwrap() == "dmm")
+        // Skip the maps the tests write, other tests may be writing them right now
+        .filter(|p| !p.file_stem().unwrap().to_string_lossy().ends_with("_out"))
         .sorted()
         .collect_vec()
 }
@@ -35,9 +37,12 @@ fn to_grid_and_back() {
         let map_str_original = crate::mapmanip::core::map_to_string(&dict_map_original).unwrap();
         let map_str_from_grid = crate::mapmanip::core::map_to_string(&dict_map_again).unwrap();
 
-        dict_map_again
-            .to_file(&std::path::Path::new("src/mapmanip/test/").join(path.file_name().unwrap()))
-            .unwrap();
+        // Write it next to the original instead of over it, other tests read the originals at the same time
+        let path_out = std::path::Path::new("src/mapmanip/test/").join(format!(
+            "{}_grid_out.dmm",
+            path.file_stem().unwrap().to_string_lossy()
+        ));
+        dict_map_again.to_file(&path_out).unwrap();
 
         print_diff(&map_str_original, &map_str_from_grid);
 
