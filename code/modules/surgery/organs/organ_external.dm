@@ -195,6 +195,8 @@
 /obj/item/organ/external/replaced(mob/living/carbon/human/target)
 	owner = target
 	loc = null
+	// remove() started processing the limb so it could rot, and now handle_organs() processes it instead.
+	STOP_PROCESSING(SSobj, src)
 	if(iscarbon(owner))
 		SEND_SIGNAL(owner, COMSIG_CARBON_GAIN_ORGAN, src)
 	if(istype(owner))

@@ -499,6 +499,8 @@ For the other part of the code, check silicon say.dm. Particularly robot talk.*/
 				break
 		if(AI)
 			overlay_icon.ColorTone(AI.hologram_color)
+		// process() refreshes the icon every 2 seconds, so take the old light off before adding the new one.
+		overlays.Cut()
 		overlays += overlay_icon
 	} else {
 		icon_state = "holopad0"

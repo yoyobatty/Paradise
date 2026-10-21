@@ -63,7 +63,7 @@
 		R.sight_mode &= ~sight_mode
 	R.update_sight()
 
-	if(mode != (MODE_NONE || MODE_MESON))
+	if(mode == MODE_TRAY || mode == MODE_RAD)
 		START_PROCESSING(SSobj, src)
 	else
 		STOP_PROCESSING(SSobj, src)

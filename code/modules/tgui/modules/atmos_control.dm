@@ -39,6 +39,6 @@
 				alarms_on_net |= air_alarm
 
 	var/list/data = list()
-	data["alarms"] = GLOB.air_alarm_repository.air_alarm_data(alarms_on_net, target_z = z_level)
+	data["alarms"] = GLOB.air_alarm_repository.air_alarm_data(alarms_on_net, target_z = z_level, cache_key = "[parent_area_type]-[z_level]")
 
 	return data

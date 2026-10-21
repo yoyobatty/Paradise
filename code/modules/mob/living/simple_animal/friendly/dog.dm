@@ -99,10 +99,10 @@
 /mob/living/simple_animal/pet/dog/corgi/handle_atom_del(atom/A)
 	if(A == inventory_head)
 		inventory_head = null
-		regenerate_icons()
+		update_appearance(UPDATE_OVERLAYS)
 	if(A == inventory_back)
 		inventory_back = null
-		regenerate_icons()
+		update_appearance(UPDATE_OVERLAYS)
 	return ..()
 
 /mob/living/simple_animal/pet/dog/corgi/Life(seconds, times_fired)
@@ -164,7 +164,7 @@
 	inventory_head.forceMove(drop_location())
 	inventory_head = null
 	update_corgi_fluff()
-	regenerate_icons()
+	update_appearance(UPDATE_OVERLAYS)
 
 /mob/living/simple_animal/pet/dog/corgi/getarmor(def_zone, armor_type)
 	var/armorval = 0

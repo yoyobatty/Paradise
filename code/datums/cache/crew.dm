@@ -12,11 +12,12 @@ GLOBAL_DATUM_INIT(crew_repository, /datum/repository/crew, new())
 	if(!z)
 		return crewmembers
 
-	var/z_level = "[z]"
-	var/datum/cache_entry/cache_entry = cache_data[z_level]
+	// The observer crew monitor ignores suit sensors, so it needs its own list apart from the crew consoles.
+	var/cache_key = "[z]-[ignore_sensors]"
+	var/datum/cache_entry/cache_entry = cache_data[cache_key]
 	if(!cache_entry)
 		cache_entry = new/datum/cache_entry
-		cache_data[z_level] = cache_entry
+		cache_data[cache_key] = cache_entry
 
 	if(world.time < cache_entry.timestamp)
 		return cache_entry.data

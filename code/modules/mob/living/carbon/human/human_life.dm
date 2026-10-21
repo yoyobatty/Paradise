@@ -629,11 +629,17 @@
 	var/guaranteed_death_threshold = health + (getOxyLoss() * 0.5) - (getFireLoss() * 0.67) - (getBruteLoss() * 0.67)
 
 	var/obj/item/organ/internal/brain = get_int_organ(/obj/item/organ/internal/brain)
-	if(brain?.damage >= brain?.max_damage || guaranteed_death_threshold <= -500)
+	var/brain_dead = FALSE
+	if(brain)
+		brain_dead = brain.damage >= brain.max_damage
+	else
+		// getBrainLoss() is 200 with no brain, but 0 for zombies and changelings, who can live without one.
+		brain_dead = getBrainLoss() >= 120
+	if(brain_dead || guaranteed_death_threshold <= -500)
 		death()
 		return
 
-	if(check_brain_threshold(BRAIN_DAMAGE_RATIO_CRITICAL)) // braindeath
+	if(brain && check_brain_threshold(BRAIN_DAMAGE_RATIO_CRITICAL)) // braindeath
 		dna.species.handle_brain_death(src)
 
 	if(!check_death_method())

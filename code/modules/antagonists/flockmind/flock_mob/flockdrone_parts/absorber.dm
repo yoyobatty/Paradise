@@ -18,6 +18,8 @@
 	return try_pickup_item(I)
 
 /datum/flockdrone_part/absorber/process(seconds_per_tick)
+	// SSprocessing passes its wait in deciseconds, so turn it into seconds for absorption_rate.
+	seconds_per_tick /= (1 SECONDS)
 	var/added = 0
 	var/obj/item/eating = held_item
 

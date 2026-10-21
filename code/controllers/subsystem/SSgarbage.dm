@@ -250,6 +250,7 @@ SUBSYSTEM_DEF(garbage)
 	++totaldels
 	var/type = D.type
 	var/refID = text_ref(D)
+	var/references = refcount(D)
 
 	del(D)
 
@@ -259,7 +260,8 @@ SUBSYSTEM_DEF(garbage)
 
 	I.hard_deletes++
 	I.hard_delete_time += TICK_DELTA_TO_MS(tick)
-	I.reference_average = (refcount(I) + I.reference_average) / I.hard_deletes
+	// Keep a running average of the references over every hard delete of this type.
+	I.reference_average += (references - I.reference_average) / I.hard_deletes
 
 
 	if(tick > highest_del_tickusage)

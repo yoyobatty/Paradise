@@ -2,13 +2,18 @@
 
 GLOBAL_DATUM_INIT(air_alarm_repository, /datum/repository/air_alarm, new())
 
-/datum/repository/air_alarm/proc/air_alarm_data(list/monitored_alarms, refresh = FALSE, obj/machinery/alarm/passed_alarm, target_z = null)
+/datum/repository/air_alarm/New()
+	cache_data = list()
+	..()
+
+/datum/repository/air_alarm/proc/air_alarm_data(list/monitored_alarms, refresh = FALSE, obj/machinery/alarm/passed_alarm, target_z = null, cache_key)
 	var/list/alarms = list()
 
-	var/datum/cache_entry/cache_entry = cache_data
+	// Consoles watching different areas or z-levels get different alarms, so each cache_key keeps its own list.
+	var/datum/cache_entry/cache_entry = cache_data["[cache_key]"]
 	if(!cache_entry)
 		cache_entry = new/datum/cache_entry
-		cache_data = cache_entry
+		cache_data["[cache_key]"] = cache_entry
 
 	if(!refresh && cache_entry.timestamp + AIR_ALARM_DATA_CACHE_DURATION > world.time)
 		return cache_entry.data

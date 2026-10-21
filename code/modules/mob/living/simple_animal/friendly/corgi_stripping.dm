@@ -96,7 +96,7 @@ GLOBAL_LIST_INIT(strippable_corgi_items, create_strippable_list(list(
 	INVOKE_ASYNC(equipping, TYPE_PROC_REF(/atom/movable, forceMove), corgi_source)
 	corgi_source.inventory_back = equipping
 	corgi_source.update_corgi_fluff()
-	corgi_source.regenerate_icons()
+	corgi_source.update_appearance(UPDATE_OVERLAYS)
 
 /datum/strippable_item/corgi_back/finish_unequip(atom/source, mob/user)
 	var/mob/living/simple_animal/pet/dog/corgi/corgi_source = source
@@ -106,4 +106,4 @@ GLOBAL_LIST_INIT(strippable_corgi_items, create_strippable_list(list(
 	INVOKE_ASYNC(user, TYPE_PROC_REF(/mob, put_in_hands), corgi_source.inventory_back)
 	corgi_source.inventory_back = null
 	corgi_source.update_corgi_fluff()
-	corgi_source.regenerate_icons()
+	corgi_source.update_appearance(UPDATE_OVERLAYS)

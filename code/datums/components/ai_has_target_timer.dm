@@ -75,5 +75,7 @@
 	living_parent.ai_controller.set_blackboard_key(increment_key, time_on_target)
 
 /datum/component/ai_target_timer/process(seconds_per_tick)
+	// SSdcs passes its wait in deciseconds, so turn it into seconds like /datum/ai_controller/process() does.
+	seconds_per_tick /= (1 SECONDS)
 	time_on_target += seconds_per_tick SECONDS
 	store_current_time()
