@@ -341,12 +341,13 @@
 			//If the mob can't process it, remove the reagent at it's normal rate without doing any addictions, overdoses, or on_mob_life() for the reagent
 			if(!can_process)
 				if(!species_handled)
-					R.holder.remove_reagent(R.id, R.metabolization_rate)
+					// Using up a reagent can never start a reaction, so remove_reagent() can skip checking for one
+					R.holder.remove_reagent(R.id, R.metabolization_rate, safety = TRUE)
 				continue
 		//We'll assume that non-human mobs lack the ability to process synthetic-oriented reagents (adjust this if we need to change that assumption)
 		else
 			if(R.process_flags == SYNTHETIC)
-				R.holder.remove_reagent(R.id, R.metabolization_rate)
+				R.holder.remove_reagent(R.id, R.metabolization_rate, safety = TRUE)
 				continue
 		//If you got this far, that means we can process whatever reagent this iteration is for. Handle things normally from here.
 		if(M && R)

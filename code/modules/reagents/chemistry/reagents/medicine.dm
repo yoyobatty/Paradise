@@ -11,7 +11,8 @@
 
 	handle_addiction(M, total_depletion_rate)
 	sate_addiction(M)
-	holder.remove_reagent(id, total_depletion_rate) //medicine reagents stay longer if you have a better metabolism
+	// Using up a reagent can never start a reaction, so remove_reagent() can skip checking for one
+	holder.remove_reagent(id, total_depletion_rate, safety = TRUE) //medicine reagents stay longer if you have a better metabolism
 	return STATUS_UPDATE_NONE
 
 /datum/reagent/medicine/hydrocodone

@@ -134,7 +134,8 @@
 	handle_addiction(M, total_depletion_rate)
 	sate_addiction(M)
 
-	holder.remove_reagent(id, total_depletion_rate) //By default it slowly disappears.
+	// Using up a reagent can never start a reaction, so remove_reagent() can skip checking for one
+	holder.remove_reagent(id, total_depletion_rate, safety = TRUE) //By default it slowly disappears.
 	return STATUS_UPDATE_NONE
 
 /datum/reagent/proc/on_mob_overdose_life(mob/living/M) //We want to drain reagents but not do the entire mob life.
@@ -144,7 +145,7 @@
 	handle_addiction(M, total_depletion_rate)
 	sate_addiction(M)
 
-	holder.remove_reagent(id, total_depletion_rate) //By default it slowly disappears.
+	holder.remove_reagent(id, total_depletion_rate, safety = TRUE) //By default it slowly disappears.
 	return STATUS_UPDATE_NONE
 
 /datum/reagent/proc/handle_addiction(mob/living/M, consumption_rate)
