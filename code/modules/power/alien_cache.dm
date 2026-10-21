@@ -196,7 +196,8 @@
 					do_sparks(5, TRUE, src)
 					return
 
-				C.use(10) // make sure the cable gets used up
+				if(!C.use(10)) // make sure the cable gets used up
+					return ITEM_INTERACT_COMPLETE
 				user.visible_message(\
 					SPAN_NOTICE("[user.name] adds the cables and connects the power terminal."),\
 					SPAN_NOTICE("You add the cables and connect the power terminal."))
@@ -252,6 +253,12 @@
 	terminal = new /obj/machinery/power/terminal(temporary_location)
 	terminal.master = src
 	terminal.dir = REVERSE_DIR(dir)
+
+/// The terminal calls this when it gets deleted, like when someone cuts it off the cache.
+/obj/machinery/alien_cache/proc/disconnect_terminal()
+	if(terminal)
+		terminal.master = null
+		terminal = null
 
 #undef CACHE_MAX_LEVEL
 #undef LEVEL_DISTRIBUTION_SIGMA

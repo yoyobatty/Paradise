@@ -186,6 +186,9 @@
 		for(var/obj/structure/window/WINDOW in loc) //checking this for a 2nd time to check if a window was made while we were waiting.
 			to_chat(user, SPAN_WARNING("There is already a window there!"))
 			return
+		if(!S.use(2))
+			to_chat(user, SPAN_WARNING("You need at least two sheets of glass for that!"))
+			return
 		var/obj/structure/window/W = new S.full_window(drop_location())
 		W.setDir(dir_to_set)
 		W.ini_dir = dir_to_set
@@ -193,7 +196,6 @@
 		recalculate_atmos_connectivity()
 		W.update_nearby_icons()
 		W.state = WINDOW_OUT_OF_FRAME
-		S.use(2)
 		to_chat(user, SPAN_NOTICE("You place [W] on [src]."))
 
 

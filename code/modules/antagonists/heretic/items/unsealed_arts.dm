@@ -29,8 +29,7 @@
 	if(istype(used, /obj/item/stack/sheet/cloth))
 		var/obj/item/stack/sheet/cloth/coverings = used
 		if(coverings.amount >= 3)
-			if(do_after_once(user, 3 SECONDS, TRUE, src, TRUE, FALSE))
-				coverings.use(3)
+			if(do_after_once(user, 3 SECONDS, TRUE, src, TRUE, FALSE) && coverings.use(3))
 				on_cover()
 		else
 			to_chat(user, SPAN_WARNING("You need at least 3 sheets of cloth to cover this!"))
@@ -41,7 +40,7 @@
 	if(..())
 		return
 	if(covered)
-		if(do_after_once(user, 3 SECONDS, TRUE, src, TRUE, FALSE))
+		if(do_after_once(user, 3 SECONDS, TRUE, src, TRUE, FALSE) && covered)
 			on_uncover()
 			new /obj/item/stack/sheet/cloth(loc, 3)
 		return FINISH_ATTACK

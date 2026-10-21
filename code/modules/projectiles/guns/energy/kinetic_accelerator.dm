@@ -564,7 +564,8 @@
 	var/stats_stolen = FALSE
 
 /obj/item/borg/upgrade/modkit/aoe/install(obj/item/gun/energy/kinetic_accelerator/KA, mob/user)
-	if(..())
+	. = ..()
+	if(!.)
 		return
 	for(var/obj/item/borg/upgrade/modkit/aoe/AOE in KA.modkits) //make sure only one of the aoe modules has values if somebody has multiple
 		if(AOE.stats_stolen || AOE == src)

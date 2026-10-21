@@ -57,16 +57,16 @@
 	if(!do_after(user, construction_time, target = src))
 		return TRUE
 
-	if(!stack.use(1))
-		to_chat(user, SPAN_WARNING("You need at least one sheet of [stack] to do this!"))
-		return TRUE
-
 	var/obj/structure/table/table_already_there = locate(/obj/structure/table) in get_turf(src)
 	if(table_already_there) //check again after to make sure one wasnt added since
 		to_chat(user, SPAN_WARNING("There is already [table_already_there] here."))
 		return TRUE
 
-	if(!istype(new_table_type, /obj/structure/table)) //if its something unique, skip the table parts
+	if(!stack.use(1))
+		to_chat(user, SPAN_WARNING("You need at least one sheet of [stack] to do this!"))
+		return TRUE
+
+	if(!ispath(new_table_type, /obj/structure/table)) //if its something unique, skip the table parts
 		new new_table_type(loc)
 		qdel(src)
 		return TRUE

@@ -155,8 +155,7 @@
 		if(coil.get_amount() < 5)
 			to_chat(user, SPAN_WARNING("You need more cable for this!"))
 			return ITEM_INTERACT_COMPLETE
-		if(do_after(user, 10 * coil.toolspeed, target = src) && buildstage == 1)
-			coil.use(5)
+		if(do_after(user, 10 * coil.toolspeed, target = src) && buildstage == 1 && coil.use(5))
 			to_chat(user, SPAN_NOTICE("You wire [src]!"))
 			buildstage = 2
 			add_fingerprint(user)

@@ -180,8 +180,7 @@
 			to_chat(user, SPAN_WARNING("You need two glass sheets to fix the case!"))
 			return ITEM_INTERACT_COMPLETE
 		to_chat(user, SPAN_NOTICE("You start fixing [src]..."))
-		if(do_after(user, 20, target = src))
-			G.use(2)
+		if(do_after(user, 20, target = src) && G.use(2))
 			broken = FALSE
 			open = FALSE
 			obj_integrity = max_integrity
@@ -275,8 +274,7 @@
 			to_chat(user, SPAN_WARNING("You need ten glass sheets to do this!"))
 			return ITEM_INTERACT_COMPLETE
 		to_chat(user, SPAN_NOTICE("You start adding [G] to [src]..."))
-		if(do_after(user, 20, target = src))
-			G.use(10)
+		if(do_after(user, 20, target = src) && G.use(10))
 			var/obj/structure/displaycase/display = new(loc)
 			if(electronics)
 				electronics.forceMove(display)
