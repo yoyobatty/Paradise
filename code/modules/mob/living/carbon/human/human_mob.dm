@@ -686,6 +686,8 @@
 	if(!usr.stat && !HAS_TRAIT(usr, TRAIT_HANDS_BLOCKED) && !usr.restrained() && in_range(src, usr))
 
 		if(href_list["embedded_object"])
+			if(usr != src)
+				return
 			var/obj/item/organ/external/L = locate(href_list["embedded_limb"]) in bodyparts
 			if(!L)
 				return

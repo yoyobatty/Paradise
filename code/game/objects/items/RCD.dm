@@ -525,6 +525,9 @@
 	if(ui_act_modal(action, params))
 		return TRUE
 
+	if(locked && (action in list("set_one_access", "set", "grant_region", "deny_region", "clear_all", "grant_all")))
+		return
+
 	. = TRUE
 	switch(action)
 		if("set_tab")
@@ -562,7 +565,7 @@
 
 		if("set")
 			var/access = text2num(params["access"])
-			if(isnull(access))
+			if(!(access in get_all_accesses()))
 				return
 			if(access in selected_accesses)
 				selected_accesses -= access

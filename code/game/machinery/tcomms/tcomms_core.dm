@@ -310,7 +310,7 @@
 
 		if("unlink")
 			var/obj/machinery/tcomms/relay/R = locate(params["addr"])
-			if(istype(R, /obj/machinery/tcomms/relay))
+			if(istype(R, /obj/machinery/tcomms/relay) && (R in linked_relays) && !R.hidden_link)
 				var/confirm = tgui_alert(usr, "Are you sure you want to unlink this relay?\nID: [R.network_id]\nADDR: \ref[R]", "Relay Unlink", list("Yes", "No"))
 				if(confirm == "Yes")
 					log_action(usr, "has unlinked tcomms relay with ID [R.network_id] from tcomms core with ID [network_id]", TRUE)

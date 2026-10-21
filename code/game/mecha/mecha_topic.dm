@@ -323,11 +323,11 @@
 		send_byjax(occupant,"exosuit.browser","t_maint_access","[maint_access?"Forbid":"Permit"] maintenance protocols")
 		return
 	if(href_list["req_access"] && add_req_access)
-		if(!in_range(src, usr))	return
+		if(!in_range(src, usr) || !internals_access_allowed(usr))	return
 		output_access_dialog(afilter.getObj("id_card"),afilter.getMob("user"))
 		return
 	if(href_list["maint_access"] && maint_access)
-		if(!in_range(src, usr))	return
+		if(!in_range(src, usr) || !internals_access_allowed(usr))	return
 		var/mob/user = afilter.getMob("user")
 		if(user)
 			if(state == MECHA_MAINT_OFF)
@@ -343,7 +343,7 @@
 			output_maintenance_dialog(afilter.getObj("id_card"),user)
 		return
 	if(href_list["set_internal_tank_valve"] && state >= MECHA_MAINT_ON)
-		if(!in_range(src, usr))	return
+		if(!in_range(src, usr) || !internals_access_allowed(usr))	return
 		var/mob/user = afilter.getMob("user")
 		if(user)
 			var/new_pressure = input(user,"Input new output pressure","Pressure setting",internal_tank_valve) as num
@@ -351,14 +351,20 @@
 				internal_tank_valve = new_pressure
 				to_chat(user, "The internal pressure valve has been set to [internal_tank_valve]kPa.")
 	if(href_list["add_req_access"] && add_req_access && afilter.getObj("id_card"))
-		if(!in_range(src, usr))	return
-		operation_req_access += afilter.getNum("add_req_access")
+		if(!in_range(src, usr) || !internals_access_allowed(usr))	return
+		var/obj/item/card/id/id_card = afilter.getObj("id_card")
+		var/new_access = afilter.getNum("add_req_access")
+		if(!istype(id_card) || get(id_card, /mob) != usr || !(new_access in id_card.access))
+			return
+		operation_req_access += new_access
 		output_access_dialog(afilter.getObj("id_card"),afilter.getMob("user"))
 		return
 	if(href_list["add_all_req_access"] && add_req_access && afilter.getObj("id_card"))
-		if(!in_range(src, usr))
+		if(!in_range(src, usr) || !internals_access_allowed(usr))
 			return
 		var/obj/item/card/id/mycard = afilter.getObj("id_card")
+		if(!istype(mycard) || get(mycard, /mob) != usr)
+			return
 		var/list/myaccess = mycard.access
 		for(var/a in myaccess)
 			if(get_access_desc(a))
@@ -366,18 +372,18 @@
 		output_access_dialog(afilter.getObj("id_card"),afilter.getMob("user"))
 		return
 	if(href_list["del_req_access"] && add_req_access && afilter.getObj("id_card"))
-		if(!in_range(src, usr))	return
+		if(!in_range(src, usr) || !internals_access_allowed(usr))	return
 		operation_req_access -= afilter.getNum("del_req_access")
 		output_access_dialog(afilter.getObj("id_card"),afilter.getMob("user"))
 		return
 	if(href_list["del_all_req_access"] && add_req_access && afilter.getObj("id_card"))
-		if(!in_range(src, usr))
+		if(!in_range(src, usr) || !internals_access_allowed(usr))
 			return
 		operation_req_access = list()
 		output_access_dialog(afilter.getObj("id_card"),afilter.getMob("user"))
 		return
 	if(href_list["finish_req_access"])
-		if(!in_range(src, usr))	return
+		if(!in_range(src, usr) || !internals_access_allowed(usr))	return
 		add_req_access = 0
 		var/mob/user = afilter.getMob("user")
 		user << browse(null,"window=exosuit_add_access")

@@ -236,9 +236,15 @@
 					tab = TAB_DAMAGES_BREAKDOWN
 					return TRUE
 		if("select_pod")
-			selected_pod = locateUID(params["uid"])
+			var/obj/machinery/clonepod/pod = locateUID(params["uid"])
+			if(!(pod in pods))
+				return
+			selected_pod = pod
 			return TRUE
 		if("clone")
+			if(selected_pod.currently_cloning)
+				feedback = list("text" = "The selected pod is currently cloning someone.", "color" = "average", "scan_succeeded" = TRUE)
+				return TRUE
 			var/cost = selected_pod.get_cloning_cost(scanner.last_scan, desired_data)
 			if(selected_pod.biomass < cost[BIOMASS_COST] || (selected_pod.reagents.get_reagent_amount("sanguine_reagent") < cost[SANGUINE_COST]) || selected_pod.reagents.get_reagent_amount("osseous_reagent") < cost[OSSEOUS_COST])
 				feedback = list("text" = "The cloning operation is too expensive!", "color" = "bad", "scan_succeeded" = FALSE)

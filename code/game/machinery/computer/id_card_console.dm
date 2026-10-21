@@ -507,7 +507,7 @@ GLOBAL_VAR_INIT(time_last_changed_position, 0)
 						if(ckey(J.title) == ckey(t1))
 							jobdatum = J
 							break
-					if(!jobdatum)
+					if(!jobdatum || jobdatum.admin_only)
 						to_chat(usr, SPAN_WARNING("No log exists for this job: [t1]"))
 						return
 

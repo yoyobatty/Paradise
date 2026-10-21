@@ -369,7 +369,7 @@
 
 	// Filling the `container` with reagents.
 	else if(length(D.make_reagents))
-		if(!check_container_volume(D, amount))
+		if(!container || !check_cost(D, amount) || !check_container_volume(D, amount))
 			return
 		for(var/R in D.make_reagents)
 			container.reagents.add_reagent(R, D.make_reagents[R] * amount)

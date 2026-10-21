@@ -137,14 +137,23 @@
 			target = null
 		if("settarget")
 			resetPowerstation()
+			var/list/possible_targets
+			if(regime == REGIME_TELEPORT)
+				possible_targets = targets_teleport()
+			else if(regime == REGIME_GATE)
+				possible_targets = targets_gate()
+			var/list/chosen_target
+			for(var/target_name in possible_targets)
+				if(possible_targets[target_name]["pretarget"] == params["tptarget"])
+					chosen_target = possible_targets[target_name]
+					break
+			if(!chosen_target)
+				atom_say("No valid targets available.")
+				return
 			if(!advanced_beacon_locking)
-				var/turf/tmpTarget = locate(text2num(params["x"]), text2num(params["y"]), text2num(params["z"]))
-				if(!isturf(tmpTarget))
-					atom_say("No valid targets available.")
-					return
-				target = tmpTarget
+				target = locate(chosen_target["x"], chosen_target["y"], chosen_target["z"])
 			else
-				target = locateUID(params["tptarget"])
+				target = locateUID(chosen_target["pretarget"])
 			if(regime == REGIME_TELEPORT)
 				teleport_helper()
 			if(regime == REGIME_GATE)
@@ -161,6 +170,8 @@
 			calibrating = TRUE
 			addtimer(CALLBACK(src, PROC_REF(calibrateCallback)), 50 * (3 - power_station.teleporter_hub.accurate)) //Better parts mean faster calibration
 		if("advanced_beacon_locking")
+			if(power_station.efficiency < 7)
+				return
 			advanced_beacon_locking = !advanced_beacon_locking
 
 /**

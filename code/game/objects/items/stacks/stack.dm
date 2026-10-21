@@ -259,7 +259,12 @@
 	switch(action)
 		if("make")
 			var/datum/stack_recipe/recipe = locateUID(params["recipe_uid"])
-			var/multiplier = text2num(params["multiplier"])
+			if(!istype(recipe) || !has_recipe(recipe, recipes))
+				return FALSE
+			var/multiplier = round(text2num(params["multiplier"]))
+			var/max_multiplier = max(1, round(recipe.max_res_amount / recipe.res_amount))
+			if(multiplier < 1 || multiplier > max_multiplier)
+				return FALSE
 			if(!recipe.try_build(user, material, multiplier))
 				return FALSE
 
@@ -288,6 +293,17 @@
 			recipes_data["[recipe_list.title]"] = recursively_build_recipes(recipe_list.recipes)
 
 	return recipes_data
+
+/// Returns TRUE if the recipe is in the given list of recipes or in one of its sublists.
+/obj/item/stack/proc/has_recipe(datum/stack_recipe/recipe, list/recipes_to_check)
+	for(var/entry in recipes_to_check)
+		if(entry == recipe)
+			return TRUE
+		if(istype(entry, /datum/stack_recipe_list))
+			var/datum/stack_recipe_list/recipe_list = entry
+			if(has_recipe(recipe, recipe_list.recipes))
+				return TRUE
+	return FALSE
 
 /obj/item/stack/proc/build_recipe_data(datum/stack_recipe/recipe)
 	var/list/data = list()

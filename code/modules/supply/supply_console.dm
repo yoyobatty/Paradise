@@ -301,7 +301,7 @@
 
 			//===orderee account information===
 			var/datum/money_account/selected_account = locateUID(params["account"])
-			if(!selected_account)
+			if(!selected_account || !(selected_account in get_accounts(user)))
 				playsound(loc, 'sound/machines/buzz-sigh.ogg', 15, FALSE)
 				to_chat(user, SPAN_WARNING("You must select an account to pay for the order."))
 				return

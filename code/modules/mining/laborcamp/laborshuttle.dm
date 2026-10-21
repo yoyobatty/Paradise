@@ -115,6 +115,8 @@
 				inserted_id_uid = I.UID()
 
 		if("move_shuttle")
+			if(!check_auth())
+				return
 			if(!alone_in_area(get_area(src), ui.user))
 				to_chat(ui.user, SPAN_WARNING("Prisoners are only allowed to be released while alone."))
 				return TRUE

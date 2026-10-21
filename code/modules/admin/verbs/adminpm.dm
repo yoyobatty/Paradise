@@ -55,6 +55,9 @@ USER_VERB(admin_pm_by_key_panel, R_ADMIN|R_MENTOR, "Admin PM Key", "Send a PM by
 		to_chat(src, SPAN_DANGER("Error: Private-Message: You are unable to use PM-s (muted)."))
 		return
 
+	if(!(type in list("PM", "Adminhelp", "Mentorhelp")))
+		type = "PM"
+
 	var/client/C
 	if(istext(whom))
 		C = get_client_by_ckey(whom)

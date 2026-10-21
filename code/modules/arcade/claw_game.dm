@@ -69,6 +69,8 @@ GLOBAL_VAR(claw_game_html)
 /obj/machinery/economy/arcade/claw/Topic(href, list/href_list)
 	if(..())
 		return
+	if(!in_use || usr.machine != src)
+		return
 	var/prize_won = null
 	prize_won = href_list["prizeWon"]
 	if(!isnull(prize_won))

@@ -62,6 +62,8 @@
 /obj/machinery/computer/prisoner/ui_data(mob/user)
 	var/list/data = list()
 	ui_login_data(data, user)
+	if(!data["loginState"]["logged_in"])
+		return data
 	var/obj/item/card/id/prisoner/inserted_id = locateUID(inserted_id_uid)
 	data["prisonerInfo"] = list(
 		"name" = inserted_id?.name,
@@ -119,6 +121,9 @@
 	if(ui_login_act(action, params))
 		return
 
+	if(!ui_login_get().logged_in)
+		return
+
 	var/mob/living/user = ui.user
 	var/obj/item/card/id/prisoner/inserted_id = locateUID(inserted_id_uid)
 	switch(action)
@@ -136,9 +141,10 @@
 				to_chat(user, SPAN_WARNING("No valid ID."))
 		if("inject")
 			var/obj/item/bio_chip/chem/implant = locateUID(params["uid"])
-			if(!implant)
+			var/amount = text2num(params["amount"])
+			if(!istype(implant) || !check_implant(implant) || amount <= 0)
 				return
-			implant.activate(text2num(params["amount"]))
+			implant.activate(amount)
 		if("reset_points")
 			if(inserted_id)
 				inserted_id.mining_points = 0

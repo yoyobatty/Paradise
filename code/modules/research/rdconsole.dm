@@ -433,19 +433,19 @@ won't update every console in existence) but it's more of a hassle to do. Also, 
 
 	var/enough_materials = TRUE
 
-	if(!machine.materials.has_materials(being_built.materials, coeff))
+	if(!machine.materials.has_materials(being_built.materials, coeff * amount))
 		atom_say("Not enough materials to complete prototype.")
 		enough_materials = FALSE
 	else
 		for(var/R in being_built.reagents_list)
-			if(!machine.reagents.has_reagent(R, being_built.reagents_list[R] * coeff))
+			if(!machine.reagents.has_reagent(R, being_built.reagents_list[R] * coeff * amount))
 				atom_say("Not enough reagents to complete prototype.")
 				enough_materials = FALSE
 
 	if(enough_materials)
 		machine.materials.use_amount(efficient_mats, amount)
 		for(var/R in being_built.reagents_list)
-			machine.reagents.remove_reagent(R, being_built.reagents_list[R] * coeff)
+			machine.reagents.remove_reagent(R, being_built.reagents_list[R] * coeff * amount)
 
 	var/key = usr.key
 	addtimer(CALLBACK(src, PROC_REF(finish_machine), key, amount, enough_materials, machine, being_built, efficient_mats), time_to_construct)

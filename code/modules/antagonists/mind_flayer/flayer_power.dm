@@ -95,6 +95,12 @@
 	switch(action)
 		if("purchase")
 			var/path = text2path(params["ability_path"])
+			// Innate and stage-granted powers aren't in ability_list, but we can still upgrade the ones we have.
+			var/list/owned_paths = list()
+			for(var/datum/power as anything in flayer.powers)
+				owned_paths += power.type
+			if(!(path in flayer.ability_list) && !(path in owned_paths))
+				return
 			on_purchase(user, path)
 			update_static_data(ui.user)
 
@@ -217,20 +223,24 @@
 	if(existing_passive)
 		if(existing_passive.level >= to_add.max_level)
 			send_swarm_message("That function is already at its strongest.")
+			qdel(to_add)
 			return FALSE
 		to_add.current_cost = existing_passive.current_cost
 
 	if(to_add.current_cost > get_swarms())
 		send_swarm_message("We need [to_add.current_cost - get_swarms()] more swarm\s for this...")
+		qdel(to_add)
 		return FALSE
 
 	if(category_stage[to_add.category] < to_add.stage)
 		send_swarm_message("We do not have all the knowledge needed for this...")
+		qdel(to_add)
 		return FALSE
 
 	if(to_add.stage == FLAYER_CAPSTONE_STAGE)
 		if(!can_pick_capstone && !existing_passive)
 			send_swarm_message("We have already forsaken that knowledge.")
+			qdel(to_add)
 			return FALSE
 		can_pick_capstone = FALSE
 		send_swarm_message("We evolve to the ultimate being.")

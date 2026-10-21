@@ -928,9 +928,9 @@ GLOBAL_LIST_INIT(ai_verbs_default, list(
 			src << browse(last_paper_seen, "window=show_paper")
 	//Carn: holopad requests
 	if(href_list["jumptoholopad"])
-		var/obj/machinery/hologram/holopad/H = locate(href_list["jumptoholopad"])
+		var/obj/machinery/hologram/holopad/H = locateUID(href_list["jumptoholopad"])
 		if(stat == CONSCIOUS)
-			if(H)
+			if(istype(H))
 				H.attack_ai(src) //may as well recycle
 			else
 				to_chat(src, SPAN_NOTICE("Unable to locate the holopad."))

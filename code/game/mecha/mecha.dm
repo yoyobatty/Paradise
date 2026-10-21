@@ -1440,6 +1440,8 @@
 
 
 /obj/mecha/proc/internals_access_allowed(mob/living/carbon/human/H)
+	if(!ishuman(H))
+		return FALSE
 	for(var/atom/ID in list(H.get_active_hand(), H.wear_id, H.belt, H.wear_pda))
 		if(check_access(ID, internals_req_access))
 			return TRUE

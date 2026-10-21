@@ -709,8 +709,9 @@
 				reagents.del_reagent(params["reagent"])
 			return TRUE
 		if("remove_reagent")
-			if(params["reagent"])
-				reagents.remove_reagent(params["reagent"], params["amount"])
+			var/amount = text2num(params["amount"])
+			if(params["reagent"] && amount > 0)
+				reagents.remove_reagent(params["reagent"], amount)
 			return TRUE
 
 	update_icon()
