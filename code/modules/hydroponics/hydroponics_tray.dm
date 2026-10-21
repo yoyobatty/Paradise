@@ -659,7 +659,7 @@
 
 	// why, just why
 	if(reagents.has_reagent("napalm", 1))
-		if(!(myseed.resistance_flags & FIRE_PROOF))
+		if(!myseed || !(myseed.resistance_flags & FIRE_PROOF))
 			adjustHealth(-round(reagents.get_reagent_amount("napalm") * 6))
 			adjustToxic(round(reagents.get_reagent_amount("napalm") * 7))
 		adjustWeeds(-rand(5, 9)) //At least give them a small reward if they bother

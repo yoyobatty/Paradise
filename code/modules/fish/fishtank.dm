@@ -281,14 +281,14 @@
 
 	var/duds = 0
 	while(egg_count > 0)							//Loop until you've harvested all the eggs
-		var/obj/item/fish_eggs/egg = pick(egg_list)	//Select an egg at random
-		if(egg != /obj/item/fish_eggs) 				// Don't harvest duds
-			egg = new egg(get_turf(user))			//Spawn the egg at the user's feet
+		var/egg_type = pick(egg_list)				//Select an egg at random
+		if(egg_type != /obj/item/fish_eggs) 		// Don't harvest duds
+			var/obj/item/fish_eggs/egg = new egg_type(get_turf(user))	//Spawn the egg at the user's feet
 			if(fish_bag?.can_be_inserted(egg))
 				fish_bag.handle_item_insertion(egg, user)
 		else
 			duds++
-		egg_list.Remove(egg)						//Remove the egg from the egg_list
+		egg_list.Remove(egg_type)					//Remove the egg from the egg_list
 		egg_count --								//Decrease the egg_count and begin again
 
 	egg_list.Cut()									//Destroy any excess eggs, clearing the egg_list

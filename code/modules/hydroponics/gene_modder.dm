@@ -415,6 +415,7 @@
 				seed.genes += D.gene.Copy()
 				if(istype(D.gene, /datum/plant_gene/reagent))
 					seed.reagents_from_genes()
+				D.gene.apply_vars(seed)
 				update_genes()
 				repaint_seed()
 

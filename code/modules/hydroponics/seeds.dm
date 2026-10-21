@@ -113,6 +113,7 @@
 	for(var/g in genes)
 		var/datum/plant_gene/G = g
 		S.genes += G.Copy()
+		G.apply_vars(S)
 	S.reagents_add = reagents_add.Copy() // Faster than grabbing the list from genes.
 	return S
 
@@ -515,6 +516,7 @@
 		var/datum/plant_gene/trait/T = new random_trait
 		if(T.can_add(src))
 			genes += T
+			T.apply_vars(src)
 		else
 			qdel(T)
 
