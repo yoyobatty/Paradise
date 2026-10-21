@@ -630,16 +630,16 @@
 
 		valid_targets += possible_target
 
-	if(!valid_targets)
+	if(!length(valid_targets))
 		return FALSE
 
-	if(target && (target.mind.assigned_role in GLOB.command_head_positions))
+	if(target && (target.mind?.assigned_role in GLOB.command_head_positions))
 		for(var/datum/mind/head_mind as anything in shuffle(valid_targets))
 			if(head_mind.assigned_role in GLOB.command_head_positions)
 				heretic_datum.add_sacrifice_target(head_mind.current)
 				return head_mind.current
 
-	if(target && (target.mind.assigned_role in GLOB.active_security_positions))
+	if(target && (target.mind?.assigned_role in GLOB.active_security_positions))
 		for(var/datum/mind/sec_mind as anything in shuffle(valid_targets))
 			if(sec_mind.assigned_role in GLOB.active_security_positions)
 				heretic_datum.add_sacrifice_target(sec_mind.current)

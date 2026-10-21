@@ -132,12 +132,12 @@ RESTRICT_TYPE(/datum/team/revolution)
 	var/sec_diminish = (8 - sec) / 3 // 2 seccies = 2, 5 seccies = 1, 8 seccies = 0
 
 	var/potential = round(heads - sec_diminish) // more sec, increases. more heads, increases
-	var/how_many_more_headrevs = clamp(potential, clamp_at, max_headrevs - head_revolutionaries)
+	var/how_many_more_headrevs = clamp(potential - head_revolutionaries, clamp_at, max_headrevs - head_revolutionaries)
 
 	return how_many_more_headrevs
 
 /datum/team/revolution/proc/process_promotion(promotion_type = REVOLUTION_PROMOTION_OPTIONAL)
-	if(!need_another_headrev(0) || promotion_type != REVOLUTION_PROMOTION_AT_LEAST_ONE || length(SSticker.mode.head_revolutionaries) > 1)
+	if(!need_another_headrev(promotion_type) || (promotion_type == REVOLUTION_PROMOTION_AT_LEAST_ONE && length(SSticker.mode.head_revolutionaries) > 1))
 		// We check the graph to see if we need a headrev
 		// If this is called from when a headrev is cryoing and, we must promote or the revolution will die
 		// This is called before they are officially removed from SSticker.mode.head_revolutionaries, so we want to make sure we get a new head before things go bad.

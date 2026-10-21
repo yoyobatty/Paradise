@@ -13,6 +13,7 @@
 /datum/element/leeching_walk/Detach(datum/source)
 	. = ..()
 	UnregisterSignal(source, list(COMSIG_MOVABLE_MOVED, COMSIG_LIVING_LIFE))
+	REMOVE_TRAIT(source, TRAIT_BATON_RESISTANCE, type)
 
 /*
  * Signal proc for [COMSIG_MOVABLE_MOVED].

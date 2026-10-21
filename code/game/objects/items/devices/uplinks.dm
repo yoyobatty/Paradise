@@ -144,7 +144,7 @@ GLOBAL_LIST_EMPTY(world_uplinks)
 			var/path = UI.refund_path || UI.item
 			var/cost = UI.refund_amount || UI.cost
 
-			if(ispath(I.type, path) && UI.refundable && I.check_uplink_validity())
+			if(I.type == path && UI.refundable && I.check_uplink_validity())
 				var/refund_amount = cost
 				if(istype(I, /obj/item/guardiancreator/tech))
 					var/obj/item/guardiancreator/tech/holopara = I

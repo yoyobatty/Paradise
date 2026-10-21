@@ -195,8 +195,7 @@ RESTRICT_TYPE(/datum/antagonist/changeling)
 
 /datum/antagonist/changeling/exfiltrate(mob/living/carbon/human/extractor, obj/item/radio/radio)
 	remove_changeling_powers(FALSE)
-	var/datum/action/changeling/power = new /datum/action/changeling/transform
-	power.Grant(extractor)
+	give_power(new /datum/action/changeling/transform, extractor)
 	if(isplasmaman(extractor))
 		extractor.equipOutfit(/datum/outfit/admin/ghostbar_antag/changeling/plasmaman)
 	else

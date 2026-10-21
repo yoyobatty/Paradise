@@ -35,11 +35,9 @@ RESTRICT_TYPE(/datum/antagonist/zombie)
 	return ..()
 
 /datum/antagonist/zombie/detach_from_owner()
-	if(HAS_TRAIT(owner, TRAIT_PLAGUE_ZOMBIE))
-		owner.RemoveSpell(new /datum/spell/zombie_claws/plague_claws)
-		owner.RemoveSpell(new /datum/spell/zombie_leap)
-	else
-		owner.RemoveSpell(new /datum/spell/zombie_claws)
+	// This also removes a plague zombie's plague_claws, since RemoveSpell() matches subtypes of zombie_claws.
+	owner.RemoveSpell(new /datum/spell/zombie_claws)
+	owner.RemoveSpell(new /datum/spell/zombie_leap)
 	return ..()
 
 /datum/antagonist/zombie/add_owner_to_gamemode()

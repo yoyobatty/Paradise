@@ -383,10 +383,11 @@
 	if(!only_sharp_when_wielded)
 		force_unwielded += sharpened_increase
 		I.force += sharpened_increase  // todo double check this logic is correct
+		// also update force_wielded so this still gets applied after re-wielding
+		force_wielded += sharpened_increase
 	else if(wielded)
+		// wield() adds sharpened_increase on top of force_wielded for items that are only sharp when wielded, so force_wielded stays the same.
 		I.force += sharpened_increase
-	// also update force_wielded so this still gets applied after re-wielding
-	force_wielded += sharpened_increase
 	return COMPONENT_SHARPEN_APPLIED  // don't return the "sharpened applied" signal since we probably wanna sharpen the base form too
 
 /datum/component/two_handed/proc/on_handcuff_user(mob/user, handcuff_status)

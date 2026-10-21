@@ -147,11 +147,11 @@
 	gain_text = "The outer layer of our chassis gets slightly thicker."
 	power_type = FLAYER_PURCHASABLE_POWER
 
-/datum/mindflayer_passive/shock_resist/on_apply()
+/datum/mindflayer_passive/insulated/on_apply()
 	..()
 	ADD_TRAIT(owner, TRAIT_SHOCKIMMUNE, UNIQUE_TRAIT_SOURCE(src))
 
-/datum/mindflayer_passive/shock_resist/on_remove()
+/datum/mindflayer_passive/insulated/on_remove()
 	REMOVE_TRAIT(owner, TRAIT_SHOCKIMMUNE, UNIQUE_TRAIT_SOURCE(src))
 
 /datum/mindflayer_passive/regen

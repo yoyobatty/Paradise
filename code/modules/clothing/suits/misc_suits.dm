@@ -1377,7 +1377,7 @@
 	armor = list(MELEE = 5, BULLET = 5, LASER = 5, ENERGY = 5, BOMB = 0, RAD = 10, FIRE = 20, ACID = 20)
 	var/obj/item/nullrod/missionary_staff/linked_staff = null
 
-/obj/item/clothing/suit/hooded/chaplain_hoodie/missionary_robe/examine(mob/user)
+/obj/item/clothing/suit/hooded/chaplain_cassock/missionary_robe/examine(mob/user)
 	. = ..()
 	if(isAntag(user))
 		. += SPAN_WARNING("This robe is made of totally reinforced fibers, granting it 100% not superficial protection. More importantly the robes also wirelessly generate power for the neurotransmitter in the linked missionary staff while being worn.")
@@ -1390,6 +1390,7 @@
 	return ..()
 
 /obj/item/clothing/suit/hooded/chaplain_cassock/missionary_robe/equipped(mob/living/carbon/human/H, slot)
+	..()
 	if(!istype(H) || slot != ITEM_SLOT_OUTER_SUIT)
 		STOP_PROCESSING(SSobj, src)
 		return

@@ -409,13 +409,17 @@ GLOBAL_LIST_INIT(potential_theft_objectives, (subtypesof(/datum/theft_objective)
 /datum/objective/assassinateonce/check_completion()
 	return won || completed || !target?.current?.ckey
 
-/datum/objective/assassinateonce/proc/check_midround_completion()
+/datum/objective/assassinateonce/proc/check_midround_completion(datum/source)
+	SIGNAL_HANDLER  // COMSIG_MOB_DEATH + COMSIG_PARENT_QDELETING
 	won = TRUE
-	UnregisterSignal(target.current, list(COMSIG_MOB_DEATH, COMSIG_PARENT_QDELETING))
+	UnregisterSignal(source, list(COMSIG_MOB_DEATH, COMSIG_PARENT_QDELETING))
 
 /datum/objective/assassinateonce/on_target_cryo()
 	if(won)
 		return
+	// The cryo pod deletes this body after we pick a new target, which would otherwise count as a kill in check_midround_completion().
+	if(target?.current)
+		UnregisterSignal(target.current, list(COMSIG_MOB_DEATH, COMSIG_PARENT_QDELETING))
 	return ..()
 
 /datum/objective/acolyte_sacrifice
