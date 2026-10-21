@@ -137,6 +137,19 @@
 
 		var/static/hostile_machines = typecacheof(list(/obj/machinery/porta_turret, /obj/mecha))
 
+		// range() looks at everything around us, so only use it when a turret or mech on our z-level is close enough to be found
+		var/turf/our_turf = get_turf(targets_from)
+		var/machine_nearby = FALSE
+		for(var/atom/hostile_machine as anything in GLOB.hostile_machines)
+			if(!hostile_machines[hostile_machine.type])
+				continue
+			var/turf/machine_turf = get_turf(hostile_machine)
+			if(machine_turf?.z == our_turf?.z && get_dist(our_turf, machine_turf) <= vision_range)
+				machine_nearby = TRUE
+				break
+		if(!machine_nearby)
+			return
+
 		for(var/HM in typecache_filter_list(range(vision_range, targets_from), hostile_machines))
 			if(can_see(targets_from, HM, vision_range))
 				. += HM
