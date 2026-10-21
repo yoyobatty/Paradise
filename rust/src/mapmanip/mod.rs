@@ -16,7 +16,7 @@ use eyre::ContextCompat;
 use itertools::Itertools;
 use procgen::{MazegenHauberkSettings, mapmanip_mazegen_hauberk};
 use rand::prelude::IteratorRandom;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use tools::extract_submap;
 use tools::insert_submap;
@@ -187,7 +187,7 @@ fn mapmanip_submap_extract_insert(
                 !singleton_tags
                     .contains(prefab.vars.get("singleton_id").unwrap_or(Constant::null()))
             })
-            .choose(&mut rand::thread_rng())
+            .choose(&mut rand::rng())
             .wrap_err(format!(
                 "no extractions found for marker {marker_extract}, singletons={singleton_tags:?}"
             ))?;
@@ -363,7 +363,7 @@ fn mapmanip_orientation_randomize(map: &mut GridMap) -> eyre::Result<()> {
         MapRotation::Clockwise180,
         MapRotation::Clockwise270,
     ]
-    .choose(&mut rand::thread_rng())
+    .choose(&mut rand::rng())
     .unwrap();
 
     if let MapRotation::None = rotation {

@@ -5,7 +5,10 @@ use super::core::GridMap;
 use dmmtools::dmm::{Coord2, Coord3, Prefab};
 use eyre::ContextCompat;
 use geometry::{distance, get_direction, Directions, Rect, DIRECTIONS};
-use rand::{seq::SliceRandom, thread_rng, Rng};
+use rand::{
+    seq::{IndexedRandom, SliceRandom},
+    Rng, RngExt,
+};
 use serde::{Deserialize, Serialize};
 
 mod geometry;
@@ -213,7 +216,7 @@ impl MazegenHauberk {
     fn add_rooms(&mut self, rng: &mut impl Rng) {
         let mut room_config_idxes = vec![];
         for (idx, room_config) in self.settings.room_configs.iter().enumerate() {
-            let room_type_count = rng.gen_range(room_config.min..=room_config.max);
+            let room_type_count = rng.random_range(room_config.min..=room_config.max);
             for _ in 0..room_type_count {
                 room_config_idxes.push(idx);
             }
@@ -228,8 +231,8 @@ impl MazegenHauberk {
             let width = self.settings.room_configs[*idx].width;
             let height = self.settings.room_configs[*idx].height;
             let new_room = Rect::new(
-                rng.gen_range(0..(self.width - width) / 2) * 2 + 1,
-                rng.gen_range(0..(self.height - height) / 2) * 2 + 1,
+                rng.random_range(0..(self.width - width) / 2) * 2 + 1,
+                rng.random_range(0..(self.height - height) / 2) * 2 + 1,
                 width,
                 height,
             );
@@ -309,7 +312,7 @@ impl MazegenHauberk {
                     return true;
                 }
 
-                let new_junc = rng.gen_range(1..=100);
+                let new_junc = rng.random_range(1..=100);
                 if new_junc < self.settings.extra_connector_chance as u32 {
                     self.carve(pos);
                 }
@@ -412,7 +415,7 @@ impl MazegenHauberk {
 
             if !unmade_cells.is_empty() {
                 let dir = if unmade_cells.contains(&last_dir)
-                    && rng.gen_range(1..=100) > self.settings.winding_percent as u32
+                    && rng.random_range(1..=100) > self.settings.winding_percent as u32
                 {
                     last_dir
                 } else {
@@ -482,7 +485,7 @@ pub(crate) fn mapmanip_mazegen_hauberk(
 ) -> eyre::Result<()> {
     let width = map.size.x / SCALE;
     let height = map.size.y / SCALE;
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let mut data = MazegenHauberk::new(settings.clone(), width, height);
 

@@ -4,6 +4,7 @@ use eyre::Result;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
+use std::time::Duration;
 // ----------------------------------------------------------------------------
 // Interface
 
@@ -24,14 +25,26 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 
 thread_local! {
-    pub static HTTP_CLIENT: RefCell<Option<ureq::Agent>> = RefCell::new(Some(ureq::agent()));
+    pub static HTTP_CLIENT: RefCell<Option<ureq::Agent>> = RefCell::new(Some(new_client()));
+}
+
+fn new_client() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(5)))
+        // Error statuses like 404 come back to BYOND like any other response
+        .http_status_as_error(false)
+        .build()
+        .new_agent()
 }
 
 // ----------------------------------------------------------------------------
 // Request construction and execution
 
 struct RequestPrep {
-    req: ureq::Request,
+    client: ureq::Agent,
+    method: String,
+    url: String,
+    headers: Vec<(String, String)>,
     body: Vec<u8>,
 }
 
@@ -45,31 +58,21 @@ fn construct_request(
         let borrow = cell.borrow_mut();
         match &*borrow {
             Some(client) => {
-                let mut req = match method {
-                    "post" => client.post(url),
-                    "put" => client.put(url),
-                    "patch" => client.patch(url),
-                    "delete" => client.delete(url),
-                    "head" => client.head(url),
-                    _ => client.get(url),
-                }
-                .set("User-Agent", &format!("{PKG_NAME}/{VERSION}"))
-                .timeout(std::time::Duration::from_secs(5));
+                let mut final_headers =
+                    vec![("User-Agent".to_string(), format!("{PKG_NAME}/{VERSION}"))];
 
-                let final_body = body.as_bytes().to_vec();
-
-                match headers {
-                    Some(h) => {
-                        for (key, value) in h {
-                            req = req.set(key, value);
-                        }
+                if let Some(h) = headers {
+                    for (key, value) in h {
+                        final_headers.push((key.clone(), value.clone()));
                     }
-                    None => {}
                 }
 
                 Some(RequestPrep {
-                    req,
-                    body: final_body,
+                    client: client.clone(),
+                    method: method.to_string(),
+                    url: url.to_string(),
+                    headers: final_headers,
+                    body: body.as_bytes().to_vec(),
                 })
             }
 
@@ -79,39 +82,70 @@ fn construct_request(
     })
 }
 
+fn with_headers<B>(
+    mut req: ureq::RequestBuilder<B>,
+    headers: &[(String, String)],
+) -> ureq::RequestBuilder<B> {
+    for (key, value) in headers {
+        req = req.header(key, value);
+    }
+    req
+}
+
+fn send_request(prep: &RequestPrep) -> Result<ureq::http::Response<ureq::Body>, ureq::Error> {
+    let client = &prep.client;
+    let url = prep.url.as_str();
+    match prep.method.as_str() {
+        "post" => with_headers(client.post(url), &prep.headers).send(&prep.body[..]),
+        "put" => with_headers(client.put(url), &prep.headers).send(&prep.body[..]),
+        "patch" => with_headers(client.patch(url), &prep.headers).send(&prep.body[..]),
+        method => {
+            let req = match method {
+                "delete" => client.delete(url),
+                "head" => client.head(url),
+                _ => client.get(url),
+            };
+            let req = with_headers(req, &prep.headers);
+            // These only send a body if they were given one
+            if prep.body.is_empty() {
+                req.call()
+            } else {
+                req.force_send_body().send(&prep.body[..])
+            }
+        }
+    }
+}
+
 fn submit_request(prep: RequestPrep) -> Result<String> {
     // Send the request
     // TODO: this is a sinful hack, rewrite this as soon as the module is stable on live
-    let response = match prep.req.send_bytes(&prep.body) {
+    let mut response = match send_request(&prep) {
         Ok(r) => r,
-        Err(ureq::Error::Status(_code, r)) => r,
-        Err(ureq::Error::Transport(t)) => {
+        Err(e) => {
             let mut resp = Response {
                 status_code: 0,
                 headers: HashMap::new(),
                 body: None,
             };
-            resp.body = Some(t.to_string());
+            resp.body = Some(e.to_string());
             return Ok(serde_json::to_string(&resp)?);
         }
     };
-    let body;
     let mut resp = Response {
-        status_code: response.status(),
+        status_code: response.status().as_u16(),
         headers: HashMap::new(),
         body: None,
     };
 
-    for key in response.headers_names() {
-        let Some(value) = response.header(&key) else {
+    for (key, value) in response.headers() {
+        let Ok(value) = value.to_str() else {
             continue;
         };
 
-        resp.headers.insert(key, value.to_owned());
+        resp.headers.insert(key.to_string(), value.to_owned());
     }
 
-    body = response.into_string()?;
-    resp.body = Some(body);
+    resp.body = Some(response.body_mut().read_to_string()?);
 
     Ok(serde_json::to_string(&resp)?)
 }
@@ -119,7 +153,7 @@ fn submit_request(prep: RequestPrep) -> Result<String> {
 // Exported methods
 #[byondapi::bind]
 fn http_start_client() -> Result<ByondValue> {
-    HTTP_CLIENT.with(|cell| cell.replace(Some(ureq::agent())));
+    HTTP_CLIENT.with(|cell| cell.replace(Some(new_client())));
     Ok(ByondValue::null())
 }
 
@@ -139,7 +173,7 @@ fn http_submit_async_request(mut request: ByondValue) -> Result<ByondValue> {
 
     let mut real_headers = None;
 
-    if headers.len() > 0 {
+    if !headers.is_empty() {
         let mut btm: BTreeMap<String, String> = BTreeMap::new();
 
         for pair in headers.chunks(2) {
@@ -186,8 +220,16 @@ fn http_check_job(mut request: ByondValue) -> Result<ByondValue> {
                     .write_var("error_code", &ByondValue::null())
                     .unwrap();
 
-                // Decode response
-                let web_response: Response = serde_json::from_str(&res).unwrap();
+                // Decode response. A request that failed partway, like reading a body that's too
+                // big, gives back its error as plain text, so pass that on like a failed connection.
+                let web_response: Response = match serde_json::from_str(&res) {
+                    Ok(response) => response,
+                    Err(_) => Response {
+                        status_code: 0,
+                        headers: HashMap::new(),
+                        body: Some(res),
+                    },
+                };
                 // We have a response - assemble our HTML datum
                 let target_type = ByondValue::new_str("/datum/http_response")?;
                 let mut response_datum = ByondValue::builtin_new(target_type, &[])?;
@@ -214,6 +256,7 @@ fn http_check_job(mut request: ByondValue) -> Result<ByondValue> {
 
                     headers_list.write_list_index(hk_bv, hv_bv)?;
                 }
+                response_datum.write_var("headers", &headers_list)?;
 
                 // Send it back
                 Ok(response_datum)
