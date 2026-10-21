@@ -64,9 +64,8 @@
 /obj/machinery/computer/security/ui_interact(mob/user, datum/tgui/ui = null)
 	// Update UI
 	ui = SStgui.try_update_ui(user, src, ui)
-	// Show static if can't use the camera
-	if(!active_camera?.can_use())
-		show_camera_static()
+	// process() doesn't update the view while nobody is watching, so update it now, which also shows static if the camera can't be used
+	update_viewer()
 	if(!ui)
 		var/user_uid = user.UID()
 		var/is_living = isliving(user)
@@ -97,8 +96,8 @@
 		START_PROCESSING(SSobj, src)
 
 /obj/machinery/computer/security/process()
-	update_viewer()
 	if(length(watchers))
+		update_viewer()
 		return
 	STOP_PROCESSING(SSobj, src)
 
