@@ -46,7 +46,12 @@
 	. = ..()
 	if(!.) // If false the mob is not currently a valid target, no need to keep processing
 		return FALSE
-	for(var/turf/T in oview(get_turf(L)))
+	var/turf/mob_turf = get_turf(L)
+	// oview() with no range looks 7 tiles out (world.view is 15x15), so if there's no space or glass floor that close it can't see any, and this check is a lot cheaper than oview()
+	var/list/nearby_turfs = RANGE_TURFS(7, mob_turf)
+	if(!(locate(/turf/space) in nearby_turfs) && !(locate(/turf/simulated/floor/transparent) in nearby_turfs))
+		return FALSE
+	for(var/turf/T in oview(mob_turf))
 		if(isspaceturf(T) || istransparentturf(T))
 			return TRUE
 	return FALSE
