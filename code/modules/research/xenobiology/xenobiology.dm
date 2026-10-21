@@ -597,7 +597,7 @@
 				M.anchored = TRUE
 				if(ishostile(M))
 					var/mob/living/simple_animal/hostile/H = M
-					H.AIStatus = AI_OFF
+					H.toggle_ai(AI_OFF)
 					H.LoseTarget()
 				stopped_atoms |= M
 			else if(isprojectile(A))
@@ -625,7 +625,7 @@
 	M.anchored = FALSE
 	if(ishostile(M))
 		var/mob/living/simple_animal/hostile/H = M
-		H.AIStatus = initial(H.AIStatus)
+		H.toggle_ai(initial(H.AIStatus))
 
 /obj/effect/timestop/wizard
 	duration = 100

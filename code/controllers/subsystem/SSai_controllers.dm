@@ -13,6 +13,8 @@ SUBSYSTEM_DEF(ai_controllers)
 	var/our_cost
 	/// The tick cost of all currently processed AI, being summed together
 	var/summing_cost
+	/// The AI controllers left to plan in this run, kept between fires so a run paused by MC_TICK_CHECK carries on where it stopped.
+	var/list/current_run = list()
 
 /datum/controller/subsystem/ai_controllers/Initialize()
 	setup_subtrees()
@@ -25,9 +27,16 @@ SUBSYSTEM_DEF(ai_controllers)
 /datum/controller/subsystem/ai_controllers/fire(resumed)
 	if(!resumed)
 		summing_cost = 0
+		var/list/planning_list = GLOB.ai_controllers_by_status[planning_status]
+		src.current_run = planning_list.Copy()
+	var/list/current_run = src.current_run
 	var/timer = TICK_USAGE_REAL
-	for(var/datum/ai_controller/ai_controller as anything in GLOB.ai_controllers_by_status[planning_status])
-		if(!ai_controller.able_to_plan)
+	while(length(current_run))
+		var/datum/ai_controller/ai_controller = current_run[length(current_run)]
+		current_run.len--
+		if(QDELETED(ai_controller) || ai_controller.ai_status != planning_status || !ai_controller.able_to_plan)
+			continue
+		if(HAS_TRAIT(ai_controller.pawn, TRAIT_AI_DISABLE_PLANNING))
 			continue
 		ai_controller.select_behaviors(wait * 0.1)
 
@@ -35,12 +44,10 @@ SUBSYSTEM_DEF(ai_controllers)
 			ai_controller.planning_failed()
 
 		if(MC_TICK_CHECK)
-			break
+			summing_cost += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
+			return
 
 	summing_cost += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
-	if(MC_TICK_CHECK)
-		return
-
 	our_cost = MC_AVERAGE(our_cost, summing_cost)
 
 /// Creates all instances of ai_subtrees and assigns them to the ai_subtrees list.

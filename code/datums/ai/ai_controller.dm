@@ -253,6 +253,9 @@ RESTRICT_TYPE(/datum/ai_controller)
 
 	if(should_idle())
 		set_ai_status(AI_STATUS_IDLE)
+	else if(ai_status == AI_STATUS_IDLE)
+		// on_client_enter() only wakes us when a player walks into our cells, so wake up here when we are the one who walked up to them.
+		set_ai_status(AI_STATUS_ON)
 
 /datum/ai_controller/proc/on_client_enter(datum/source, list/target_list)
 	SIGNAL_HANDLER // COMSIG_CLIENT_ENTER
@@ -275,7 +278,8 @@ RESTRICT_TYPE(/datum/ai_controller)
 /**
  * Gets the AI status we expect the AI controller to be on at this current
  * moment. Returns` AI_STATUS_OFF` if it's inhabited by a client and shouldn't be,
- * if it's dead and cannot act while dead, or is on a z level without clients.
+ * if it's dead and cannot act while dead, if it's paused or switched off (see able_to_run),
+ * or is on a z level without clients.
  * Returns AI_STATUS_ON otherwise.
  */
 /datum/ai_controller/proc/get_expected_ai_status()
@@ -299,7 +303,7 @@ RESTRICT_TYPE(/datum/ai_controller)
 	if(!pawn_turf)
 		CRASH("AI controller [src] controlling pawn ([pawn]) is not on a turf.")
 #endif
-	if(!SSmobs.clients_by_zlevel || !length(SSmobs.clients_by_zlevel[pawn_turf.z]) || on_failed_planning_timeout)
+	if(!SSmobs.clients_by_zlevel || !length(SSmobs.clients_by_zlevel[pawn_turf.z]) || on_failed_planning_timeout || !able_to_run)
 		return AI_STATUS_OFF
 	if(should_idle())
 		return AI_STATUS_IDLE
@@ -311,15 +315,16 @@ RESTRICT_TYPE(/datum/ai_controller)
 /datum/ai_controller/proc/on_changed_z_level(atom/source, turf/old_turf, turf/new_turf, same_z_layer, notify_contents)
 	SIGNAL_HANDLER // COMSIG_MOVABLE_Z_CHANGED
 
+	if(old_turf)
+		GLOB.ai_controllers_by_zlevel[old_turf.z] -= src
+	if(isnull(new_turf))
+		return
+	GLOB.ai_controllers_by_zlevel[new_turf.z] += src
 	if(ismob(pawn))
 		var/mob/mob_pawn = pawn
 		if(mob_pawn?.client && !continue_processing_when_client)
 			return
-	if(old_turf)
-		GLOB.ai_controllers_by_zlevel[old_turf.z] -= src
-	if(new_turf)
-		GLOB.ai_controllers_by_zlevel[new_turf.z] += src
-		reset_ai_status()
+	reset_ai_status()
 
 /// Abstract proc for initializing the pawn to the new controller
 /datum/ai_controller/proc/try_possess_pawn(atom/new_pawn)
@@ -516,7 +521,7 @@ RESTRICT_TYPE(/datum/ai_controller)
 /datum/ai_controller/proc/modify_cooldown(datum/ai_behavior/behavior, new_cooldown)
 	behavior_cooldowns[behavior] = new_cooldown
 
-/// Call this to add a behavior to the stack.
+/// Call this to add a behavior to the stack. Returns TRUE if the behavior is queued or already running, and FALSE if its setup() failed.
 /datum/ai_controller/proc/queue_behavior(behavior_type, ...)
 	var/datum/ai_behavior/behavior = GET_AI_BEHAVIOR(behavior_type)
 	if(!behavior)
@@ -524,17 +529,14 @@ RESTRICT_TYPE(/datum/ai_controller)
 	var/list/arguments = args.Copy()
 	arguments[1] = src
 
-	if(!behavior.setup(arglist(arguments)))
-		return FALSE
-
 	// It's still in the plan, don't add it again to current_behaviors
 	// but do keep it in the planned behavior list so its not cancelled
 	if(current_behaviors[behavior])
 		planned_behaviors[behavior] = TRUE
-		return
+		return TRUE
 
 	if(!behavior.setup(arglist(arguments)))
-		return
+		return FALSE
 
 	var/should_exit_unplanned = !length(current_behaviors)
 	planned_behaviors[behavior] = TRUE
@@ -552,6 +554,7 @@ RESTRICT_TYPE(/datum/ai_controller)
 		exit_unplanned_mode()
 
 	SEND_SIGNAL(src, AI_CONTROLLER_BEHAVIOR_QUEUED(behavior_type), arguments)
+	return TRUE
 
 /datum/ai_controller/proc/check_able_to_plan()
 	for(var/datum/ai_behavior/current_behavior as anything in current_behaviors)

@@ -125,7 +125,8 @@ have ways of interacting with a specific mob and control it.
 /datum/ai_controller/monkey/get_able_to_run()
 	var/mob/living/living_pawn = pawn
 
-	if(living_pawn.stat || living_pawn.incapacitated() || living_pawn.stam_paralyzed)
+	// update_able_to_run() only runs when the monkey's stat changes or it gets paused, so stuns are left to process(), which checks them every tick.
+	if(living_pawn.stat)
 		return AI_UNABLE_TO_RUN
 
 	if(living_pawn.ckey || living_pawn.client)
