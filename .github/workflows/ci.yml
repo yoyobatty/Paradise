@@ -70,6 +70,48 @@ jobs:
         run: |
           bash tools/ci/run_od.sh
 
+  rust_checks:
+    name: Rust Checks
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - name: Check the prebuilt libraries match the Rust code
+        run: bash tools/ci/check_rustlibs.sh
+      - name: Install Rust
+        run: bash tools/ci/install_rust.sh clippy rustfmt
+      - uses: Swatinem/rust-cache@v2.9.2
+        with:
+          workspaces: rust
+      - name: Check formatting
+        working-directory: rust
+        run: cargo fmt --check
+      - name: Run Clippy
+        working-directory: rust
+        run: cargo clippy --target i686-unknown-linux-gnu --lib -- -D warnings
+      - name: Run Rust tests
+        working-directory: rust
+        run: cargo test --target i686-unknown-linux-gnu
+
+  # The game tests use this instead of the prebuilt tools/ci/librustlibs_ci.so,
+  # so they test the Rust code in the PR and not whatever was last built
+  rust_build:
+    name: Build Rust Library
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - name: Install Rust
+        run: bash tools/ci/install_rust.sh
+      - uses: Swatinem/rust-cache@v2.9.2
+        with:
+          workspaces: rust
+      - name: Build
+        run: bash tools/ci/build_all_rustlibs.sh linux
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: librustlibs_ci
+          path: tools/ci/librustlibs_ci.so
+          retention-days: 1
+
   compile_all_maps:
     name: Compile All Maps
     runs-on: ubuntu-22.04
@@ -155,6 +197,7 @@ jobs:
   station_mapload_tests:
     name: Station Tests
     runs-on: ubuntu-22.04
+    needs: rust_build
     strategy:
       fail-fast: false # Let all map tests run to completion
       matrix:
@@ -162,6 +205,11 @@ jobs:
         byondtype: ['STABLE']
     steps:
       - uses: actions/checkout@v7.0.0
+      - name: Use the Rust library built from this code
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: librustlibs_ci
+          path: tools/ci
       - name: Restore BYOND from Cache
         uses: ./.github/actions/restore_or_install_byond
         with:
@@ -178,12 +226,18 @@ jobs:
   unit_tests_and_sql:
     name: Unit Tests + SQL Validation
     runs-on: ubuntu-22.04
+    needs: rust_build
     strategy:
       fail-fast: false
       matrix:
         byondtype: ['STABLE']
     steps:
       - uses: actions/checkout@v7.0.0
+      - name: Use the Rust library built from this code
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: librustlibs_ci
+          path: tools/ci
 
       - name: Restore BYOND from Cache
         uses: ./.github/actions/restore_or_install_byond

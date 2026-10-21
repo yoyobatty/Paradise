@@ -14,4 +14,4 @@ export STABLE_BYOND_MINOR="1666"
 # Python version for mapmerge and other tools
 export PYTHON_VERSION="3.13.5"
 # Rust version
-export RUST_VERSION="1.92"
+export RUST_VERSION="1.92.0"

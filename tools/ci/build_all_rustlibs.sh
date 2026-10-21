@@ -1,37 +1,41 @@
 #!/bin/bash
+# Builds the prebuilt Rust libraries the game loads.
+# Usage: tools/ci/build_all_rustlibs.sh [linux|windows]
+#   linux:   tools/ci/librustlibs_ci.so, used by CI. Build it on Linux.
+#   windows: rustlibs.dll and rustlibs_prod.dll, used by servers. Build them on Windows, they need the MSVC toolchain.
+# With no argument it builds the ones for the system you're on.
+# The !build_rust bot runs the same commands, see .github/workflows/build_rust.yml.
 
 # Make is fail early if theres a problem
 set -euo pipefail
 
-# Get to our folder first
-cd rust
-
-WINDOWS_TARGET="i686-pc-windows-gnu"
-LINUX_TARGET="i686-unknown-linux-gnu"
-
-# Handle building on windows
-if [[ "$OSTYPE" == "msys" ]]; then
-	WINDOWS_TARGET="i686-pc-windows-msvc"
+if [[ $# -gt 0 ]]; then
+	WHAT="$1"
+elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+	WHAT="windows"
+else
+	WHAT="linux"
 fi
 
-# Build it for CI
-cargo build --release --target $LINUX_TARGET
-cp target/$LINUX_TARGET/release/librustlibs.so ../tools/ci/librustlibs_ci.so
-#cargo clean
-#cargo build --release --target $LINUX_TARGET --no-default-features --features byond-516
-#cp target/$LINUX_TARGET/release/librustlibs.so ../tools/ci/librustlibs_ci_516.so
+# Get to our folder first. From here rustup and cargo use the Rust version in rust/rust-toolchain.toml.
+cd rust
 
-# Build it for Windows
-cargo build --release --target $WINDOWS_TARGET
-cp target/$WINDOWS_TARGET/release/rustlibs.dll ../rustlibs.dll
-#cargo clean
-#cargo build --release --target $WINDOWS_TARGET --no-default-features --features byond-516
-#cp target/$WINDOWS_TARGET/release/rustlibs.dll ../rustlibs_516.dll
+if [[ "$WHAT" == "linux" ]]; then
+	# Build it for CI
+	rustup target add i686-unknown-linux-gnu
+	cargo build --release --target i686-unknown-linux-gnu
+	cp target/i686-unknown-linux-gnu/release/librustlibs.so ../tools/ci/librustlibs_ci.so
+elif [[ "$WHAT" == "windows" ]]; then
+	# Build it for Windows
+	rustup target add i686-pc-windows-msvc
+	cargo build --release --target i686-pc-windows-msvc
+	cp target/i686-pc-windows-msvc/release/rustlibs.dll ../rustlibs.dll
 
-# Build the para-specific version
-export RUSTFLAGS='-C target-cpu=znver5'
-cargo build --release --target=$WINDOWS_TARGET
-cp target/$WINDOWS_TARGET/release/rustlibs.dll ../rustlibs_prod.dll
-#cargo clean
-#cargo build --release --target=$WINDOWS_TARGET --no-default-features --features byond-516
-#cp target/$WINDOWS_TARGET/release/rustlibs.dll ../rustlibs_516_prod.dll
+	# Build the para-specific version
+	export RUSTFLAGS='-C target-cpu=znver5'
+	cargo build --release --target i686-pc-windows-msvc
+	cp target/i686-pc-windows-msvc/release/rustlibs.dll ../rustlibs_prod.dll
+else
+	echo "Don't know how to build '$WHAT', use linux or windows."
+	exit 1
+fi

@@ -4,7 +4,7 @@ on:
     types: created
 
 jobs:
-  build-rust:
+  prepare:
     if: |
       github.event.issue.pull_request &&
       (github.event.comment.body == '!build_rust') &&
@@ -17,6 +17,11 @@ jobs:
     # AA07 25063394, Burzah 116982774, DGamerL 108773801, Pollard 144391971
 
     runs-on: ubuntu-latest
+    outputs:
+      pr_repo: ${{ steps.pr_data.outputs.pr_repo }}
+      pr_branch: ${{ steps.pr_data.outputs.pr_branch }}
+      pr_sha: ${{ steps.pr_data.outputs.pr_sha }}
+      fail_notified: ${{ steps.pr_data.outputs.fail_notified }}
     steps:
       - id: create_token
         uses: actions/create-github-app-token@v3.2.0
@@ -24,12 +29,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.PRIVATE_KEY }}
 
-      - run: echo "GH_TOKEN=${{ steps.create_token.outputs.token }}" >> "$GITHUB_ENV"
-      - run: echo "FAIL_NOTIFIED=false" >> "$GITHUB_ENV"
-
       - name: Like the comment
         env:
           BASE_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           gh api \
             --method POST \
@@ -39,51 +42,148 @@ jobs:
             -f content='+1'
 
       - name: PR Data
+        id: pr_data
+        env:
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           pr_json=$(curl -L -s --fail-with-body -H "Authorization: token ${{ github.token }}" ${{ github.event.issue.pull_request.url }})
           if [ `jq -r '.maintainer_can_modify' <<<$pr_json` == "false" ] ; then
             gh pr comment ${{ github.event.issue.html_url }} --body 'GitHub Actions can not push to the repository without "Allow edits and access to secrets by maintainers" checked.'
-            echo "FAIL_NOTIFIED=true" >> "$GITHUB_ENV"
+            echo "fail_notified=true" >> $GITHUB_OUTPUT
             exit 1
           fi
-          echo "PR_REPO=`jq -r '.head.repo.full_name' <<<$pr_json`" >> $GITHUB_ENV
-          echo "PR_BRANCH=`jq -r '.head.ref' <<<$pr_json`" >> $GITHUB_ENV
-          echo "PR_HEAD_LABEL=`jq -r '.head.label' <<<$pr_json`" >> $GITHUB_ENV
+          echo "pr_repo=`jq -r '.head.repo.full_name' <<<$pr_json`" >> $GITHUB_OUTPUT
+          echo "pr_branch=`jq -r '.head.ref' <<<$pr_json`" >> $GITHUB_OUTPUT
+          # Every job builds this exact commit, so a push in the middle can't mix two versions
+          echo "pr_sha=`jq -r '.head.sha' <<<$pr_json`" >> $GITHUB_OUTPUT
+
+  # The library CI loads, tools/ci/librustlibs_ci.so
+  build-linux:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          repository: ${{ needs.prepare.outputs.pr_repo }}
+          ref: ${{ needs.prepare.outputs.pr_sha }}
+
+      - name: Build rustlibs
+        run: |
+          # Get dependencies.
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install zlib1g-dev:i386 lib32gcc-13-dev
+
+          # Run the build. Inside rust/ this uses the Rust version in rust/rust-toolchain.toml.
+          cd rust
+          if [ -f rust-toolchain.toml ] ; then rustup toolchain install ; fi
+          rustup target add i686-unknown-linux-gnu
+          cargo build --release --target i686-unknown-linux-gnu
+          cp target/i686-unknown-linux-gnu/release/librustlibs.so ../tools/ci/librustlibs_ci.so
+
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: rustlibs-linux
+          path: tools/ci/librustlibs_ci.so
+          retention-days: 1
+
+  # The libraries servers load, rustlibs.dll and rustlibs_prod.dll. Built with MSVC, like local builds.
+  build-windows:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          repository: ${{ needs.prepare.outputs.pr_repo }}
+          ref: ${{ needs.prepare.outputs.pr_sha }}
+
+      - name: Build rustlibs
+        shell: bash
+        env:
+          # For bindgen, used by byondapi
+          LIBCLANG_PATH: C:\Program Files\LLVM\bin
+        run: |
+          # Inside rust/ this uses the Rust version in rust/rust-toolchain.toml.
+          cd rust
+          if [ -f rust-toolchain.toml ] ; then rustup toolchain install ; fi
+          rustup target add i686-pc-windows-msvc
+          cargo build --release --target i686-pc-windows-msvc
+          cp target/i686-pc-windows-msvc/release/rustlibs.dll ../rustlibs.dll
+
+          # Build the para-specific version
+          export RUSTFLAGS='-C target-cpu=znver5'
+          cargo build --release --target i686-pc-windows-msvc
+          cp target/i686-pc-windows-msvc/release/rustlibs.dll ../rustlibs_prod.dll
+
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: rustlibs-windows
+          path: |
+            rustlibs.dll
+            rustlibs_prod.dll
+          retention-days: 1
+
+  commit:
+    needs: [prepare, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - id: create_token
+        uses: actions/create-github-app-token@v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
 
       - uses: actions/checkout@v7.0.0
         with:
-          repository: ${{ env.PR_REPO }}
-          ref: ${{ env.PR_BRANCH }}
-          token: ${{ env.GH_TOKEN }}
+          repository: ${{ needs.prepare.outputs.pr_repo }}
+          ref: ${{ needs.prepare.outputs.pr_branch }}
+          token: ${{ steps.create_token.outputs.token }}
 
-      - name: Build rustlibs
+      - name: Check the branch didn't move
         env:
-          BASE_BRANCH: ${{ github.event.repository.default_branch }}
-          BASE_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ env.GH_TOKEN }}
+          PR_SHA: ${{ needs.prepare.outputs.pr_sha }}
         run: |
-          # Get the code.
+          if [ "$(git rev-parse HEAD)" != "$PR_SHA" ] ; then
+            echo "::error::The PR got new commits while the libraries were building. Comment !build_rust again."
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          name: rustlibs-linux
+          path: tools/ci
+
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          name: rustlibs-windows
+          path: .
+
+      - name: Commit
+        run: |
           git config user.name paradisess13[bot]
           git config user.email "165046124+paradisess13[bot]@users.noreply.github.com"
-          git pull origin "$PR_BRANCH" --depth=$((ahead_by + 1))
-          git remote add upstream "https://github.com/$BASE_REPOSITORY.git"
-          git fetch upstream "$BASE_BRANCH" --depth=$((behind_by + 1))
 
-          # Get dependencies.
-          rustup target add i686-unknown-linux-gnu
-          rustup target add i686-pc-windows-gnu
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install zlib1g-dev:i386 lib32gcc-13-dev mingw-w64 mingw-w64-i686-dev
+          # Lets CI check the libraries were built from the Rust code they ship with.
+          # Same command as tools/ci/rustlibs_source_hash.sh, keep the two the same.
+          git ls-tree -r HEAD -- rust | grep -v -i "readme" | sha256sum | cut -d " " -f 1 > tools/ci/rustlibs_source_hash.txt
 
-          # Run the build
-          tools/ci/build_all_rustlibs.sh
-
-          # And commit
-          git commit -a -m "Build Rust library" --allow-empty
+          git add rustlibs.dll rustlibs_prod.dll tools/ci/librustlibs_ci.so tools/ci/rustlibs_source_hash.txt
+          git commit -m "Build Rust library" --allow-empty
           git push origin
 
+  notify-failure:
+    needs: [prepare, build-linux, build-windows, commit]
+    if: failure() && needs.prepare.outputs.fail_notified != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - id: create_token
+        uses: actions/create-github-app-token@v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+
       - name: Notify Failure
-        if: failure() && env.FAIL_NOTIFIED != 'true'
+        env:
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           gh pr comment ${{ github.event.issue.html_url }} -b 'Building Rust library failed, see the action run log for details: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'

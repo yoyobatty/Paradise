@@ -1,0 +1,4 @@
+# Pins the Rust version, so the build bot, CI and your own builds all use the same compiler.
+# Keep it the same as RUST_VERSION in _build_dependencies.sh, CI checks that they match.
+[toolchain]
+channel = "1.92.0"
