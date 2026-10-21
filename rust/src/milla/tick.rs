@@ -2,75 +2,48 @@ use crate::milla::model::*;
 use crate::milla::simulate;
 use crate::milla::statics::*;
 use eyre;
+use rayon::prelude::*;
 use scc::Bag;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::RwLock;
-use std::thread;
-use std::thread::ScopedJoinHandle;
-use thread_priority;
 
 /// Runs a single tick of the atmospherics model, multi-threaded by Z level.
 pub(crate) fn tick(buffers: &Buffers) -> Result<(), eyre::Error> {
-    assert!(thread_priority::ThreadPriority::Min
-        .set_for_current()
-        .is_ok());
     let prev = buffers.get_active().read().unwrap();
     let next = buffers.get_inactive().read().unwrap();
 
     let new_interesting_tiles: Bag<InterestingTile> = Bag::default();
-    let mut result: eyre::Result<()> = Ok(());
-    let handle_results: RwLock<Vec<eyre::Result<()>>> = RwLock::new(Vec::new());
 
-    // The scope tells Rust that all the threads we create here will end by the time the scope
-    // closes. This allows us to pass things into them that are only borrowed for the lifetime of
-    // this function.
-    thread::scope(|s| {
-        // Force most things to be captured by reference, despite the `move`
-        // in the thread spawn, which is really just for `z`.
-        let prev = &prev;
-        let next = &next;
-        let new_interesting_tiles = &new_interesting_tiles;
-
-        // Handle each Z level in its own thread.
-        let mut handles = Vec::<ScopedJoinHandle<()>>::new();
-        let handle_results = &handle_results;
-        for z in 0..prev.0.len() {
-            handles.push(s.spawn(move || {
-                assert!(thread_priority::ThreadPriority::Min
-                    .set_for_current()
-                    .is_ok());
-                let result = tick_z_level(
-                    buffers,
-                    &prev.0[z],
-                    &next.0[z],
-                    z as i32,
-                    &new_interesting_tiles,
-                );
-                let mut results = handle_results.write().unwrap();
-                results.push(result);
-            }));
-        }
-        for (z, handle) in handles.into_iter().enumerate() {
-            // A thread that panicked never pushed a result, so its Z level would be left half done.
-            if let Err(payload) = handle.join() {
-                result = Err(eyre::eyre!(
-                    "MILLA worker thread for z-level {} panicked: {}",
-                    z + 1,
-                    crate::logging::panic_message(&payload)
-                ));
-            }
-        }
-        let readable_results = handle_results.read().unwrap();
-        for index in 0..readable_results.len() {
-            if readable_results[index].is_err() {
-                result = Err(eyre::eyre!(
-                    "MILLA worker thread failed: {:#?}",
-                    readable_results[index].as_ref().err()
-                ));
-            }
-        }
+    // Handle each Z level on one of MILLA's threads.
+    let results: Vec<eyre::Result<()>> = tick_threads().install(|| {
+        (0..prev.0.len())
+            .into_par_iter()
+            .map(|z| {
+                // A Z level that panicked would be left half done, so treat it as failed.
+                catch_unwind(AssertUnwindSafe(|| {
+                    tick_z_level(
+                        buffers,
+                        &prev.0[z],
+                        &next.0[z],
+                        z as i32,
+                        &new_interesting_tiles,
+                    )
+                }))
+                .unwrap_or_else(|payload| {
+                    Err(eyre::eyre!(
+                        "MILLA worker thread for z-level {} panicked: {}",
+                        z + 1,
+                        crate::logging::panic_message(&payload)
+                    ))
+                })
+            })
+            .collect()
     });
-
-    result?;
+    for result in results {
+        if let Err(error) = result {
+            return Err(eyre::eyre!("MILLA worker thread failed: {:#?}", error));
+        }
+    }
 
     buffers.flip();
 

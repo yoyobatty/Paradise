@@ -14,7 +14,6 @@ use byondapi::prelude::*;
 use eyre::eyre;
 use eyre::Result;
 use std::env;
-use std::thread;
 use std::time::Instant;
 
 /// BYOND API for ensuring the buffers are usable.
@@ -749,34 +748,39 @@ fn milla_spawn_tick_thread() -> eyre::Result<ByondValue> {
     // Looked up here, on BYOND's own thread, where it costs nothing. Looked up from the tick thread
     // it's one more wait for BYOND's thread on top of the call itself.
     let tick_finished = str_id_of("milla_tick_finished")?;
-    thread::spawn(move || -> Result<(), eyre::Error> {
-        let now = Instant::now();
-        let buffers = BUFFERS.get_or_init(Buffers::new);
-        // If the tick panics, report it like any other tick error. Otherwise this thread just
-        // ends, BYOND never hears that the tick finished, and atmos stops without a word.
-        let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            tick::tick(buffers)
-        })) {
-            Ok(result) => result,
-            Err(payload) => Err(eyre::eyre!(
-                "MILLA tick panicked: {}",
-                crate::logging::panic_message(&payload)
-            )),
-        };
-        TICK_TIME.store(
-            now.elapsed().as_millis() as usize,
-            std::sync::atomic::Ordering::Relaxed,
-        );
-        if result.is_ok() {
-            call_global_id(tick_finished, &[])?;
-        } else {
-            let err = format!("MILLA tick error:\n----\n{:#?}\n----", result);
-            call_global("milla_tick_error", &[ByondValue::new_str(err)?])?;
-        }
-
-        Ok(())
+    tick_threads().spawn(move || {
+        let _ = run_tick(tick_finished);
     });
     Ok(ByondValue::null())
+}
+
+/// Runs one atmos tick on one of MILLA's threads, then tells BYOND it finished or failed.
+fn run_tick(tick_finished: u32) -> Result<(), eyre::Error> {
+    let now = Instant::now();
+    let buffers = BUFFERS.get_or_init(Buffers::new);
+    // If the tick panics, report it like any other tick error. Otherwise BYOND never hears
+    // that the tick finished, and atmos stops without a word.
+    let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        tick::tick(buffers)
+    })) {
+        Ok(result) => result,
+        Err(payload) => Err(eyre::eyre!(
+            "MILLA tick panicked: {}",
+            crate::logging::panic_message(&payload)
+        )),
+    };
+    TICK_TIME.store(
+        now.elapsed().as_millis() as usize,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+    if result.is_ok() {
+        call_global_id(tick_finished, &[])?;
+    } else {
+        let err = format!("MILLA tick error:\n----\n{:#?}\n----", result);
+        call_global("milla_tick_error", &[ByondValue::new_str(err)?])?;
+    }
+
+    Ok(())
 }
 
 /// BYOND API for asking how long the prior tick took.

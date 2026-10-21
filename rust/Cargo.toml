@@ -17,6 +17,8 @@ rustlibs_macros = { path = "rustlibs_macros" }
 eyre = "0.6.12"
 rand = { version = "0.8.6", features = ["small_rng"] }
 scc = "2.1.1"
+# Thread pool, used for MILLA's ticks
+rayon = "1.10"
 thread-priority = "1.1.0"
 
 # spacemandmm, used by mapmanip
