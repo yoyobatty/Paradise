@@ -289,7 +289,7 @@
 	if(!target_account)
 		to_chat(user, "[bicon(src)][SPAN_WARNING("Target account not found.")]")
 		return
-	if(account_database.charge_account(authenticated_account, amount, FALSE))
+	if(account_database.charge_account(authenticated_account, amount, purpose, name))
 		account_database.credit_account(target_account, amount, purpose, name, FALSE)
 		to_chat(user, "[bicon(src)][SPAN_NOTICE("Funds transfer successful.")]")
 	else
