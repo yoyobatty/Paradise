@@ -638,7 +638,7 @@
 
 /// Merge the target cardhand into the current cardhand
 /obj/item/cardhand/proc/add_cardhand_to_self(obj/item/cardhand/hand)
-	if(!parent_deck_id == hand.parent_deck_id)
+	if(parent_deck_id != hand.parent_deck_id)
 		stack_trace("merge_into tried to merge two different parent decks together!")
 		return
 

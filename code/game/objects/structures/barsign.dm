@@ -87,7 +87,7 @@
 			if((stat & NOPOWER) && !(stat & BROKEN) && !istype(current_sign, /datum/barsign/hiddensigns/signoff))
 				set_sign(new /datum/barsign/hiddensigns/signoff)
 				return
-			if((stat & EMPED) && !(stat & BROKEN|NOPOWER) && !istype(current_sign, /datum/barsign/hiddensigns/empbarsign))
+			if((stat & EMPED) && !(stat & (BROKEN|NOPOWER)) && !istype(current_sign, /datum/barsign/hiddensigns/empbarsign))
 				set_sign(new /datum/barsign/hiddensigns/empbarsign)
 				return
 	if(!current_sign)

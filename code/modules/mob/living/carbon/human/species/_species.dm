@@ -1268,7 +1268,7 @@ It'll return null if the organ doesn't correspond, so include null checks when u
 			robohead = GLOB.all_robolimbs["Morpheus Cyberkinetics"]
 
 	// Body color.
-	if(bodyflags & HAS_SKIN_TONE|HAS_ICON_SKIN_TONE)
+	if(bodyflags & (HAS_SKIN_TONE|HAS_ICON_SKIN_TONE))
 		appearance.s_tone = randomize_skin_tone()
 	if(bodyflags & HAS_SKIN_COLOR)
 		appearance.s_colour = randomize_body_color()
@@ -1282,7 +1282,7 @@ It'll return null if the organ doesn't correspond, so include null checks when u
 		appearance.h_style = randomize_hair_style(robohead)
 	if(!(bodyflags & SHAVED))
 		appearance.f_style = randomize_facial_hair_style(robohead, gender = appearance.gender)
-	if(!(bodyflags & BALD&SHAVED))
+	if(!((bodyflags & BALD) && (bodyflags & SHAVED)))
 		var/list/hair_colors = randomize_hair_colors(robohead, appearance.s_colour, appearance.s_tone)
 		appearance.h_colour = hair_colors["h1"]
 		appearance.h_sec_colour = hair_colors["h2"]

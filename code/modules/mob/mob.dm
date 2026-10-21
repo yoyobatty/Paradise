@@ -1367,7 +1367,7 @@ GLOBAL_LIST_INIT(slot_equipment_priority, list( \
 			S.alpha = 255
 			if(sight & SEE_MOBS)
 				S.alpha = 200
-			if((sight & SEE_TURFS|SEE_MOBS|SEE_OBJS) == (SEE_TURFS|SEE_MOBS|SEE_OBJS))
+			if((sight & (SEE_TURFS|SEE_MOBS|SEE_OBJS)) == (SEE_TURFS|SEE_MOBS|SEE_OBJS))
 				S.alpha = 128
 
 	sync_nightvision_screen() //Sync up the overlay used for nightvision to the amount of see_in_dark a mob has. This needs to be called everywhere sync_lighting_plane_alpha() is.

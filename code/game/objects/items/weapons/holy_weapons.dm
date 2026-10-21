@@ -642,7 +642,7 @@
 		if(!wielder.put_in_r_hand(src))
 			return
 
-	if(!wielder.put_in_l_hand(bound_ghanta) && !wielder.l_hand == bound_ghanta)
+	if(!wielder.put_in_l_hand(bound_ghanta) && wielder.l_hand != bound_ghanta)
 		user.drop_item_to_ground(src, TRUE)
 		to_chat(user, SPAN_WARNING("You need both hands free to pick up [src]!"))
 		return

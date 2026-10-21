@@ -101,7 +101,7 @@
 /datum/rcd_act/place_airlock/can_act(atom/A, obj/item/rcd/rcd)
 	if(!..())
 		return FALSE
-	return isfloorturf(A) && !(/obj/machinery/door/airlock in A.contents)
+	return isfloorturf(A) && !(locate(/obj/machinery/door/airlock) in A.contents)
 
 /datum/rcd_act/place_airlock/act(atom/A, obj/item/rcd/rcd, mob/user)
 	var/obj/machinery/door/airlock/T = new rcd.door_type(A)
@@ -125,7 +125,7 @@
 /datum/rcd_act/place_window/can_act(atom/A, obj/item/rcd/rcd)
 	if(!..())
 		return FALSE
-	return isfloorturf(A) && !(/obj/structure/grille in A.contents)
+	return isfloorturf(A) && !(locate(/obj/structure/grille) in A.contents)
 
 /datum/rcd_act/place_window/act(atom/A, obj/item/rcd/rcd, mob/user)
 	var/turf/act_on= A

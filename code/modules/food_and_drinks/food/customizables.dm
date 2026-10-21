@@ -390,7 +390,7 @@ do {\
 		var/image/ingredient_image
 		if(!fullycustom)
 			ingredient_image = new(icon, "[baseicon]_filling")
-			if(!food.filling_color == "#FFFFFF")
+			if(food.filling_color != "#FFFFFF")
 				ingredient_image.color = food.filling_color
 			else
 				ingredient_image.color = pick("#FF0000", "#0000FF", "#008000", "#FFFF00")

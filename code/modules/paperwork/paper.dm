@@ -508,7 +508,7 @@
 		if((!in_range(src, usr) && loc != user && !(istype(loc, /obj/item/clipboard)) && loc.loc != user && user.get_active_hand() != used))
 			return ITEM_INTERACT_COMPLETE
 
-		if(istype(used, /obj/item/stamp/clown) && !user?.mind.assigned_role == "Clown")
+		if(istype(used, /obj/item/stamp/clown) && user?.mind?.assigned_role != "Clown")
 			to_chat(user, SPAN_NOTICE("You are totally unable to use the stamp. HONK!"))
 			return ITEM_INTERACT_COMPLETE
 

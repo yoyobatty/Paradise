@@ -161,7 +161,7 @@
 	imp_in = source
 	implanted = TRUE
 	if(trigger_emotes)
-		if(!(trigger_causes & BIOCHIP_EMOTE_TRIGGER_INTENTIONAL | BIOCHIP_EMOTE_TRIGGER_UNINTENTIONAL))
+		if(!(trigger_causes & (BIOCHIP_EMOTE_TRIGGER_INTENTIONAL | BIOCHIP_EMOTE_TRIGGER_UNINTENTIONAL)))
 			CRASH("Bio-chip [src] has trigger emotes defined but no trigger cause with which to use them!")
 		if(!activated && (trigger_causes & BIOCHIP_EMOTE_TRIGGER_INTENTIONAL))
 			CRASH("Bio-chip [src] has intentional emote triggers on a passive bio-chip")

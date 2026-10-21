@@ -50,8 +50,8 @@
 	Whilst it was ultimately rejected, UltraFood simply turned around and started marketing to penny-pinching megacorporations that didn't care about that particular detail."
 	// Only show the snarky final part if you actually work for NT.
 	if(user.mind.special_role)
-		var/role = lowertext(user.mind.special_role)
-		if(!role == SPECIAL_ROLE_DEATHSQUAD && !role == ROLE_ERT)
+		var/role = user.mind.special_role
+		if(role != SPECIAL_ROLE_DEATHSQUAD && role != SPECIAL_ROLE_ERT)
 			return
 	. += ""
 	. += "Like the one <b>you</b> work for..."

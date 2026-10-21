@@ -543,7 +543,7 @@
 
 	if(ismob(inserted.loc))
 		var/mob/M = inserted.loc
-		if(!M.get_active_hand() == inserted)
+		if(M.get_active_hand() != inserted)
 			return //not sure how this would happen, but smartfridges check for it so
 		if(!M.unequip(inserted))
 			to_chat(inserter, SPAN_WARNING("[inserted] is stuck to you!"))

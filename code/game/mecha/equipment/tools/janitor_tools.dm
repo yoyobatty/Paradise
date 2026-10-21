@@ -281,7 +281,7 @@
 		return
 
 	for(var/turf/tested_turf in get_line(chassis, target)) // Check if the path is blocked
-		if(iswallturf(tested_turf) || locate(/obj/structure/window) in tested_turf || locate(/obj/machinery/door) in tested_turf) // walls, windows, and doors
+		if(iswallturf(tested_turf) || (locate(/obj/structure/window) in tested_turf) || (locate(/obj/machinery/door) in tested_turf)) // walls, windows, and doors
 			chassis.occupant_message(SPAN_WARNING("The target is out of reach of the magnet!"))
 			return
 

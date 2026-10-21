@@ -313,7 +313,7 @@
 	if(!user.Adjacent(src))
 		return
 
-	if(!user.get_active_hand() == tool_used)
+	if(user.get_active_hand() != tool_used)
 		return
 
 	switch(broken)
@@ -344,7 +344,7 @@
 			var/obj/item/stock_parts/cell/medbeam/battery = tool_used
 			if(!istype(battery))
 				return
-			if(!user.get_active_hand() == battery)
+			if(user.get_active_hand() != battery)
 				to_chat(user, SPAN_WARNING("You lost [src]'s battery."))
 				return
 			qdel(battery)

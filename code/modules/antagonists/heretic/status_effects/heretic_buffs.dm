@@ -48,7 +48,7 @@
 	carbie.adjustBruteLoss(-0.5,updating_health = FALSE, robotic = TRUE)
 	carbie.adjustFireLoss(-0.5, updating_health = FALSE, robotic = TRUE)
 	for(var/obj/item/organ/external/E in carbie.bodyparts)
-		if(E.status & ORGAN_BROKEN | ORGAN_BURNT | ORGAN_INT_BLEEDING)
+		if(E.status & (ORGAN_BROKEN | ORGAN_BURNT | ORGAN_INT_BLEEDING))
 			carbie.adjustBruteLoss(-0.5,updating_health = FALSE, robotic = TRUE)
 			carbie.adjustFireLoss(-0.5, updating_health = FALSE, robotic = TRUE)
 	carbie.updatehealth("marshal status effect")

@@ -178,7 +178,7 @@
 	if(isliving(crossing))
 		var/mob/living/crosser = crossing
 		return (locate(/obj/structure/bridge_walkway) in src) || HAS_TRAIT(crossing, TRAIT_FLYING) || ("lava" in crosser.weather_immunities)
-	return locate(/obj/structure/bridge_walkway) in src || HAS_TRAIT(crossing, TRAIT_FLYING)
+	return (locate(/obj/structure/bridge_walkway) in src) || HAS_TRAIT(crossing, TRAIT_FLYING)
 
 /turf/simulated/floor/lava/lava_land_surface
 	oxygen = LAVALAND_OXYGEN

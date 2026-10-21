@@ -112,7 +112,7 @@
 
 	if(isspaceturf(loc))
 		var/turf/T = get_turf(src)
-		if(!locate(/obj/structure/grille/) in T && !locate(/obj/structure/window/) in T)
+		if(!(locate(/obj/structure/grille/) in T) && !(locate(/obj/structure/window/) in T))
 			qdel(src) //no free floating dried blood in space, thatd look weird
 
 /obj/effect/decal/cleanable/blood/proc/splat(atom/AT)
