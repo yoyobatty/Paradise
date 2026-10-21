@@ -317,7 +317,8 @@
 	name = "pool lining"
 	icon = 'icons/obj/fission/pool.dmi'
 	icon_state = "poolborder"
-	flags = ON_BORDER | NODECONSTRUCT | INDESTRUCTIBLE
+	flags = ON_BORDER | NODECONSTRUCT
+	resistance_flags = INDESTRUCTIBLE
 	max_integrity = 200
 
 /obj/structure/railing/pool_lining/ex_act(severity)

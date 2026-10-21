@@ -1,7 +1,7 @@
 /obj/machinery/door/airlock/abductor/secure
 	security_level = 6
 	autoclose = FALSE
-	flags = INDESTRUCTIBLE
+	resistance_flags = INDESTRUCTIBLE
 	locked = TRUE
 	req_access = list()
 
