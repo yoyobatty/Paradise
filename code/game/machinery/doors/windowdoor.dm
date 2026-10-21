@@ -501,7 +501,7 @@
 	WELDER_ATTEMPT_SLICING_MESSAGE
 	if(!I.use_tool(src, user, 40, volume = I.tool_volume))
 		return
-	if(!panel_open && operating && !loc)
+	if(!panel_open || operating || !loc)
 		return
 	WELDER_FLOOR_SLICE_SUCCESS_MESSAGE
 	var/obj/item/stack/tile/brass/B = new (get_turf(src), 2)

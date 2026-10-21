@@ -1343,7 +1343,7 @@ GLOBAL_LIST_EMPTY(airlock_emissive_underlays)
 	return TRUE
 
 /obj/machinery/door/airlock/close(forced=0, override = 0)
-	if((operating & !override) || welded || locked || emagged)
+	if((operating && !override) || welded || locked || emagged)
 		return
 	if(density)
 		return TRUE
@@ -1463,8 +1463,8 @@ GLOBAL_LIST_EMPTY(airlock_emissive_underlays)
 	if(prob(20 / severity))
 		open()
 	if(prob(40 / severity))
-		var/duration = world.time + (30 / severity) SECONDS
-		if(duration > electrified_until)
+		var/duration = 30 / severity
+		if(electrified_until != -1 && world.time + duration SECONDS > electrified_until)
 			electrify(duration)
 
 /obj/machinery/door/airlock/ex_act(severity)

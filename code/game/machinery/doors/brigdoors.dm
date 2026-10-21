@@ -387,6 +387,8 @@
 		if("stop")
 			if(timing)
 				timer_end()
+				timing = FALSE
+				update_icon(UPDATE_ICON_STATE)
 				var/stoptext = isobserver(usr) ? "from cell control." : "by [usr.name]."
 				Radio.autosay("Timer stopped manually [stoptext]", name, "Security")
 			else

@@ -224,7 +224,7 @@
 	return TRUE
 
 /obj/machinery/disposal/screwdriver_act(mob/user, obj/item/I)
-	if(mode != DISPOSALS_OFF) // It's on
+	if(mode != DISPOSALS_OFF && mode != DISPOSALS_UNSCREWED) // It's on
 		to_chat(user, SPAN_WARNING("You need to turn the disposal unit off first!"))
 		return
 
@@ -1442,8 +1442,8 @@
 		var/obj/structure/disposaloutlet/DO = linked
 		for(var/atom/movable/AM in H)
 			AM.forceMove(DO)
-		qdel(H)
 		H.vent_gas(loc)
+		qdel(H)
 	else if(istype(linked, /obj/machinery/disposal))
 		var/obj/machinery/disposal/D = linked
 		H.forceMove(D)

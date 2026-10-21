@@ -30,12 +30,9 @@ GLOBAL_DATUM_INIT(alarm_manager, /datum/alarm_manager, new())
 		if(I == A.name)
 			var/list/alarm = L[I]
 			var/list/srcs  = alarm[3]
-			// Air alarm calls fire alarm and sets itself as origin
-			// If player manually reset fire alarm, it won't be deleted, so we check it by air alarm in area
-			if(class == "Fire" && !srcs.Find(origin.UID()))
-				for(var/obj/air_alarm in A.air_alarms)
-					if(srcs.Find(air_alarm.UID()))
-						srcs -= air_alarm.UID()
+			// firereset() and atmosalert() turn these off for the whole area, so clear every device that raised them, not just the one doing the reset
+			if(class == "Fire" || class == "Atmosphere")
+				srcs.Cut()
 			else
 				srcs -= origin.UID()
 			if(!length(srcs))

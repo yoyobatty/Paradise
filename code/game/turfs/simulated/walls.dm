@@ -225,14 +225,14 @@
 			new /obj/effect/overlay/wall_rot(src)
 
 /turf/simulated/wall/burn_down()
-	if(istype(sheet_type, /obj/item/stack/sheet/mineral/diamond))
+	if(ispath(sheet_type, /obj/item/stack/sheet/mineral/diamond))
 		return
 	ChangeTurf(/turf/simulated/floor/plating)
 
 /turf/simulated/wall/proc/thermitemelt(mob/user as mob, speed)
 	if(melting)
 		return
-	if(istype(sheet_type, /obj/item/stack/sheet/mineral/diamond))
+	if(ispath(sheet_type, /obj/item/stack/sheet/mineral/diamond))
 		return
 
 	var/obj/effect/overlay/O = new/obj/effect/overlay( src )
@@ -425,7 +425,7 @@
 		to_chat(user, SPAN_NOTICE("You begin slicing through the outer plating."))
 		playsound(src, I.usesound, 100, 1)
 
-		if(do_after(user, istype(sheet_type, /obj/item/stack/sheet/mineral/diamond) ? 120 * I.toolspeed : 60 * I.toolspeed, target = src))
+		if(do_after(user, ispath(sheet_type, /obj/item/stack/sheet/mineral/diamond) ? 120 * I.toolspeed : 60 * I.toolspeed, target = src))
 			to_chat(user, SPAN_NOTICE("You remove the outer plating."))
 			dismantle_wall()
 			visible_message(SPAN_WARNING("[user] slices apart [src]!"), SPAN_WARNING("You hear metal being sliced apart."))
@@ -434,7 +434,7 @@
 	return FALSE
 
 /turf/simulated/wall/proc/try_destroy(obj/item/I, mob/user, params)
-	var/isdiamond = istype(sheet_type, /obj/item/stack/sheet/mineral/diamond) // snowflake bullshit
+	var/isdiamond = ispath(sheet_type, /obj/item/stack/sheet/mineral/diamond) // snowflake bullshit
 
 	if(istype(I, /obj/item/pickaxe/drill/diamonddrill))
 		to_chat(user, SPAN_NOTICE("You begin to drill though the wall."))

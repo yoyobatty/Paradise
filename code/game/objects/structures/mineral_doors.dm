@@ -143,6 +143,7 @@
 /obj/structure/mineral_door/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(istype(used, /obj/item/stack/sheet/wood))
 		build_barricade(user, used)
+		return ITEM_INTERACT_COMPLETE
 
 	if(istype(used, /obj/item/pickaxe))
 		if(flags & NODECONSTRUCT)

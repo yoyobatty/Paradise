@@ -148,7 +148,7 @@ GLOBAL_LIST_INIT(aalarm_modes, list(
 	for(var/obj/machinery/alarm/AA in alarm_area)
 		if(!(AA.stat & (NOPOWER|BROKEN)) && !AA.shorted && AA.preset != src.preset)
 			AA.preset=preset
-			apply_preset(1) // Only this air alarm should send a cycle.
+			AA.apply_preset(1) // Only this air alarm should send a cycle.
 
 	TLV = list (
 		"oxygen"         = new/datum/tlv(16, 19, 135, 140), // Partial pressure, kpa
@@ -1106,6 +1106,11 @@ GLOBAL_LIST_INIT(aalarm_modes, list(
 				buildstage = AIR_ALARM_READY
 				wiresexposed = TRUE
 				update_icon(UPDATE_ICON_STATE | UPDATE_OVERLAYS)
+				// first_run() passes this alarm's preset on to the other air alarms in the area, so take theirs first
+				for(var/obj/machinery/alarm/other_alarm as anything in alarm_area.air_alarms)
+					if(other_alarm != src && other_alarm.buildstage == AIR_ALARM_READY)
+						preset = other_alarm.preset
+						break
 				first_run()
 				return ITEM_INTERACT_COMPLETE
 		if(AIR_ALARM_FRAME)

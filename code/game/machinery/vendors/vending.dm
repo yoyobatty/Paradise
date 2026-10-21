@@ -982,7 +982,7 @@
 		for(var/datum/data/vending_product/record in shuffle(product_records))
 			if(record.get_amount_left() <= 0) //Try to use a record that actually has something to dump.
 				continue
-			var/atom/movable/thing = record.vend()
+			var/atom/movable/thing = record.vend(loc)
 			// busting open a vendor will destroy some of the contents
 			if(found_anything && prob(80))
 				qdel(thing)

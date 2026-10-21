@@ -487,6 +487,7 @@ GLOBAL_LIST_INIT(sandbag_recipes, list (
 	sheettype = "platinum"
 	merge_type = /obj/item/stack/sheet/mineral/platinum
 	materials = list(MAT_PLATINUM = MINERAL_MATERIAL_AMOUNT)
+	wall_allowed = FALSE
 	point_value = 25
 
 /obj/item/stack/sheet/mineral/palladium
@@ -498,6 +499,7 @@ GLOBAL_LIST_INIT(sandbag_recipes, list (
 	sheettype = "palladium"
 	merge_type = /obj/item/stack/sheet/mineral/palladium
 	materials = list(MAT_PALLADIUM = MINERAL_MATERIAL_AMOUNT)
+	wall_allowed = FALSE
 	point_value = 25
 
 /obj/item/stack/sheet/mineral/iridium
@@ -509,6 +511,7 @@ GLOBAL_LIST_INIT(sandbag_recipes, list (
 	sheettype = "iridium"
 	merge_type = /obj/item/stack/sheet/mineral/iridium
 	materials = list(MAT_IRIDIUM = MINERAL_MATERIAL_AMOUNT)
+	wall_allowed = FALSE
 	point_value = 25
 
 /*

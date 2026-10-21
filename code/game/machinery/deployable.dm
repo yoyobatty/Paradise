@@ -610,6 +610,8 @@
 /obj/structure/barricade/foam/Destroy()
 	for(var/obj/machinery/door/airlock in loc.contents)
 		airlock.foam_level = 0
+	for(var/obj/structure/mineral_door/door in loc.contents)
+		door.foam_level = 0
 	return ..()
 
 /obj/structure/barricade/foam/examine(mob/user)

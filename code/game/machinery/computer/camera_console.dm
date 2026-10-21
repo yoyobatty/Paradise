@@ -140,10 +140,18 @@
 		var/c_tag = params["name"]
 		var/list/cameras = get_available_cameras()
 		var/obj/machinery/camera/C = cameras[c_tag]
+		if(active_camera)
+			UnregisterSignal(active_camera, COMSIG_PARENT_QDELETING)
 		active_camera = C
+		if(active_camera)
+			RegisterSignal(active_camera, COMSIG_PARENT_QDELETING, PROC_REF(on_active_camera_deleted))
 		if(!silent_console)
 			playsound(src, get_sfx("terminal_type"), 25, FALSE)
 		return update_viewer()
+
+/obj/machinery/computer/security/proc/on_active_camera_deleted()
+	SIGNAL_HANDLER // COMSIG_PARENT_QDELETING
+	active_camera = null
 
 /obj/machinery/computer/security/proc/update_viewer()
 	// Show static if can't use the camera

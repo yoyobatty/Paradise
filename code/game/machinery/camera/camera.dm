@@ -101,7 +101,7 @@
 	. = ..()
 	. += SPAN_NOTICE("[src]'s maintenance panel can be <b>screwed [panel_open ? "closed" : "open"]</b>.")
 	if(panel_open)
-		. += SPAN_NOTICE("Upgrades can be added to [src] or <b>pried out</b>.")
+		. += SPAN_NOTICE("Upgrades can be added to [src].")
 		if(!wires.CanDeconstruct())
 			. += SPAN_NOTICE("[src]'s <b>internal wires</b> are preventing you from cutting it free.")
 		else
@@ -124,6 +124,9 @@
 	network = previous_network
 	previous_network = null
 	stat &= ~EMPED
+	// status is FALSE if someone turned the camera off or smashed it during the EMP, so leave it off
+	if(!status)
+		return
 	turn_on(null, FALSE, TRUE)
 
 /obj/machinery/camera/ex_act(severity)

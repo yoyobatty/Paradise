@@ -45,7 +45,8 @@
 				A.apply_mode()
 
 		if(WIRE_AALARM)
-			A.alarm_area.atmosalert(ATMOS_ALARM_DANGER, A)
+			if(!mend)
+				A.alarm_area.atmosalert(ATMOS_ALARM_DANGER, A)
 			A.update_icon()
 	..()
 
