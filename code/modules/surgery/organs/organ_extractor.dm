@@ -165,7 +165,7 @@
 		else
 			replaced.remove(C)
 		replaced.forceMove(get_turf(src))
-		if(istype(storedorgan, /obj/item/organ/internal/heart) && ((/obj/item/organ/internal/cyberimp/brain/sensory_enhancer in C.internal_organs) || C.reagents.addiction_threshold_accumulated[/datum/reagent/mephedrone]))
+		if(istype(storedorgan, /obj/item/organ/internal/heart) && (C.get_int_organ(/obj/item/organ/internal/cyberimp/brain/sensory_enhancer) || C.reagents.addiction_threshold_accumulated[/datum/reagent/mephedrone]))
 			var/damage_to_deal = 40 - storedorgan.damage // Make it so the heart ends up with 40 damage.
 			storedorgan.receive_damage(damage_to_deal) // Damage the heart so you can't endlessly OD for cheap easily.
 			to_chat(user, SPAN_WARNING("CAUTION: Crystalized mephedrone has bounced off the drill into [storedorgan], causing internal damage!"))

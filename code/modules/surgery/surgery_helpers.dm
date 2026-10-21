@@ -14,13 +14,13 @@
 	if(target.reagents.has_reagent("morphine"))//Just as effective as Hydrocodone, but has an addiction chance
 		return 0.99
 	var/drunk = target.get_drunkenness()
-	if(drunk >= 80)//really damn drunk
+	if(drunk >= 160 SECONDS)//really damn drunk
 		return 0.95
-	if(drunk >= 40)//pretty drunk
+	if(drunk >= 80 SECONDS)//pretty drunk
 		return 0.9
 	if(target.reagents.has_reagent("sal_acid")) //it's better than nothing, as far as painkillers go.
 		return 0.85
-	if(drunk >= 15)//a little drunk
+	if(drunk >= 30 SECONDS)//a little drunk
 		return 0.85
 	if(target.reagents.has_reagent("happiness")) // fuck yeah
 		return 0.81

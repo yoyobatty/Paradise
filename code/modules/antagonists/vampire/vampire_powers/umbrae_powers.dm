@@ -80,7 +80,8 @@
 		qdel(src)
 
 /obj/item/restraints/legcuffs/beartrap/shadow_snare/attack_hand(mob/user)
-	Crossed(user)
+	// Grabbing the snare springs it the same way walking into it does.
+	on_atom_entered(loc, user)
 
 /obj/item/restraints/legcuffs/beartrap/shadow_snare/attack_tk(mob/user)
 	if(iscarbon(user))

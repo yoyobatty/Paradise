@@ -82,5 +82,6 @@
 			parent.receive_damage(0.1)
 
 /datum/wound/cirrhosis/cure_wound()
-	. = ..()
+	// Do this before ..(), since remove_and_destroy() clears parent.
 	parent.max_damage = initial(parent.max_damage)
+	return ..()

@@ -28,7 +28,7 @@
 		return SURGERY_STEP_INCOMPLETE
 
 	var/dental_implants = 0
-	for(var/obj/item/reagent_containers/pill in target.contents) // Can't give them more than 4 dental implants.
+	for(var/obj/item/reagent_containers/pill/pill in target.contents) // Can't give them more than 4 dental implants.
 		dental_implants++
 	if(dental_implants >= 4)
 		user.visible_message("[user] pulls \the [tool] back out of [target]'s [parse_zone(target_zone)]!", SPAN_NOTICE("You pull \the [tool] back out of [target]'s [parse_zone(target_zone)], there wans't enough room..."), chat_message_type = MESSAGE_TYPE_COMBAT)
@@ -47,9 +47,9 @@
 /datum/action/item_action/hands_free/activate_pill
 	name = "Activate Pill"
 
-/datum/action/item_action/hands_free/activate_pill/New(Target, obj/item/tool)
-	button_icon = tool.icon
-	button_icon_state = tool.icon_state
+/datum/action/item_action/hands_free/activate_pill/New(obj/item/Target)
+	button_icon = Target.icon
+	button_icon_state = Target.icon_state
 	return ..()
 
 /datum/action/item_action/hands_free/activate_pill/Trigger(left_click = TRUE)

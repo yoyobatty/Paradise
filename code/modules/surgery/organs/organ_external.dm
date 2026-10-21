@@ -276,7 +276,7 @@
 		owner.emote("scream")	//getting hit on broken hand hurts
 	if(status & ORGAN_SPLINTED && prob((brute + burn) * 4)) //taking damage to splinted limbs removes the splints
 		status &= ~ORGAN_SPLINTED
-		owner.visible_message(SPAN_DANGER("The splint on [owner]'s left arm unravels from [owner.p_their()] [name]!"),SPAN_USERDANGER("The splint on your [name] unravels!"))
+		owner.visible_message(SPAN_DANGER("The splint on [owner]'s [name] unravels!"),SPAN_USERDANGER("The splint on your [name] unravels!"))
 		owner.handle_splints()
 	if(used_weapon)
 		add_autopsy_data("[used_weapon]", brute + burn)

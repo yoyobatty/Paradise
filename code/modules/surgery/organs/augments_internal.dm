@@ -179,6 +179,8 @@
 
 /obj/item/organ/internal/cyberimp/brain/anti_stam/emp_act(severity)
 	..()
+	if(emp_proof)
+		return
 	COOLDOWN_START(src, implant_cooldown, 1 MINUTES / severity)
 
 /obj/item/organ/internal/cyberimp/brain/anti_stam/hardened
