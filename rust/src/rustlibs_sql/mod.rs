@@ -71,7 +71,7 @@ fn sql_connect_pool(options_p: ByondValue) -> Result<ByondValue> {
     match sql_connect(options) {
         Ok(v) => {
             response_datum
-                .write_var("ok", &ByondValue::new_num(1 as f32))
+                .write_var("ok", &ByondValue::new_num(1_f32))
                 .unwrap();
             response_datum.write_var("handle", &ByondValue::new_str(v)?)?;
         }
@@ -92,9 +92,9 @@ fn sql_query_blocking(mut options_p: ByondValue) -> Result<ByondValue> {
     // Sort our params now
     let mut local_params: Params = Params::Empty;
 
-    match options_p.read_list("arguments") {
-        Ok(v) => local_params = byondlist_to_params(v), // Create params from a BYOND list,
-        Err(_) => {}
+    // Create params from a BYOND list
+    if let Ok(v) = options_p.read_list("arguments") {
+        local_params = byondlist_to_params(v);
     }
 
     let lq: LocalQuery = LocalQuery {
@@ -124,9 +124,9 @@ fn sql_query_blocking(mut options_p: ByondValue) -> Result<ByondValue> {
 fn sql_query_async(mut options_p: ByondValue) -> Result<ByondValue> {
     let mut local_params: Params = Params::Empty;
 
-    match options_p.read_list("arguments") {
-        Ok(v) => local_params = byondlist_to_params(v), // Create params from a BYOND list,
-        Err(_) => {}
+    // Create params from a BYOND list
+    if let Ok(v) = options_p.read_list("arguments") {
+        local_params = byondlist_to_params(v);
     }
 
     let lq: LocalQuery = LocalQuery {
@@ -193,7 +193,7 @@ fn sql_check_query(mut query: ByondValue) -> Result<ByondValue> {
                 }
                 Err(e) => {
                     // It was not fine
-                    if res.len() == 0 {
+                    if res.is_empty() {
                         // But maybe it was
                         // Send us an dataset back
                         let localres: LocalResponse = LocalResponse {
@@ -363,7 +363,7 @@ fn do_query(lq: LocalQuery) -> Result<String, Box<dyn Error>> {
     Ok(serde_json::to_string(&LocalResponse {
         status: "ok".to_string(),
         affected: Some(affected),
-        last_insert_id: last_insert_id,
+        last_insert_id,
         //columns: Some(columns),
         rows: Some(rows),
     })
@@ -380,7 +380,7 @@ fn unwrap_box<E: std::fmt::Display>(e: E) -> String {
 fn byondlist_to_params(params: Vec<ByondValue>) -> Params {
     let mut real_params = Params::Empty;
 
-    if params.len() > 0 {
+    if !params.is_empty() {
         let mut temp_params_2: HashMap<Vec<u8>, Value> = HashMap::new();
 
         for pair in params.chunks(2) {
@@ -452,24 +452,18 @@ fn query_data_to_byond(raw_data: LocalResponse, mut byond_obj: ByondValue) {
     }
 
     // Lets update where needed
-    match raw_data.affected {
-        Some(v) => {
-            // We will lose precision here but byond doesnt like BIGINT anyway sooooo
-            byond_obj
-                .write_var("affected", &ByondValue::new_num(v as f32))
-                .unwrap()
-        }
-        None => {}
+    if let Some(v) = raw_data.affected {
+        // We will lose precision here but byond doesnt like BIGINT anyway sooooo
+        byond_obj
+            .write_var("affected", &ByondValue::new_num(v as f32))
+            .unwrap()
     }
 
-    match raw_data.last_insert_id {
-        Some(v) => {
-            // We will lose precision here but byond doesnt like BIGINT anyway sooooo
-            byond_obj
-                .write_var("last_insert_id", &ByondValue::new_num(v as f32))
-                .unwrap()
-        }
-        None => {}
+    if let Some(v) = raw_data.last_insert_id {
+        // We will lose precision here but byond doesnt like BIGINT anyway sooooo
+        byond_obj
+            .write_var("last_insert_id", &ByondValue::new_num(v as f32))
+            .unwrap()
     }
 
     // Uncomment this if we ever want to support columns DM side
@@ -497,42 +491,39 @@ fn query_data_to_byond(raw_data: LocalResponse, mut byond_obj: ByondValue) {
     */
 
     // Now for the hard part - mapping the colums and rows out
-    match raw_data.rows {
-        Some(v) => {
-            let mut rows_list = ByondValue::new_list().unwrap();
-            // This is very hacky but will be fixed when we have native list sizing stuff in byondapi
-            // Lummox is aware
-            rows_list
-                .write_var("len", &ByondValue::new_num(v.len() as f32))
+    if let Some(v) = raw_data.rows {
+        let mut rows_list = ByondValue::new_list().unwrap();
+        // This is very hacky but will be fixed when we have native list sizing stuff in byondapi
+        // Lummox is aware
+        rows_list
+            .write_var("len", &ByondValue::new_num(v.len() as f32))
+            .unwrap();
+
+        let mut row_idx = 0f32;
+        for row in v.iter() {
+            let mut this_row = ByondValue::new_list().unwrap();
+            row_idx += 1f32;
+
+            // Hacky time~
+            this_row
+                .write_var(
+                    "len",
+                    &ByondValue::new_num(row.as_array().unwrap().len() as f32),
+                )
                 .unwrap();
 
-            let mut row_idx = 0f32;
-            for row in v.iter() {
-                let mut this_row = ByondValue::new_list().unwrap();
-                row_idx += 1f32;
-
-                // Hacky time~
+            let mut col_idx = 0f32;
+            for val in row.as_array().unwrap().iter() {
+                col_idx += 1f32;
                 this_row
-                    .write_var(
-                        "len",
-                        &ByondValue::new_num(row.as_array().unwrap().len() as f32),
-                    )
+                    .write_list_index(col_idx, serde_to_byondvalue(val.to_owned()))
                     .unwrap();
-
-                let mut col_idx = 0f32;
-                for val in row.as_array().unwrap().iter() {
-                    col_idx += 1f32;
-                    this_row
-                        .write_list_index(col_idx, serde_to_byondvalue(val.to_owned()))
-                        .unwrap();
-                }
-
-                // Dumb hack until lummox does it
-                rows_list.write_list_index(row_idx, this_row).unwrap();
             }
 
-            byond_obj.write_var("rows", &rows_list).unwrap()
+            // Dumb hack until lummox does it
+            rows_list.write_list_index(row_idx, this_row).unwrap();
         }
-        None => {}
+
+        byond_obj.write_var("rows", &rows_list).unwrap()
     }
 }

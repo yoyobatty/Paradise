@@ -58,13 +58,10 @@ fn construct_request(
 
                 let final_body = body.as_bytes().to_vec();
 
-                match headers {
-                    Some(h) => {
-                        for (key, value) in h {
-                            req = req.set(key, value);
-                        }
+                if let Some(h) = headers {
+                    for (key, value) in h {
+                        req = req.set(key, value);
                     }
-                    None => {}
                 }
 
                 Some(RequestPrep {
@@ -95,7 +92,7 @@ fn submit_request(prep: RequestPrep) -> Result<String> {
             return Ok(serde_json::to_string(&resp)?);
         }
     };
-    let body;
+
     let mut resp = Response {
         status_code: response.status(),
         headers: HashMap::new(),
@@ -110,7 +107,7 @@ fn submit_request(prep: RequestPrep) -> Result<String> {
         resp.headers.insert(key, value.to_owned());
     }
 
-    body = response.into_string()?;
+    let body = response.into_string()?;
     resp.body = Some(body);
 
     Ok(serde_json::to_string(&resp)?)
@@ -139,7 +136,7 @@ fn http_submit_async_request(mut request: ByondValue) -> Result<ByondValue> {
 
     let mut real_headers = None;
 
-    if headers.len() > 0 {
+    if !headers.is_empty() {
         let mut btm: BTreeMap<String, String> = BTreeMap::new();
 
         for pair in headers.chunks(2) {

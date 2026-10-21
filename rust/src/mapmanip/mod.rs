@@ -14,7 +14,7 @@ use eyre::eyre;
 use eyre::Context;
 use eyre::ContextCompat;
 use itertools::Itertools;
-use procgen::{MazegenHauberkSettings, mapmanip_mazegen_hauberk};
+use procgen::{mapmanip_mazegen_hauberk, MazegenHauberkSettings};
 use rand::prelude::IteratorRandom;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};

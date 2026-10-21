@@ -6,6 +6,9 @@
 //! MILLA takes the majority of atmos out of BYOND and puts it here, in Rust code.
 //! It stores its own model of the air distribution, and BYOND will call in to view and make
 //! adjustments, as well as to trigger atmos ticks.
+
+// MILLA's maths is checked bit for bit, so clippy's style suggestions aren't applied here.
+#![allow(clippy::style, clippy::complexity, clippy::perf)]
 mod api;
 mod constants;
 mod conversion;

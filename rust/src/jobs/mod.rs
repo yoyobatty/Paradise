@@ -32,7 +32,7 @@ impl Jobs {
         });
         let id = self.next_job;
         self.next_job += 1;
-        self.map.insert(id.clone(), Job { rx, handle });
+        self.map.insert(id, Job { rx, handle });
         id
     }
 

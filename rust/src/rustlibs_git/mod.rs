@@ -23,7 +23,9 @@ fn git_commit_date(rev: ByondValue, ts_format: ByondValue) -> eyre::Result<Byond
     let ts_format_str: String = ts_format.get_string()?;
 
     if let Some(datetime) = internal_get_commit_date(rev_str) {
-        return Ok(ByondValue::new_str(datetime.format(&ts_format_str).to_string())?);
+        return Ok(ByondValue::new_str(
+            datetime.format(&ts_format_str).to_string(),
+        )?);
     }
     Ok(ByondValue::null())
 }
