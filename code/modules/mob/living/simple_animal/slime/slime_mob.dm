@@ -559,4 +559,5 @@
 
 /mob/living/simple_animal/slime/sentience_act()
 	. = ..()
-	eject_organ()
+	if(holding_organ)
+		eject_organ()

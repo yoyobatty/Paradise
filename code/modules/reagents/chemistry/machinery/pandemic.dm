@@ -251,8 +251,11 @@ GLOBAL_LIST_EMPTY(detected_advanced_diseases)
 	analyzed_index = strain_index
 
 /obj/machinery/pandemic/proc/analyze(strain_index)
-	reporting = TRUE
 	var/datum/disease/advance/virus = GetVirusByIndex(analyzed_index)
+	// The sample can be swapped or emptied while the machine is working, so make sure the strain we started on is still in the beaker.
+	if(!istype(virus) || virus.GetDiseaseID() != analyzed_ID)
+		return FALSE
+	reporting = TRUE
 	var/symptom_names = list()
 	for(var/datum/symptom/current_symptom in virus.symptoms)
 		symptom_names += list(current_symptom.name)
@@ -541,6 +544,7 @@ GLOBAL_LIST_EMPTY(detected_advanced_diseases)
 	beaker = null
 	icon_state = "pandemic0"
 	selected_strain_index = 1
+	analyzing = FALSE
 
 //Prints a nice virus release form. Props to Urbanliner for the layout
 /obj/machinery/pandemic/proc/print_form(datum/disease/advance/D, mob/living/user)

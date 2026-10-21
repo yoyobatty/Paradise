@@ -262,10 +262,11 @@
 						return
 
 				if(!(current_limb in clone.bodyparts))
-					if(get_stored_organ(current_limb))
-						var/obj/item/organ/external/EO = get_stored_organ(current_limb)
-						desc_flavor = "You see [src] attaching \a [EO.name] to [clone]."
-						EO.replaced(clone)
+					//get_stored_organ() can hand back a robot arm or leg, and the pod can't attach one of those to a clone.
+					var/obj/item/organ/external/stored_limb = get_stored_organ(current_limb)
+					if(is_external_organ(stored_limb))
+						desc_flavor = "You see [src] attaching \a [stored_limb.name] to [clone]."
+						stored_limb.replaced(clone)
 						current_limb = null
 						clone.adjustCloneLoss(4 / speed_modifier)
 						clone.regenerate_icons()
@@ -434,7 +435,7 @@
 
 	for(var/limb in p_data.limbs)
 
-		if(get_stored_organ(limb))
+		if(is_external_organ(get_stored_organ(limb)))
 			continue //if we have a stored organ, we'll be replacing it - so no biomass or sanguine/osseous cost
 
 		var/list/patient_limb_info = p_data.limbs[limb]
@@ -698,8 +699,8 @@
 		return
 	switch(action)
 		if("eject_organ")
-			var/obj/item/organ/O = locateUID(params["organ_ref"])
-			if(!istype(O) || !O.in_contents_of(src)) //This shouldn't happen BUT JUST IN CASE
+			var/obj/item/O = locateUID(params["organ_ref"])
+			if((!is_organ(O) && !is_type_in_list(O, ALLOWED_ROBOT_PARTS)) || !O.in_contents_of(src)) //This shouldn't happen BUT JUST IN CASE
 				return FALSE
 			if(!ui.user.put_in_hands(O))
 				O.forceMove(loc)

@@ -44,7 +44,7 @@ Bonus
 
 /datum/symptom/voice_change/post_treatment(datum/disease/advance/A, unmitigated)
 	if(!unmitigated)
-		End()
+		End(A)
 
 /datum/symptom/voice_change/End(datum/disease/advance/A)
 	..()

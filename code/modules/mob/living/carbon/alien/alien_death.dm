@@ -44,7 +44,6 @@
 	icon = null
 	invisibility = 101
 	dust_animation()
-	new /obj/effect/decal/remains/xeno(loc)
 	GLOB.dead_mob_list -= src
 	QDEL_IN(src, 15)
 	return TRUE

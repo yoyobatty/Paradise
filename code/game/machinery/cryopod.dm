@@ -513,14 +513,6 @@
 			to_chat(user, SPAN_NOTICE("You stop putting [M] into the cryopod."))
 			return ITEM_INTERACT_COMPLETE
 
-		icon_state = occupied_icon_state
-
-		M.throw_alert("cryopod", /atom/movable/screen/alert/ghost/cryo)
-		to_chat(M, SPAN_NOTICE("[on_enter_occupant_message]"))
-		to_chat(M, SPAN_BOLDNOTICE("If you ghost, log out or close your client now, your character will shortly be permanently removed from the round."))
-
-		take_occupant(M, willing)
-
 	return ITEM_INTERACT_COMPLETE
 
 /obj/machinery/cryopod/MouseDrop_T(atom/movable/O as mob|obj, mob/user as mob)
@@ -556,6 +548,7 @@
 
 	if(L.has_buckled_mobs()) //mob attached to us
 		to_chat(user, SPAN_WARNING("[L] will not fit into [src] because [L.p_they()] [L.p_have()] a slime latched onto [L.p_their()] head."))
+		return TRUE
 	INVOKE_ASYNC(src, TYPE_PROC_REF(/obj/machinery/cryopod, put_in), user, L)
 	return TRUE
 

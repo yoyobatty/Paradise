@@ -192,6 +192,7 @@
 /obj/structure/morgue/relaymove(mob/user)
 	if(user.stat)
 		return
+	get_revivable(FALSE)
 	connect()
 
 /obj/structure/morgue/proc/connect()
@@ -260,6 +261,7 @@
 		for(var/atom/movable/A as mob|obj in loc)
 			if(!A.anchored)
 				A.forceMove(connected)
+		connected.get_revivable(TRUE)
 		connected.connected = null
 		connected.update_icon(connected.update_state())
 		playsound(loc, connected.open_sound, 50, 1)

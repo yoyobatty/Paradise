@@ -194,9 +194,11 @@
 
 /datum/mutation/stealth/can_activate(mob/M, flags)
 	// Can only activate one of these at a time.
-	if(is_type_in_list(/datum/mutation/stealth, M.active_mutations))
-		testing("Cannot activate [type]: /datum/mutation/stealth in M.active_mutations.")
-		return FALSE
+	// active_mutations holds type paths rather than mutation datums, so this has to compare paths.
+	for(var/mutation_type in M.active_mutations)
+		if(mutation_type != type && ispath(mutation_type, /datum/mutation/stealth))
+			testing("Cannot activate [type]: [mutation_type] in M.active_mutations.")
+			return FALSE
 	return ..()
 
 /datum/mutation/stealth/deactivate(mob/living/M)

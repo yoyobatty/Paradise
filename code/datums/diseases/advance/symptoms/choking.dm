@@ -37,7 +37,7 @@ Bonus
 			M.emote("gasp")
 		else
 			to_chat(M, SPAN_USERDANGER("[pick("You're choking!", "You can't breathe!")]"))
-			Choke(M, A)
+			Choke(M, A, unmitigated)
 			M.emote("gasp")
 	return
 

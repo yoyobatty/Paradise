@@ -67,7 +67,7 @@
 						if(Target.Adjacent(src))
 							Target.attack_slime(src)
 					break
-				if(!(mobility_flags & MOBILITY_MOVE) && prob(80))
+				if(!IS_HORIZONTAL(Target) && prob(80))
 
 					if(Target.client && Target.health >= 20)
 						if(!Atkcool)
