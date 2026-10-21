@@ -410,7 +410,7 @@
 		var/datum/money_account/account = order.ordered_by_department.department_account
 		///just give the account pin here, its too much work for players to get the department account pin number since approval is access locked anyway
 		if(attempt_account_authentification(account, user, account.account_pin))
-			if(pay_with_account(user, pack.get_cost(), "[pack.name] Crate Purchase", "[src]", account_database.vendor_account))
+			if(pay_with_account(user, pack.get_cost(), "[pack.name] Crate Purchase", "[src]", account_database.vendor_account, account))
 				if(!pda.silent)
 					playsound(pda, 'sound/machines/ping.ogg', 50, FALSE)
 				order.requires_head_approval = FALSE
@@ -451,11 +451,11 @@
 		SSeconomy.request_list -= order
 		pda.investigate_log("| [key_name(user)] has denied an order for [order.object.name] through the Nanobank app.", INVESTIGATE_CARGO)
 
-/datum/data/pda/app/nanobank/proc/pay_with_account(user, amount, purpose, transactor, datum/money_account/target)
-	if(user_account.suspended)
+/datum/data/pda/app/nanobank/proc/pay_with_account(user, amount, purpose, transactor, datum/money_account/target, datum/money_account/payer = user_account)
+	if(payer.suspended)
 		to_chat(user, SPAN_WARNING("Unable to access account: account suspended."))
 		return FALSE
-	if(!account_database.charge_account(user_account, amount, purpose, transactor, allow_overdraft = FALSE, supress_log = FALSE))
+	if(!account_database.charge_account(payer, amount, purpose, transactor, allow_overdraft = FALSE, supress_log = FALSE))
 		to_chat(user, SPAN_WARNING("Unable to complete transaction: account has insufficient credit balance to purchase this."))
 		return FALSE
 	account_database.credit_account(target, amount, purpose, transactor, FALSE)

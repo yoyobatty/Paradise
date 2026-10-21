@@ -834,6 +834,11 @@
 		flick(icon_deny, src)
 		return
 
+	if(!allowed(user) && !user.can_admin_interact() && !emagged && scan_id)	//For SECURE VENDING MACHINES YEAH
+		to_chat(user, SPAN_WARNING("Access denied."))//Unless emagged of course
+		flick(icon_deny, src)
+		return
+
 	if(!ishuman(user) || currently_vending.price <= 0 || locked(user) != VENDOR_LOCKED)
 		// Either the purchaser is not human, or the item is free.
 		// Skip all payment logic, and vend without a delay.
@@ -878,11 +883,6 @@
 		to_chat(user, SPAN_WARNING("Payment failure: unable to process payment."))
 
 /obj/machinery/economy/vending/proc/vend(datum/data/vending_product/R, mob/user, has_delay = TRUE)
-	if(!allowed(user) && !user.can_admin_interact() && !emagged && scan_id)	//For SECURE VENDING MACHINES YEAH
-		to_chat(user, SPAN_WARNING("Access denied."))//Unless emagged of course
-		flick(icon_deny, src)
-		return
-
 	if(last_reply + vend_delay + 200 <= world.time && vend_reply)
 		speak(vend_reply)
 		last_reply = world.time

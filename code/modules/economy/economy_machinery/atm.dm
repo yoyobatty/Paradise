@@ -285,11 +285,13 @@
 	if(amount <= 0)
 		to_chat(user, "[bicon(src)][SPAN_WARNING("That is not a valid transfer amount.")]")
 		return
+	var/datum/money_account/target_account = account_database.find_user_account(target_account_number, include_departments = TRUE)
+	if(!target_account)
+		to_chat(user, "[bicon(src)][SPAN_WARNING("Target account not found.")]")
+		return
 	if(account_database.charge_account(authenticated_account, amount, FALSE))
-		var/datum/money_account/target_account = account_database.find_user_account(target_account_number, include_departments = TRUE)
-		if(target_account)
-			account_database.credit_account(target_account, amount, purpose, name, FALSE)
-			to_chat(user, "[bicon(src)][SPAN_NOTICE("Funds transfer successful.")]")
+		account_database.credit_account(target_account, amount, purpose, name, FALSE)
+		to_chat(user, "[bicon(src)][SPAN_NOTICE("Funds transfer successful.")]")
 	else
 		to_chat(user, "[bicon(src)][SPAN_WARNING("You don't have enough funds to do that!")]")
 

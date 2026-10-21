@@ -9,6 +9,7 @@
 	var/result
 	var/resultlvl
 
+	/// The account of whoever spun last, which win_money() pays out to
 	var/datum/money_account/user_account
 
 	/// Used to handle bolting/unbolting the emagged machine while someone is using it
@@ -48,11 +49,11 @@
 /obj/machinery/economy/slot_machine/ui_data(mob/user)
 	var/list/data = list()
 	// Get account
-	set_user_account(user.get_worn_id_account())
+	var/datum/money_account/account = user.get_worn_id_account()
 
 	// Send data
 	data["working"] = working
-	data["money"] = user_account?.credit_balance
+	data["money"] = account?.credit_balance
 	data["plays"] = plays
 	data["result"] = result
 	data["resultlvl"] = resultlvl
@@ -66,6 +67,7 @@
 	if(action == "spin")
 		if(working)
 			return
+		set_user_account(ui.user.get_worn_id_account())
 		if(!user_account || user_account.credit_balance < 10)
 			return
 		if(!account_database.charge_account(user_account, 10, "Slot Machine Charge", "DonkBook Betting", FALSE, TRUE))

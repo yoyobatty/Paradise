@@ -143,7 +143,7 @@
 	if(department_accounts[department])
 		log_debug("create_department_account() was called to create a [department] account but account for that department already exists")
 		return
-	var/datum/money_account/department_account = new("[department] Account", base_pay, ACCOUNT_SECURITY_RESTRICTED, ACCOUNT_TYPE_DEPARTMENT, starting_balance)
+	var/datum/money_account/department_account = new("[department] Account", starting_balance, ACCOUNT_SECURITY_RESTRICTED, ACCOUNT_TYPE_DEPARTMENT, base_pay)
 	department_account.database_holder = src
 	department_accounts[department] = department_account
 
