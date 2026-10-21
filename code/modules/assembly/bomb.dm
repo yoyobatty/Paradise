@@ -20,7 +20,15 @@
 
 /obj/item/onetankbomb/examine(mob/user)
 	. = ..()
-	. += bombtank.examine(user)
+	if(bombtank)
+		. += bombtank.examine(user)
+
+/obj/item/onetankbomb/handle_atom_del(atom/A)
+	if(A == bombtank)
+		bombtank = null
+		// Clear status too, or wrench_act() won't take a welded bomb apart once its tank is gone.
+		status = FALSE
+	return ..()
 
 /obj/item/onetankbomb/update_icon_state()
 	if(bombtank)
@@ -34,7 +42,7 @@
 		. += "bomb_assembly"
 
 /obj/item/onetankbomb/item_interaction(mob/living/user, obj/item/used, list/modifiers)
-	if(!istype(used, /obj/item/analyzer))
+	if(!istype(used, /obj/item/analyzer) || !bombtank)
 		return ..()
 
 	used.afterattack__legacy__attackchain(bombtank, user, TRUE, list2params(modifiers))
@@ -50,12 +58,14 @@
 	bombassembly.forceMove(user.loc)
 	bombassembly.master = null
 	bombassembly = null
-	bombtank.forceMove(user.loc)
-	bombtank.master = null
+	bombtank?.forceMove(user.loc)
+	bombtank?.master = null
 	bombtank = null
 	qdel(src)
 
 /obj/item/onetankbomb/welder_act(mob/user, obj/item/I)
+	if(!bombtank)
+		return
 	. = TRUE
 	if(!I.use_tool(src, user, volume = I.tool_volume))
 		return

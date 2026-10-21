@@ -6,14 +6,16 @@
 	endWhen = 1000
 	nominal_severity = EVENT_LEVEL_MODERATE
 	var/list/drones_list = list()
+	/// How many drones the wing started with.
+	var/num_drones = 0
 
 /datum/event/rogue_drone/start()
 	var/list/possible_spawns = list()
 	for(var/thing in GLOB.carplist)
 		possible_spawns.Add(thing)
 
-	var/num = rand(2, 12)
-	for(var/i = 0, i < num, i++)
+	num_drones = rand(2, 12)
+	for(var/i = 0, i < num_drones, i++)
 		var/mob/living/basic/malf_drone/D = new(get_turf(pick(possible_spawns)))
 		RegisterSignal(D, COMSIG_PARENT_QDELETING, PROC_REF(remove_drone))
 		drones_list.Add(D)
@@ -42,7 +44,7 @@
 		qdel(D)
 		num_recovered++
 
-	if(num_recovered > length(drones_list) * 0.75)
+	if(num_recovered > num_drones * 0.75)
 		GLOB.minor_announcement.Announce("Icarus drone control reports the malfunctioning wing has been recovered safely.", "Rogue drone alert")
 	else
 		GLOB.minor_announcement.Announce("Icarus drone control registers disappointment at the loss of the drones, but the survivors have been recovered.", "Rogue drone alert")

@@ -57,7 +57,12 @@
 
 /datum/event/anomaly/start()
 	anomaly_path = new anomaly_path(target_turf)
+	RegisterSignal(anomaly_path, COMSIG_PARENT_QDELETING, PROC_REF(on_anomaly_deleted))
 	announce_to_ghosts(anomaly_path)
 	spawned = TRUE
+
+/datum/event/anomaly/proc/on_anomaly_deleted(datum/source)
+	SIGNAL_HANDLER
+	anomaly_path = null
 
 #undef TURF_FIND_TRIES
