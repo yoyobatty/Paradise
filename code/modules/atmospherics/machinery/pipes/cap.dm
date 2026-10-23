@@ -7,8 +7,7 @@
 	volume = 35
 
 	initialize_directions = SOUTH
-
-	var/obj/machinery/atmospherics/node
+	device_type = UNARY
 
 /obj/machinery/atmospherics/pipe/cap/New()
 	..()
@@ -23,53 +22,27 @@
 		invisibility = i ? INVISIBILITY_MAXIMUM : 0
 	update_icon()
 
-/obj/machinery/atmospherics/pipe/cap/pipeline_expansion()
-	return list(node)
-
 /obj/machinery/atmospherics/pipe/cap/process_atmos()
 	if(!parent)
 		..()
 	else
 		. = PROCESS_KILL
 
-/obj/machinery/atmospherics/pipe/cap/Destroy()
-	. = ..()
-	if(node)
-		node.disconnect(src)
-		node.defer_build_network()
-		node = null
-
-/obj/machinery/atmospherics/pipe/cap/disconnect(obj/machinery/atmospherics/reference)
-	if(reference == node)
-		if(istype(node, /obj/machinery/atmospherics/pipe))
-			qdel(parent)
-		node = null
-
-	update_icon()
-
-	..()
-
-/obj/machinery/atmospherics/pipe/cap/change_color(new_color)
-	..()
-	//for updating connected atmos device pipes (i.e. vents, manifolds, etc)
-	if(node)
-		node.update_underlays()
+// Caps stay put even with nothing on their end
+/obj/machinery/atmospherics/pipe/cap/check_nodes_exist()
+	return
 
 /obj/machinery/atmospherics/pipe/cap/update_overlays()
 	. = ..()
 	alpha = 255
 	. += GLOB.pipe_icon_manager.get_atmos_icon("pipe", null, pipe_color, "cap" + icon_connect_type)
 
+/obj/machinery/atmospherics/pipe/cap/get_node_connects()
+	return list(dir)
+
 /obj/machinery/atmospherics/pipe/cap/atmos_init()
 	..()
-	for(var/obj/machinery/atmospherics/target in get_step(src, dir))
-		if(target.initialize_directions & get_dir(target,src))
-			var/c = check_connect_types(target,src)
-			if(c)
-				target.connected_to = c
-				src.connected_to = c
-				node = target
-				break
+	connect_nodes()
 
 	var/turf/T = get_turf(src)			// hide if turf is not intact
 	if(!istype(T) || T.transparent_floor)

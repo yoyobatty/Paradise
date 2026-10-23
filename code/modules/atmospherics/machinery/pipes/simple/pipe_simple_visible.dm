@@ -71,15 +71,15 @@
 /obj/machinery/atmospherics/pipe/simple/visible/universal/update_underlays()
 	underlays.Cut()
 
-	if(node1)
-		universal_underlays(node1)
-		if(node2)
-			universal_underlays(node2)
+	if(nodes[1])
+		universal_underlays(nodes[1])
+		if(nodes[2])
+			universal_underlays(nodes[2])
 		else
-			var/node1_dir = get_dir(node1,src)
+			var/node1_dir = get_dir(nodes[1],src)
 			universal_underlays(direction = node1_dir)
-	else if(node2)
-		universal_underlays(node2)
+	else if(nodes[2])
+		universal_underlays(nodes[2])
 	else
 		universal_underlays(direction = dir)
 		universal_underlays(direction = turn(dir, -180))

@@ -553,7 +553,7 @@ GLOBAL_LIST_INIT(ventcrawl_machinery, list(/obj/machinery/atmospherics/unary/ven
 		to_chat(src, SPAN_WARNING("This ventilation duct is not connected to anything!"))
 		return
 
-	if(!vent_found.parent || !(length(vent_found.parent.members) || vent_found.parent.other_atmosmch))
+	if(!vent_found.parents[1] || !(length(vent_found.parents[1].members) || vent_found.parents[1].other_atmosmch))
 		return
 
 	visible_message(SPAN_NOTICE("[src] begins climbing into the ventilation system..."), \

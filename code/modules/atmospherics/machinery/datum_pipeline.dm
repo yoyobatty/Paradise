@@ -4,7 +4,7 @@
 
 	var/list/obj/machinery/atmospherics/pipe/members = list()
 	var/list/obj/machinery/atmospherics/other_atmosmch = list()
-	/// The valves and connectors in other_atmosmch, the only machinery reconcile_air() needs to look at
+	/// The machinery in other_atmosmch that adds to air sharing, the only machinery reconcile_air() needs to look at
 	var/list/obj/machinery/atmospherics/reconcile_machinery = list()
 
 	var/update = TRUE
@@ -98,7 +98,7 @@
 
 /datum/pipeline/proc/addMachineryMember(obj/machinery/atmospherics/A)
 	other_atmosmch |= A
-	if(istype(A, /obj/machinery/atmospherics/binary/valve) || istype(A, /obj/machinery/atmospherics/trinary/tvalve) || istype(A, /obj/machinery/atmospherics/unary/portables_connector))
+	if(A.adds_to_air_share)
 		reconcile_machinery |= A
 	var/datum/gas_mixture/G = A.returnPipenetAir(src)
 	other_airs |= G
@@ -224,28 +224,10 @@
 		GL += P.air
 		GL += P.other_airs
 
-		for(var/obj/machinery/atmospherics/binary/valve/V in P.reconcile_machinery)
-			if(QDELETED(V))
+		for(var/obj/machinery/atmospherics/A as anything in P.reconcile_machinery)
+			if(QDELETED(A))
 				continue
-			if(V.open)
-				PL |= V.parent1
-				PL |= V.parent2
-		for(var/obj/machinery/atmospherics/trinary/tvalve/T in P.reconcile_machinery)
-			if(QDELETED(T))
-				continue
-			if(!T.state)
-				if(src != T.parent2) // otherwise dc'd side connects to both other sides!
-					PL |= T.parent1
-					PL |= T.parent3
-			else
-				if(src != T.parent3)
-					PL |= T.parent1
-					PL |= T.parent2
-		for(var/obj/machinery/atmospherics/unary/portables_connector/C in P.reconcile_machinery)
-			if(QDELETED(C))
-				continue
-			if(C.connected_device)
-				GL += C.portableConnectorReturnAir()
+			A.add_to_air_share(src, PL, GL)
 
 	if(length(members))
 		share_many_airs(GL, members[1])

@@ -37,7 +37,15 @@
 		qdel(parent)
 	parent = null
 
-	return ..()
+	. = ..()
+
+	for(var/i in 1 to device_type)
+		var/obj/machinery/atmospherics/node = nodes[i]
+		if(!node)
+			continue
+		node.disconnect(src)
+		node.defer_build_network()
+		nodes[i] = null
 
 /obj/machinery/atmospherics/pipe/returnPipenet(obj/machinery/atmospherics/A)
 	return parent
@@ -50,8 +58,8 @@
 	. = ..()
 	. += SPAN_NOTICE("This pipe can be disconnected from a pipenet using a wrench. If the pipe's pressure is too high, you'll end up flying.")
 
-/obj/machinery/atmospherics/proc/pipeline_expansion()
-	return null
+/obj/machinery/atmospherics/pipe/pipeline_expansion()
+	return nodes.Copy()
 
 /obj/machinery/atmospherics/pipe/return_obj_air()
 	RETURN_TYPE(/datum/gas_mixture)
@@ -73,6 +81,23 @@
 /obj/machinery/atmospherics/pipe/setPipenet(datum/pipeline/P)
 	parent = P
 
+/obj/machinery/atmospherics/pipe/disconnect(obj/machinery/atmospherics/reference)
+	for(var/i in 1 to device_type)
+		if(nodes[i] != reference)
+			continue
+		// A pipe on that end shares our pipenet, so it has to be rebuilt
+		if(istype(nodes[i], /obj/machinery/atmospherics/pipe))
+			qdel(parent)
+		nodes[i] = null
+	check_nodes_exist()
+	update_icon()
+
+/obj/machinery/atmospherics/pipe/change_color(new_color)
+	..()
+	//for updating connected atmos device pipes (i.e. vents, manifolds, etc)
+	for(var/obj/machinery/atmospherics/node in nodes)
+		node.update_underlays()
+
 /obj/machinery/atmospherics/pipe/color_cache_name(obj/machinery/atmospherics/node)
 	if(istype(node, /obj/machinery/atmospherics/pipe/manifold) || istype(node, /obj/machinery/atmospherics/pipe/manifold4w))
 		if(pipe_color == node.pipe_color)
@@ -84,6 +109,10 @@
 	else
 		return pipe_color
 
-// A check to make sure both nodes exist - self-delete if they aren't present
+// A check to make sure our nodes exist - self-delete if none are present
 /obj/machinery/atmospherics/pipe/proc/check_nodes_exist()
-	return
+	for(var/node in nodes)
+		if(node)
+			return 1 // 1: some nodes exist, we continue existing
+	deconstruct()
+	return 0 // 0: No nodes exist

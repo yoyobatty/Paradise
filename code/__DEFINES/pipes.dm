@@ -89,3 +89,10 @@
 #define CONNECT_TYPE_NORMAL 1
 #define CONNECT_TYPE_SUPPLY 2
 #define CONNECT_TYPE_SCRUBBER 3
+
+// MARK: Pipe ends
+// How many pipe ends an atmos machine has, for /obj/machinery/atmospherics/var/device_type
+#define UNARY 1
+#define BINARY 2
+#define TRINARY 3
+#define QUATERNARY 4

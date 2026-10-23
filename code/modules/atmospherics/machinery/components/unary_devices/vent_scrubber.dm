@@ -99,6 +99,7 @@
 		var/turf/T = get_turf(src)
 		if(!istype(T))
 			return
+		var/obj/machinery/atmospherics/node = nodes[1]
 		if(T.intact && node && node.level == 1 && istype(node, /obj/machinery/atmospherics/pipe))
 			return
 		else
@@ -125,7 +126,7 @@
 	if(T.density) //No, you should not be able to get free air from walls
 		return
 
-	if(!node)
+	if(!nodes[1])
 		on = FALSE
 
 	if(welded)
@@ -250,8 +251,7 @@
 
 		scrubber.air_contents.merge(removed)
 
-	if(!QDELETED(scrubber.parent))
-		scrubber.parent.update = 1
+	scrubber.update_parents()
 
 	return 1
 

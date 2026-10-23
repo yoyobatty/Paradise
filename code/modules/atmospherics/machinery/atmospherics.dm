@@ -40,6 +40,16 @@ Pipelines + Other Objects -> Pipe network
 	var/icon_connect_type = ""
 	/// Directions to initialize in to grab pipes
 	var/initialize_directions = 0
+	/// How many ends this has to plug pipes into, see the defines in pipes.dm
+	var/device_type = 0
+	/// What's plugged into each end
+	var/list/obj/machinery/atmospherics/nodes
+	/// The pipenet on each end. Only devices have these, pipes share one parent instead
+	var/list/datum/pipeline/parents
+	/// The gas on each end, devices only
+	var/list/datum/gas_mixture/airs
+	/// If this joins more pipenets or gas in when its pipenet shares air, see add_to_air_share()
+	var/adds_to_air_share = FALSE
 	/// Pipe colour, not used for all subtypes
 	var/pipe_color
 	/// Pipe image, not used for all subtypes
@@ -51,6 +61,11 @@ Pipelines + Other Objects -> Pipe network
 	/// Whether or not this can be unwrenched while on.
 	var/can_unwrench_while_on = TRUE
 
+
+/obj/machinery/atmospherics/New()
+	if(device_type)
+		nodes = new /list(device_type)
+	..()
 
 /obj/machinery/atmospherics/Initialize(mapload)
 	. = ..()
@@ -73,12 +88,26 @@ Pipelines + Other Objects -> Pipe network
 /obj/machinery/atmospherics/proc/atmos_init()
 	// Updates all pipe overlays and underlays
 	update_underlays()
+	// Devices plug in their ends here, pipes do it in their own atmos_init()
+	if(!parents)
+		return
+	connect_nodes()
+	update_icon()
+	update_underlays()
 
 /obj/machinery/atmospherics/onShuttleMove(turf/oldT, turf/T1, rotation, mob/calling_mob)
 	. = ..()
 	update_underlays()
 
 /obj/machinery/atmospherics/Destroy()
+	// Devices let go of each end here, pipes do it at the end of pipe/Destroy()
+	for(var/i in 1 to length(parents))
+		var/obj/machinery/atmospherics/node = nodes[i]
+		if(!node)
+			continue
+		node.disconnect(src)
+		nodes[i] = null
+		nullifyPipenet(parents[i])
 	SSair.atmos_machinery -= src
 	SSair.pipenets_to_build -= src
 	for(var/mob/living/L in src) //ventcrawling is serious business
@@ -157,27 +186,93 @@ Pipelines + Other Objects -> Pipe network
 	return 0
 
 // Pipenet related functions
-/obj/machinery/atmospherics/proc/returnPipenet()
-	return
+// These are for devices, which have a pipenet on each end: unary, binary and trinary.
+// Pipes share one pipenet over all their ends, so they have their own in pipe.dm.
+// Things with no ends, like portables and meters, have no nodes so these do nothing.
+
+/// Gives a device its own gas on each end
+/obj/machinery/atmospherics/proc/create_device_airs()
+	airs = new /list(device_type)
+	for(var/i in 1 to device_type)
+		var/datum/gas_mixture/air = new
+		air.volume = 200
+		airs[i] = air
+
+/// The direction each end faces, in end order
+/obj/machinery/atmospherics/proc/get_node_connects()
+	return list()
+
+/// Plugs each end into whatever it faces. Ends that already have something keep it if keep_nodes is set.
+/obj/machinery/atmospherics/proc/connect_nodes(keep_nodes = FALSE)
+	var/list/node_connects = get_node_connects()
+	for(var/i in 1 to length(node_connects))
+		if(keep_nodes && nodes[i])
+			continue
+		var/obj/machinery/atmospherics/target = find_node(node_connects[i], i)
+		if(target)
+			nodes[i] = target
+
+/// Finds what our end number `end` can plug into, looking that way
+/obj/machinery/atmospherics/proc/find_node(direction, end)
+	for(var/obj/machinery/atmospherics/target in get_step(src, direction))
+		if(!(target.initialize_directions & get_dir(target, src)))
+			continue
+		var/c = check_connect_types(target, src)
+		if(!c)
+			continue
+		target.connected_to = c
+		connected_to = c
+		return target
+
+/obj/machinery/atmospherics/proc/returnPipenet(obj/machinery/atmospherics/A)
+	var/i = nodes?.Find(A)
+	if(i)
+		return parents[i]
 
 /**
  * Whether or not this atmos machine has multiple pipenets attached to it
  * Used to determine if a ventcrawler should update their vision or not
  */
 /obj/machinery/atmospherics/proc/is_pipenet_split()
-	return FALSE
+	return length(parents) > 1
 
-/obj/machinery/atmospherics/proc/returnPipenetAir()
-	return
+/obj/machinery/atmospherics/proc/returnPipenetAir(datum/pipeline/P)
+	var/i = parents?.Find(P)
+	if(i)
+		return airs[i]
 
-/obj/machinery/atmospherics/proc/setPipenet()
-	return
+/obj/machinery/atmospherics/proc/setPipenet(datum/pipeline/P, obj/machinery/atmospherics/A)
+	var/i = nodes?.Find(A)
+	if(i)
+		parents[i] = P
 
-/obj/machinery/atmospherics/proc/replacePipenet()
-	return
+/obj/machinery/atmospherics/proc/replacePipenet(datum/pipeline/Old, datum/pipeline/New)
+	var/i = parents?.Find(Old)
+	if(i)
+		parents[i] = New
+
+/// What this connects to on pipenet P, or on every end if P isn't given
+/obj/machinery/atmospherics/proc/pipeline_expansion(datum/pipeline/P)
+	if(!P)
+		return nodes?.Copy()
+	var/i = parents?.Find(P)
+	if(i)
+		return list(nodes[i])
+
+/// The pipenets this joins together, used to find every pipenet a ventcrawler can reach
+/obj/machinery/atmospherics/proc/get_machinery_pipelines()
+	if(!is_pipenet_split())
+		return list()
+	return parents.Copy()
 
 /obj/machinery/atmospherics/proc/build_network(remove_deferral = FALSE)
 	// Called to build a network from this node
+	for(var/i in 1 to length(parents))
+		if(parents[i])
+			continue
+		var/datum/pipeline/P = new
+		parents[i] = P
+		P.build_pipeline(src)
 	if(remove_deferral)
 		SSair.pipenets_to_build -= src
 
@@ -185,12 +280,35 @@ Pipelines + Other Objects -> Pipe network
 	SSair.pipenets_to_build += src
 
 /obj/machinery/atmospherics/proc/disconnect(obj/machinery/atmospherics/reference)
-	return
+	if(!parents)
+		return
+	var/i = nodes.Find(reference)
+	if(i)
+		// A pipe shares that end's pipenet, so it has to be rebuilt
+		if(istype(nodes[i], /obj/machinery/atmospherics/pipe))
+			qdel(parents[i])
+		nodes[i] = null
+	update_icon()
 
 /obj/machinery/atmospherics/proc/nullifyPipenet(datum/pipeline/P)
-	if(P)
-		P.other_atmosmch -= src
-		P.reconcile_machinery -= src
+	if(!P)
+		return
+	P.other_atmosmch -= src
+	P.reconcile_machinery -= src
+	var/i = parents?.Find(P)
+	if(i)
+		P.other_airs -= airs[i]
+		parents[i] = null
+
+/// Tells the pipenet on each end that its gas changed
+/obj/machinery/atmospherics/proc/update_parents()
+	for(var/datum/pipeline/P as anything in parents)
+		if(!QDELETED(P))
+			P.update = TRUE
+
+/// Valves and connectors join more pipenets or gas in here when pipenet root shares its air, see /datum/pipeline/proc/reconcile_air()
+/obj/machinery/atmospherics/proc/add_to_air_share(datum/pipeline/root, list/pipelines, list/mixtures)
+	return
 
 /obj/machinery/atmospherics/wrench_act(mob/living/user, obj/item/wrench/W)
 	var/turf/T = get_turf(src)
@@ -270,9 +388,27 @@ Pipelines + Other Objects -> Pipe network
 //Called when an atmospherics object is unwrenched while having a large pressure difference
 //with it's locs air contents.
 /obj/machinery/atmospherics/proc/unsafe_pressure_release(mob/user, pressures)
-	if(!user)
-		return
+	if(user)
+		throw_from_pressure(user, pressures)
 
+	// Devices let out some of the gas on their ends
+	if(!length(airs))
+		return
+	var/turf/T = get_turf(src)
+	if(!T)
+		return
+	var/lost = 0
+	for(var/datum/gas_mixture/air as anything in airs)
+		lost += pressures * CELL_VOLUME / (air.temperature() * R_IDEAL_GAS_EQUATION)
+	var/shared_loss = lost / length(airs)
+
+	var/datum/gas_mixture/to_release = airs[1].remove(shared_loss)
+	for(var/i in 2 to length(airs))
+		to_release.merge(airs[i].remove(shared_loss))
+	T.blind_release_air(to_release)
+
+/// Sends user flying away from us, from the gas that blew out
+/obj/machinery/atmospherics/proc/throw_from_pressure(mob/user, pressures)
 	if(!pressures)
 		var/datum/gas_mixture/int_air = return_obj_air()
 		var/turf/T = get_turf(src)
@@ -316,8 +452,8 @@ Pipelines + Other Objects -> Pipe network
 
 /obj/machinery/atmospherics/proc/initialize_atmos_network()
 	atmos_init()
-	var/list/nodes = pipeline_expansion()
-	for(var/obj/machinery/atmospherics/A in nodes)
+	var/list/connected = pipeline_expansion()
+	for(var/obj/machinery/atmospherics/A in connected)
 		A.atmos_init()
 		A.addMember(src)
 	build_network()
@@ -464,9 +600,6 @@ Pipelines + Other Objects -> Pipe network
 	update_icon()
 	if(user)
 		to_chat(user, SPAN_NOTICE("You set the target pressure of [src] to maximum."))
-
-/obj/machinery/atmospherics/proc/get_machinery_pipelines()
-	return list()
 
 /obj/machinery/atmospherics/rust_heretic_act()
 	return FALSE

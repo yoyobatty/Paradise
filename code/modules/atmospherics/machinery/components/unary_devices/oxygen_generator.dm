@@ -10,7 +10,7 @@
 	var/oxygen_content = 10
 
 /obj/machinery/atmospherics/unary/oxygen_generator/update_icon_state()
-	if(node)
+	if(nodes[1])
 		icon_state = "intact_[on?("on"):("off")]"
 	else
 		icon_state = "exposed_off"
@@ -36,6 +36,6 @@
 		air_contents.set_temperature((current_heat_capacity * air_contents.temperature() + 20 * added_oxygen * T0C) / (current_heat_capacity + 20 * added_oxygen))
 		air_contents.set_oxygen(air_contents.oxygen() + added_oxygen)
 
-		parent.update = 1
+		update_parents()
 
 	return 1

@@ -59,7 +59,7 @@
 	internal_removed.set_temperature(final_temperature)
 	plate.air_contents.merge(internal_removed)
 
-	plate.parent.update = 1
+	plate.update_parents()
 
 	return 1
 
@@ -78,7 +78,7 @@
 	internal_removed.set_temperature(final_temperature)
 	air_contents.merge(internal_removed)
 
-	parent.update = 1
+	update_parents()
 
 	return 1
 

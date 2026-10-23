@@ -6,6 +6,7 @@
 	desc = "For connecting portables devices related to atmospherics control."
 
 	can_unwrench = TRUE
+	adds_to_air_share = TRUE
 	layer = GAS_PIPE_VISIBLE_LAYER + GAS_FILTER_OFFSET
 	layer_offset = GAS_FILTER_OFFSET
 
@@ -25,12 +26,17 @@
 		var/turf/T = get_turf(src)
 		if(!istype(T))
 			return
-		add_underlay(T, node, dir)
+		add_underlay(T, nodes[1], dir)
+
+/obj/machinery/atmospherics/unary/portables_connector/add_to_air_share(datum/pipeline/root, list/pipelines, list/mixtures)
+	// Whatever's plugged in shares its gas with our pipenet
+	if(connected_device)
+		mixtures += portableConnectorReturnAir()
 
 /obj/machinery/atmospherics/unary/portables_connector/process_atmos()
 	if(!connected_device)
 		return 0
-	parent.update = 1
+	update_parents()
 
 /obj/machinery/atmospherics/unary/portables_connector/wrench_act(mob/living/user, obj/item/wrench/W)
 	if(connected_device)

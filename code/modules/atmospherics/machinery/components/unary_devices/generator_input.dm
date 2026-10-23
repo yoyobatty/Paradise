@@ -9,7 +9,7 @@
 	var/update_cycle
 
 /obj/machinery/atmospherics/unary/generator_input/update_icon_state()
-	if(node)
+	if(nodes[1])
 		icon_state = "intact"
 	else
 		icon_state = "exposed"

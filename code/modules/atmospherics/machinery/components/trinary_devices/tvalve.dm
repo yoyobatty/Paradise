@@ -9,6 +9,7 @@
 	desc = "A pipe valve."
 
 	can_unwrench = TRUE
+	adds_to_air_share = TRUE
 
 	var/state = TVALVE_STATE_STRAIGHT
 
@@ -45,14 +46,25 @@
 		if(!istype(T))
 			return
 
-		add_underlay(T, node1, turn(dir, -180))
+		add_underlay(T, nodes[1], turn(dir, -180))
 
 		if(flipped)
-			add_underlay(T, node2, turn(dir, 90))
+			add_underlay(T, nodes[2], turn(dir, 90))
 		else
-			add_underlay(T, node2, turn(dir, -90))
+			add_underlay(T, nodes[2], turn(dir, -90))
 
-		add_underlay(T, node3, dir)
+		add_underlay(T, nodes[3], dir)
+
+/obj/machinery/atmospherics/trinary/tvalve/add_to_air_share(datum/pipeline/root, list/pipelines, list/mixtures)
+	// The input joins whichever side we're switched to
+	if(state == TVALVE_STATE_STRAIGHT)
+		if(root != parents[2]) // otherwise dc'd side connects to both other sides!
+			pipelines |= parents[1]
+			pipelines |= parents[3]
+	else
+		if(root != parents[3])
+			pipelines |= parents[1]
+			pipelines |= parents[2]
 
 /obj/machinery/atmospherics/trinary/tvalve/proc/switch_side()
 	if(state == TVALVE_STATE_STRAIGHT)
@@ -67,10 +79,10 @@
 	state = TVALVE_STATE_SIDE
 	update_icon()
 
-	parent1.update = 0
-	parent2.update = 0
-	parent3.update = 0
-	parent1.reconcile_air()
+	parents[1].update = 0
+	parents[2].update = 0
+	parents[3].update = 0
+	parents[1].reconcile_air()
 
 	investigate_log("was set to side by [usr ? key_name(usr) : "a remote signal"]", INVESTIGATE_ATMOS)
 	return 1
@@ -82,10 +94,10 @@
 	state = TVALVE_STATE_STRAIGHT
 	update_icon()
 
-	parent1.update = 0
-	parent2.update = 0
-	parent3.update = 0
-	parent1.reconcile_air()
+	parents[1].update = 0
+	parents[2].update = 0
+	parents[3].update = 0
+	parents[1].reconcile_air()
 
 	investigate_log("was set to straight by [usr ? key_name(usr) : "a remote signal"]", INVESTIGATE_ATMOS)
 	return 1

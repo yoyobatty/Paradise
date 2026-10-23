@@ -96,6 +96,7 @@
 		var/turf/T = get_turf(src)
 		if(!istype(T))
 			return
+		var/obj/machinery/atmospherics/node = nodes[1]
 		if(T.intact && node && node.level == 1 && istype(node, /obj/machinery/atmospherics/pipe))
 			return
 		else
@@ -113,13 +114,13 @@
 /obj/machinery/atmospherics/unary/vent_pump/process_atmos()
 	if(stat & (NOPOWER|BROKEN))
 		return FALSE
-	if(QDELETED(parent))
+	if(QDELETED(parents[1]))
 		// We're orphaned!
 		return FALSE
 	var/turf/T = get_turf(src)
 	if(T.density) //No, you should not be able to get free air from walls
 		return
-	if(!node)
+	if(!nodes[1])
 		on = FALSE
 	if(!on)
 		return FALSE
@@ -155,7 +156,7 @@
 			var/datum/gas_mixture/removed = air_contents.remove(transfer_moles)
 			// This isn't exactly "blind", but using the data from last tick is good enough for a vent.
 			T.blind_release_air(removed)
-			parent.update = TRUE
+			update_parents()
 
 	else //external -> internal
 		var/datum/milla_safe/vent_pump_siphon/milla = new()
@@ -180,7 +181,7 @@
 		var/transfer_moles = min(vent_pump.max_transfer_joules, wanted_joules) / (environment.temperature() * R_IDEAL_GAS_EQUATION)
 		var/datum/gas_mixture/removed = environment.remove(transfer_moles)
 		vent_pump.air_contents.merge(removed)
-		vent_pump.parent.update = TRUE
+		vent_pump.update_parents()
 
 /obj/machinery/atmospherics/unary/vent_pump/can_crawl_through()
 	return !welded

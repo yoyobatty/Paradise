@@ -26,7 +26,7 @@
 /datum/milla_safe/passive_vent_processing
 
 /datum/milla_safe/passive_vent_processing/on_run(obj/machinery/atmospherics/unary/passive_vent/vent)
-	if(!vent.node)
+	if(!vent.nodes[1])
 		return FALSE
 
 	var/turf/T = get_turf(vent)
@@ -59,7 +59,7 @@
 			var/datum/gas_mixture/removed = environment.remove(transfer_moles)
 			vent.air_contents.merge(removed)
 
-	vent.parent.update = 1
+	vent.update_parents()
 	return 1
 
 /obj/machinery/atmospherics/unary/passive_vent/update_underlays()
@@ -68,6 +68,6 @@
 		var/turf/T = get_turf(src)
 		if(!istype(T))
 			return
-		add_underlay(T, node, dir)
+		add_underlay(T, nodes[1], dir)
 		var/icon/frame = icon('icons/atmos/vent_pump.dmi', "frame")
 		underlays += frame

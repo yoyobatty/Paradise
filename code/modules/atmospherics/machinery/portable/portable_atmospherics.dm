@@ -61,9 +61,9 @@
 	connected_port.connected_device = src
 	// To avoid a chicken-egg thing where pipes need to
 	// be initialized before the atmos cans are
-	if(!connected_port.parent)
+	if(!connected_port.parents[1])
 		connected_port.build_network()
-	connected_port.parent.reconcile_air()
+	connected_port.parents[1].reconcile_air()
 
 	anchored = TRUE //Prevent movement
 

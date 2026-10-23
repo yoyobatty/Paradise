@@ -65,8 +65,7 @@
 		//Actually transfer the gas
 		var/datum/gas_mixture/removed = inlet.remove(transfer_moles)
 
-		parent1.update = TRUE
-		parent2.update = TRUE
+		update_parents()
 
 		return removed
 
@@ -74,10 +73,10 @@
 	update_icon()
 
 /obj/machinery/atmospherics/binary/circulator/proc/get_inlet_air()
-	return side_inverted ? air1 : air2
+	return side_inverted ? airs[1] : airs[2]
 
 /obj/machinery/atmospherics/binary/circulator/proc/get_outlet_air()
-	return side_inverted ? air2 : air1
+	return side_inverted ? airs[2] : airs[1]
 
 /obj/machinery/atmospherics/binary/circulator/proc/get_inlet_side()
 	if(dir & (SOUTH|NORTH))
@@ -118,9 +117,9 @@
 	else
 		. += "in_down"
 
-	if(node2)
+	if(nodes[2])
 		var/image/new_pipe_overlay = image(icon, "connected")
-		new_pipe_overlay.color = node2.pipe_color
+		new_pipe_overlay.color = nodes[2].pipe_color
 		. += new_pipe_overlay
 	else
 		. += "disconnected"

@@ -68,10 +68,12 @@ Thus, the two variables affect pump operation are set in New():
 		var/turf/T = get_turf(src)
 		if(!istype(T))
 			return
-		add_underlay(T, node1, turn(dir, -180))
-		add_underlay(T, node2, dir)
+		add_underlay(T, nodes[1], turn(dir, -180))
+		add_underlay(T, nodes[2], dir)
 
 /obj/machinery/atmospherics/binary/pump/process_atmos()
+	var/datum/gas_mixture/air1 = airs[1]
+	var/datum/gas_mixture/air2 = airs[2]
 	if((stat & (NOPOWER|BROKEN)) || !on)
 		return 0
 
@@ -90,9 +92,7 @@ Thus, the two variables affect pump operation are set in New():
 		var/datum/gas_mixture/removed = air1.remove(transfer_moles)
 		air2.merge(removed)
 
-		parent1.update = 1
-
-		parent2.update = 1
+		update_parents()
 	return 1
 
 /obj/machinery/atmospherics/binary/pump/attack_hand(mob/user)

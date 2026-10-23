@@ -46,7 +46,7 @@ GLOBAL_LIST_EMPTY(air_injectors)
 		var/turf/T = get_turf(src)
 		if(!istype(T))
 			return
-		add_underlay(T, node, dir)
+		add_underlay(T, nodes[1], dir)
 
 /obj/machinery/atmospherics/unary/outlet_injector/power_change()
 	if(!..())
@@ -67,7 +67,7 @@ GLOBAL_LIST_EMPTY(air_injectors)
 		var/turf/T = get_turf(src)
 		T.blind_release_air(removed)
 
-		parent.update = TRUE
+		update_parents()
 
 	return TRUE
 

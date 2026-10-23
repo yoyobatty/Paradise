@@ -6,6 +6,7 @@
 	desc = "A pipe valve."
 
 	can_unwrench = TRUE
+	adds_to_air_share = TRUE
 
 	var/open = FALSE
 	var/animating = FALSE
@@ -33,15 +34,21 @@
 		var/turf/T = get_turf(src)
 		if(!istype(T))
 			return
-		add_underlay(T, node1, get_dir(src, node1))
-		add_underlay(T, node2, get_dir(src, node2))
+		add_underlay(T, nodes[1], get_dir(src, nodes[1]))
+		add_underlay(T, nodes[2], get_dir(src, nodes[2]))
+
+/obj/machinery/atmospherics/binary/valve/add_to_air_share(datum/pipeline/root, list/pipelines, list/mixtures)
+	// Open valves join the pipenets on both sides
+	if(open)
+		pipelines |= parents[1]
+		pipelines |= parents[2]
 
 /obj/machinery/atmospherics/binary/valve/proc/open()
 	open = TRUE
 	update_icon(UPDATE_ICON_STATE)
-	parent1.update = 0
-	parent2.update = 0
-	parent1.reconcile_air()
+	parents[1].update = 0
+	parents[2].update = 0
+	parents[1].reconcile_air()
 	investigate_log("was opened by [usr ? key_name(usr) : "a remote signal"]", INVESTIGATE_ATMOS)
 	return
 

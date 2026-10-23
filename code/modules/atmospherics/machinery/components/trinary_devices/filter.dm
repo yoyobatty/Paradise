@@ -72,7 +72,7 @@
 
 	if(!has_power())
 		icon_state += "off"
-	else if(node2 && node3 && node1)
+	else if(nodes[2] && nodes[3] && nodes[1])
 		icon_state += on ? "on" : "off"
 	else
 		icon_state += "off"
@@ -85,14 +85,14 @@
 		if(!istype(T))
 			return
 
-		add_underlay(T, node1, turn(dir, -180))
+		add_underlay(T, nodes[1], turn(dir, -180))
 
 		if(flipped)
-			add_underlay(T, node2, turn(dir, 90))
+			add_underlay(T, nodes[2], turn(dir, 90))
 		else
-			add_underlay(T, node2, turn(dir, -90))
+			add_underlay(T, nodes[2], turn(dir, -90))
 
-		add_underlay(T, node3, dir)
+		add_underlay(T, nodes[3], dir)
 
 /obj/machinery/atmospherics/trinary/filter/power_change()
 	if(!..())
@@ -100,6 +100,9 @@
 	update_icon()
 
 /obj/machinery/atmospherics/trinary/filter/process_atmos()
+	var/datum/gas_mixture/air1 = airs[1]
+	var/datum/gas_mixture/air2 = airs[2]
+	var/datum/gas_mixture/air3 = airs[3]
 	if((stat & (NOPOWER|BROKEN)) || !on)
 		return FALSE
 
@@ -166,14 +169,7 @@
 		air2.merge(filtered_out)
 		air3.merge(removed)
 
-	if(!QDELETED(parent1))
-		parent1.update = 1
-
-	if(!QDELETED(parent2))
-		parent2.update = 1
-
-	if(!QDELETED(parent3))
-		parent3.update = 1
+	update_parents()
 
 	return TRUE
 

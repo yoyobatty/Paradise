@@ -9,12 +9,12 @@ USER_VERB(debug_check_piping, R_ADMIN, "Check Piping", "Check Piping", VERB_CATE
 
 	//Manifolds
 	for(var/obj/machinery/atmospherics/pipe/manifold/pipe in SSair.atmos_machinery)
-		if(!pipe.node1 || !pipe.node2 || !pipe.node3)
+		if(!pipe.nodes[1] || !pipe.nodes[2] || !pipe.nodes[3])
 			to_chat(client, "Unconnected [pipe.name] located at [pipe.x],[pipe.y],[pipe.z] ([get_area(pipe.loc)])")
 
 	//Pipes
 	for(var/obj/machinery/atmospherics/pipe/simple/pipe in SSair.atmos_machinery)
-		if(!pipe.node1 || !pipe.node2)
+		if(!pipe.nodes[1] || !pipe.nodes[2])
 			to_chat(client, "Unconnected [pipe.name] located at [pipe.x],[pipe.y],[pipe.z] ([get_area(pipe.loc)])")
 
 	to_chat(client, "Checking for overlapping pipes...")

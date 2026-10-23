@@ -13,7 +13,7 @@
 	endWhen = rand(25, 100)
 	for(var/obj/machinery/atmospherics/unary/vent_scrubber/temp_vent in SSmachines.get_by_type(/obj/machinery/atmospherics/unary/vent_scrubber))
 		if(is_station_level(temp_vent.loc.z))
-			if(length(temp_vent.parent.other_atmosmch) > 50)
+			if(length(temp_vent.parents[1].other_atmosmch) > 50)
 				vents += temp_vent
 
 /datum/event/vent_clog/tick()

@@ -11,7 +11,7 @@
 	var/update_cycle
 
 /obj/machinery/atmospherics/unary/heat_exchanger/update_icon_state()
-	if(node)
+	if(nodes[1])
 		icon_state = "intact"
 	else
 		icon_state = "exposed"
@@ -53,10 +53,10 @@
 		partner.air_contents.set_temperature(new_temperature)
 
 	if(abs(old_temperature-air_contents.temperature()) > 1)
-		parent.update = 1
+		update_parents()
 
 	if(abs(other_old_temperature-partner.air_contents.temperature()) > 1)
-		partner.parent.update = 1
+		partner.update_parents()
 
 
 	return 1

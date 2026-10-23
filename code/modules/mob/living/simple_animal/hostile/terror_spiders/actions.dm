@@ -297,10 +297,10 @@
 	var/obj/machinery/atmospherics/unary/vent_pump/valid_scrubber = null
 	var/obj/machinery/atmospherics/pipe/pipe_loc = loc
 	for(var/obj/machinery/atmospherics/unary/vent_pump/P in range(1, get_turf(src)))
-		if(P.welded && (!istype(pipe_loc, /obj/machinery/atmospherics) || pipe_loc.parent == P.parent))
+		if(P.welded && (!istype(pipe_loc, /obj/machinery/atmospherics) || pipe_loc.parent == P.parents[1]))
 			valid_supply = P
 	for(var/obj/machinery/atmospherics/unary/vent_scrubber/C in range(1, get_turf(src)))
-		if(C.welded && (!istype(pipe_loc, /obj/machinery/atmospherics) || pipe_loc.parent == C.parent))
+		if(C.welded && (!istype(pipe_loc, /obj/machinery/atmospherics) || pipe_loc.parent == C.parents[1]))
 			valid_scrubber = C
 	if(!(valid_supply || valid_scrubber))
 		to_chat(src, SPAN_WARNING("No welded vent or scrubber nearby!"))

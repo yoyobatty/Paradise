@@ -15,7 +15,7 @@
 		var/turf/T = get_turf(src)
 		if(!istype(T))
 			return
-		add_underlay(T, node, dir)
+		add_underlay(T, nodes[1], dir)
 
 /obj/machinery/atmospherics/unary/tank/return_analyzable_air()
 	return air_contents

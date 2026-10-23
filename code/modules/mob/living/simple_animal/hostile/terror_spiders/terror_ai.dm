@@ -273,7 +273,7 @@
 				entry_vent.update_icon()
 				entry_vent.visible_message(SPAN_DANGER("[src] smashes the welded cover off [entry_vent]!"))
 			var/list/vents = list()
-			for(var/obj/machinery/atmospherics/unary/vent_pump/temp_vent in entry_vent.parent.other_atmosmch)
+			for(var/obj/machinery/atmospherics/unary/vent_pump/temp_vent in entry_vent.parents[1].other_atmosmch)
 				vents.Add(temp_vent)
 			if(!length(vents))
 				entry_vent = null

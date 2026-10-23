@@ -93,10 +93,10 @@
 
 /obj/machinery/atmospherics/unary/cryo_cell/atmos_init()
 	..()
-	if(node) return
+	if(nodes[1]) return
 	for(var/cdir in GLOB.cardinal)
-		node = findConnecting(cdir)
-		if(node)
+		nodes[1] = findConnecting(cdir)
+		if(nodes[1])
 			break
 
 /obj/machinery/atmospherics/unary/cryo_cell/Destroy()
@@ -185,7 +185,7 @@
 	return TRUE
 
 /obj/machinery/atmospherics/unary/cryo_cell/process_atmos()
-	if(!node || !on)
+	if(!nodes[1] || !on)
 		return
 
 	if(air_contents)
@@ -193,7 +193,7 @@
 		heat_gas_contents()
 
 	if(abs(temperature_archived-air_contents.temperature()) > 1)
-		parent.update = 1
+		update_parents()
 
 
 /obj/machinery/atmospherics/unary/cryo_cell/AllowDrop()
@@ -470,7 +470,7 @@
 	if(M.abiotic())
 		to_chat(usr, SPAN_WARNING("Subject may not hold anything in their hands."))
 		return
-	if(!node)
+	if(!nodes[1])
 		to_chat(usr, SPAN_WARNING("The cell is not correctly connected to its pipe network!"))
 		return
 	M.stop_pulling()

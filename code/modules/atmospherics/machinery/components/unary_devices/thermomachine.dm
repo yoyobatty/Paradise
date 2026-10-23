@@ -160,7 +160,7 @@
 		var/new_active_consumption = (temperature_delta * 25) * min(log(10, air_contents.temperature()) - 1, 1)
 		update_active_power_consumption(power_channel, new_active_consumption + idle_power_consumption)
 		change_power_mode(ACTIVE_POWER_USE)
-		parent.update = TRUE
+		update_parents()
 	else
 		change_power_mode(IDLE_POWER_USE)
 	return
@@ -191,7 +191,7 @@
 	initialize_directions = dir
 	for(var/obj/machinery/atmospherics/target in get_step(src,node_connect))
 		if(target.initialize_directions & get_dir(target,src))
-			node = target
+			nodes[1] = target
 			break
 	initialize_atmos_network()
 	update_icon()

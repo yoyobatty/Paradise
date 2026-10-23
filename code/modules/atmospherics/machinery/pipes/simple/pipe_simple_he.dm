@@ -71,19 +71,17 @@
 	..(0)
 	if(initPipe)
 		normalize_dir()
-		var/N = 2
-		for(var/D in GLOB.cardinal)
-			if(D & initialize_directions_he)
-				N--
-				for(var/obj/machinery/atmospherics/pipe/simple/heat_exchanging/target in get_step(src, D))
-					if(target.initialize_directions_he & get_dir(target,src))
-						if(!node1 && N == 1)
-							node1 = target
-							break
-						if(!node2 && N == 0)
-							node2 = target
-							break
+		connect_nodes(keep_nodes = TRUE)
 		update_icon()
+
+/obj/machinery/atmospherics/pipe/simple/heat_exchanging/get_node_connects()
+	return ..(initialize_directions_he)
+
+// HE pipes only plug into other HE pipes
+/obj/machinery/atmospherics/pipe/simple/heat_exchanging/find_node(direction, end)
+	for(var/obj/machinery/atmospherics/pipe/simple/heat_exchanging/target in get_step(src, direction))
+		if(target.initialize_directions_he & get_dir(target, src))
+			return target
 
 /obj/machinery/atmospherics/pipe/simple/heat_exchanging/hidden
 	level=1
@@ -117,17 +115,20 @@
 
 /obj/machinery/atmospherics/pipe/simple/heat_exchanging/junction/atmos_init()
 	..(0)
-	for(var/obj/machinery/atmospherics/target in get_step(src,initialize_directions))
-		if(target.initialize_directions & get_dir(target,src))
-			node1 = target
-			break
-	for(var/obj/machinery/atmospherics/pipe/simple/heat_exchanging/target in get_step(src,initialize_directions_he))
-		if(target.initialize_directions_he & get_dir(target,src))
-			node2 = target
-			break
-
+	connect_nodes()
 	update_icon()
 	return
+
+/obj/machinery/atmospherics/pipe/simple/heat_exchanging/junction/get_node_connects()
+	return list(initialize_directions, initialize_directions_he)
+
+/obj/machinery/atmospherics/pipe/simple/heat_exchanging/junction/find_node(direction, end)
+	if(end == 2)
+		return ..()
+	// The normal end plugs into anything facing it
+	for(var/obj/machinery/atmospherics/target in get_step(src, direction))
+		if(target.initialize_directions & get_dir(target, src))
+			return target
 
 /obj/machinery/atmospherics/pipe/simple/heat_exchanging/junction/hidden
 	level=1

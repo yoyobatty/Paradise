@@ -77,7 +77,7 @@
 		var/datum/gas_mixture/removed = network2.remove(transfer_moles)
 		network1.merge(removed)
 
-		parent.update = TRUE
+		update_parents()
 
 	return TRUE
 
@@ -103,7 +103,7 @@
 	initialize_directions = dir
 	for(var/obj/machinery/atmospherics/target in get_step(src, dir))
 		if(target.initialize_directions & get_dir(target,src))
-			node = target
+			nodes[1] = target
 			break
 	form_link(FALSE)
 	initialize_atmos_network()
