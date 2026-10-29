@@ -427,14 +427,14 @@ SUBSYSTEM_DEF(air)
 		// Bind the MILLA tile we got, if needed.
 		if(reasons & MILLA_INTERESTING_REASON_DISPLAY)
 			// What we got is the tile as the tick left it. If something's written to it since, we have to ask again.
-			var/milla_tile = written_tiles[T] ? null : currentrun.Copy(offset + 1, offset + 1 + MILLA_TILE_SIZE + 1)
+			// Only copied when it's used, our copy is usually current
 			if(isnull(T.bound_air))
-				bind_turf(T, milla_tile)
+				bind_turf(T, written_tiles[T] ? null : currentrun.Copy(offset + 1, offset + 1 + MILLA_TILE_SIZE + 1))
 			else if(T.bound_air.good_until < milla_frame && !T.bound_air.dirty)
-				if(milla_tile)
-					T.bound_air.take_milla_tile(milla_tile)
-				else
+				if(written_tiles[T])
 					T.bound_air.fetch()
+				else
+					T.bound_air.take_milla_tile(currentrun.Copy(offset + 1, offset + 1 + MILLA_TILE_SIZE + 1))
 				T.bound_air.synchronized = FALSE
 
 			var/turf/simulated/S = T
