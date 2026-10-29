@@ -168,9 +168,9 @@ What are the archived variables for?
 	private_water_vapor = clamped
 	version++
 
-/// Whether a scrubber filtering these gases would find anything here to scrub. The other four it always takes.
-/datum/gas_mixture/proc/has_gas_to_scrub(oxygen, nitrogen, carbon_dioxide, toxins)
-	return (oxygen && private_oxygen > 0.001) || (nitrogen && private_nitrogen > 0.001) || (carbon_dioxide && private_carbon_dioxide > 0.001) || (toxins && private_toxins > 0.001) || private_sleeping_agent > 0.001 || private_agent_b > 0.001 || private_hydrogen > 0.001 || private_water_vapor > 0.001
+/// Whether a scrubber taking these gases would find any of them here to scrub. Agent B it always takes.
+/datum/gas_mixture/proc/has_gas_to_scrub(oxygen, nitrogen, carbon_dioxide, toxins, sleeping_agent, hydrogen, water_vapor)
+	return (oxygen && private_oxygen > 0.001) || (nitrogen && private_nitrogen > 0.001) || (carbon_dioxide && private_carbon_dioxide > 0.001) || (toxins && private_toxins > 0.001) || (sleeping_agent && private_sleeping_agent > 0.001) || (hydrogen && private_hydrogen > 0.001) || (water_vapor && private_water_vapor > 0.001) || private_agent_b > 0.001
 
 /datum/gas_mixture/proc/temperature()
 	return private_temperature

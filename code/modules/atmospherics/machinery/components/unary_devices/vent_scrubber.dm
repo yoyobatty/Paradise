@@ -179,11 +179,11 @@
 	milla.invoke_async(src, tile)
 
 /obj/machinery/atmospherics/unary/vent_scrubber/proc/should_scrub(datum/gas_mixture/environment)
-	return environment.has_gas_to_scrub(scrub_O2, scrub_N2, scrub_CO2, scrub_Toxins)
+	return environment.has_gas_to_scrub(scrub_O2, scrub_N2, scrub_CO2, scrub_Toxins, scrub_N2O, scrub_H2, scrub_H2O)
 
 /// The gases should_scrub() looks for, as MILLA_WATCHED_GAS_* bits
 /obj/machinery/atmospherics/unary/vent_scrubber/proc/scrubbed_gases()
-	. = MILLA_WATCHED_GAS_SLEEPING_AGENT | MILLA_WATCHED_GAS_AGENT_B | MILLA_WATCHED_GAS_HYDROGEN | MILLA_WATCHED_GAS_WATER_VAPOR
+	. = MILLA_WATCHED_GAS_AGENT_B
 	if(scrub_O2)
 		. |= MILLA_WATCHED_GAS_OXYGEN
 	if(scrub_N2)
@@ -192,6 +192,12 @@
 		. |= MILLA_WATCHED_GAS_CARBON_DIOXIDE
 	if(scrub_Toxins)
 		. |= MILLA_WATCHED_GAS_TOXINS
+	if(scrub_N2O)
+		. |= MILLA_WATCHED_GAS_SLEEPING_AGENT
+	if(scrub_H2)
+		. |= MILLA_WATCHED_GAS_HYDROGEN
+	if(scrub_H2O)
+		. |= MILLA_WATCHED_GAS_WATER_VAPOR
 
 /datum/milla_safe/vent_scrubber_process
 
