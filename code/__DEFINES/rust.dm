@@ -111,6 +111,15 @@
 /proc/set_milla_tuning(sleep, settle)
 	return RUSTLIB_CALL(milla_set_tuning, sleep, settle)
 
+/// Asks MILLA to tell us when this tile's air crosses a line. Returns FALSE if it can't.
+/// The lines are pressures in kPa (null for none), and more than 0.001 moles of any MILLA_WATCHED_GAS_* gas in gases.
+/proc/set_tile_tripwire(turf/T, pressure_below, pressure_above, gases)
+	return RUSTLIB_CALL(milla_set_tile_tripwire, T, pressure_below, pressure_above, gases)
+
+/// The turfs whose tripwires went off in the frame that just came in
+/proc/get_tripped_tiles()
+	return RUSTLIB_CALL(milla_get_tripped_tiles)
+
 /proc/reduce_superconductivity(turf/T, list/superconductivity)
 	var/north = superconductivity[1]
 	var/east = superconductivity[2]
@@ -346,6 +355,16 @@
 #define MILLA_INTERESTING_REASON_WET		(1 << 3)
 /// Interesting because water condensed on it this tick and froze.
 #define MILLA_INTERESTING_REASON_ICY		(1 << 4)
+
+// One bit for each gas, in MILLA's order. Must match the gas order in milla/src/constants.rs
+#define MILLA_WATCHED_GAS_OXYGEN			(1 << 0)
+#define MILLA_WATCHED_GAS_CARBON_DIOXIDE	(1 << 1)
+#define MILLA_WATCHED_GAS_NITROGEN			(1 << 2)
+#define MILLA_WATCHED_GAS_TOXINS			(1 << 3)
+#define MILLA_WATCHED_GAS_SLEEPING_AGENT	(1 << 4)
+#define MILLA_WATCHED_GAS_AGENT_B			(1 << 5)
+#define MILLA_WATCHED_GAS_HYDROGEN			(1 << 6)
+#define MILLA_WATCHED_GAS_WATER_VAPOR		(1 << 7)
 
 #define MILLA_NORTH	(1 << 0)
 #define MILLA_EAST	(1 << 1)

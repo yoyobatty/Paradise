@@ -733,6 +733,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		SSair.written_tiles[src] = TRUE
 	if(bound_air)
 		bound_air.good_until = -1
+		bound_air.wakes++
 
 /// Do not call this directly. Use get_readonly_air or implement /datum/milla_safe.
 /turf/proc/private_unsafe_get_air()

@@ -1,4 +1,5 @@
 use crate::milla::model::*;
+use std::collections::HashMap;
 use std::sync::{atomic::AtomicBool, atomic::AtomicUsize, Mutex, OnceLock};
 
 /// The buffers that contain the atmos model.
@@ -75,3 +76,9 @@ pub(crate) static FINISHED_INTERESTING_TILES: Mutex<Option<Vec<InterestingTile>>
 
 /// The tiles whose air has changed since BYOND last asked, by Z level.
 pub(crate) static CHANGED_TILES: Mutex<Vec<TileSet>> = Mutex::new(Vec::new());
+
+/// The tripwires BYOND has set, by Z level, then by tile index.
+pub(crate) static TRIPWIRES: Mutex<Vec<HashMap<usize, Tripwire>>> = Mutex::new(Vec::new());
+
+/// The tiles whose tripwires went off as the current frame came in, as (x, y, z) from zero.
+pub(crate) static TRIPPED_TILES: Mutex<Vec<(i32, i32, i32)>> = Mutex::new(Vec::new());

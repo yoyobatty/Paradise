@@ -427,6 +427,54 @@ impl From<&InterestingTile> for Vec<ByondValue> {
     }
 }
 
+/// What BYOND is waiting for on a tile: a pressure line, or a trace of some gas.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Tripwire {
+    /// Goes off when the pressure is under this.
+    pub(crate) pressure_below: f32,
+    /// Goes off when the pressure is over this.
+    pub(crate) pressure_above: f32,
+    /// Goes off when there's more than a trace of any of these gases, 1 << the gas's index.
+    pub(crate) gases: u32,
+}
+
+impl Tripwire {
+    /// Goes off when either this or the other one would.
+    pub(crate) fn join(&mut self, other: &Tripwire) {
+        self.pressure_below = self.pressure_below.max(other.pressure_below);
+        self.pressure_above = self.pressure_above.min(other.pressure_above);
+        self.gases |= other.gases;
+    }
+
+    /// Has this tile's air set it off? Pressure is worked out the way BYOND does it.
+    pub(crate) fn tripped_by(&self, tile: &Tile) -> bool {
+        let mut moles = 0.0;
+        for gas in 0..GAS_COUNT {
+            let amount = tile.gases.values[gas];
+            if self.gases & (1 << gas) != 0 && amount > TRIPWIRE_GAS_MOLES {
+                return true;
+            }
+            moles += amount;
+        }
+        let below = self.pressure_below.is_finite();
+        let above = self.pressure_above.is_finite();
+        if !below && !above {
+            return false;
+        }
+        let pressure = moles * R_IDEAL_GAS_EQUATION * tile.temperature() / TILE_VOLUME;
+        (below
+            && pressure
+                < self.pressure_below
+                    + self.pressure_below.abs() * TRIPWIRE_ROOM_FRACTION
+                    + TRIPWIRE_ROOM)
+            || (above
+                && pressure
+                    > self.pressure_above
+                        - self.pressure_above.abs() * TRIPWIRE_ROOM_FRACTION
+                        - TRIPWIRE_ROOM)
+    }
+}
+
 /// A set of tiles on one Z level, one bit per tile, so walking it always goes in index order.
 #[derive(Clone)]
 pub(crate) struct TileSet {
@@ -863,6 +911,49 @@ mod tests {
         assert_eq!(tile.superconductivity.south, OPEN_HEAT_TRANSFER_COEFFICIENT);
         assert_eq!(tile.superconductivity.west, OPEN_HEAT_TRANSFER_COEFFICIENT);
         assert_eq!(tile.innate_heat_capacity, 0.0);
+    }
+
+    /// A tripwire should go off once the pressure gets to its line or a gas it's set for turns up,
+    /// and not before. One joined with another goes off when either would.
+    #[test]
+    fn tripwires() {
+        let mut tile = Tile::new();
+        tile.mode = AtmosMode::Sealed;
+        tile.gases.set_oxygen(20.0);
+        tile.gases.set_nitrogen(80.0);
+        tile.thermal_energy = tile.heat_capacity() * T20C;
+        let pressure = 100.0 * R_IDEAL_GAS_EQUATION * tile.temperature() / TILE_VOLUME;
+
+        let mut wire = Tripwire {
+            pressure_below: pressure - 0.5,
+            pressure_above: f32::INFINITY,
+            gases: 0,
+        };
+        assert!(!wire.tripped_by(&tile));
+        wire.pressure_below = pressure;
+        assert!(wire.tripped_by(&tile));
+        // Goes off a little early.
+        wire.pressure_below = pressure - TRIPWIRE_ROOM / 2.0;
+        assert!(wire.tripped_by(&tile));
+
+        let mut wire = Tripwire {
+            pressure_below: f32::NEG_INFINITY,
+            pressure_above: f32::INFINITY,
+            gases: 1 << GAS_TOXINS,
+        };
+        assert!(!wire.tripped_by(&tile));
+        tile.gases.set_toxins(TRIPWIRE_GAS_MOLES);
+        assert!(!wire.tripped_by(&tile));
+        tile.gases.set_toxins(TRIPWIRE_GAS_MOLES * 2.0);
+        assert!(wire.tripped_by(&tile));
+
+        tile.gases.set_toxins(0.0);
+        wire.join(&Tripwire {
+            pressure_below: f32::NEG_INFINITY,
+            pressure_above: pressure,
+            gases: 0,
+        });
+        assert!(wire.tripped_by(&tile));
     }
 
     /// flip_buffers() should alternate us betweeen two buffers, and changes should be preserved

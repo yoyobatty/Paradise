@@ -32,6 +32,13 @@
 	/// How much pressure does there have to be in the pipe to burst the vent open?
 	var/weld_burst_pressure = 50 * ONE_ATMOSPHERE
 
+	/// The room air we found already at our pressure. Until it wakes us, there's nothing to do
+	var/datum/gas_mixture/bound_to_turf/idle_air
+	/// idle_air's wakes when we found that
+	var/idle_wakes
+	/// Our external_pressure_bound when we found that
+	var/idle_bound
+
 	connect_types = list(CONNECT_TYPE_NORMAL, CONNECT_TYPE_SUPPLY) //connects to regular and supply pipes
 
 /obj/machinery/atmospherics/unary/vent_pump/examine(mob/user)
@@ -131,6 +138,12 @@
 			update_icon()
 		return FALSE
 
+	if(idle_air && releasing && pressure_checks == ONLY_CHECK_EXT_PRESSURE)
+		// Room's still full, and our setting's the same
+		var/datum/gas_mixture/bound_to_turf/room_air = T.bound_air
+		if(room_air == idle_air && room_air.wakes == idle_wakes && idle_bound == external_pressure_bound)
+			return TRUE
+
 	var/datum/gas_mixture/environment = T.get_readonly_air()
 	if(releasing) //internal -> external
 		var/pressure_delta = 10000
@@ -148,6 +161,13 @@
 			// This isn't exactly "blind", but using the data from last tick is good enough for a vent.
 			T.blind_release_air(removed)
 			parent.update = TRUE
+
+		idle_air = null
+		// MILLA tells us when the room drops far enough to pump
+		if(pressure_delta <= 0.5 && pressure_checks == ONLY_CHECK_EXT_PRESSURE && set_tile_tripwire(T, external_pressure_bound - 0.5, null, 0))
+			idle_air = T.bound_air
+			idle_wakes = idle_air.wakes
+			idle_bound = external_pressure_bound
 
 	else //external -> internal
 		var/datum/milla_safe/vent_pump_siphon/milla = new()
@@ -253,6 +273,7 @@
 	GLOB.all_vent_pumps -= src
 	if(initial_loc)
 		initial_loc.vents -= src
+	idle_air = null
 	return ..()
 
 #undef EXTERNAL_PRESSURE_BOUND

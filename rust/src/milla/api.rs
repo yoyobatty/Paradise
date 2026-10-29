@@ -533,6 +533,66 @@ pub(crate) fn internal_get_changed_tiles() -> Vec<(i32, i32, i32)> {
     tiles
 }
 
+/// BYOND API for hearing when a tile's air crosses a line: its pressure going under pressure_below
+/// or over pressure_above (null for no line), or more than a trace of one of the gases in gases
+/// (1 << the gas's index). A second tripwire on a tile joins the first. BYOND hears about it from
+/// milla_get_tripped_tiles() when the frame that set it off comes in. Returns 0 if it can't be set.
+#[byondapi::bind]
+fn milla_set_tile_tripwire(
+    turf: ByondValue,
+    pressure_below: ByondValue,
+    pressure_above: ByondValue,
+    gases: ByondValue,
+) -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    // BYOND only hears in time if it's the one finishing ticks.
+    if !BYOND_FINISHES_TICKS.load(std::sync::atomic::Ordering::Relaxed) {
+        return Ok(ByondValue::from(0.0));
+    }
+    let (x, y, z) = byond_xyz(&turf)?.coordinates();
+    let Some(index) = ZLevel::maybe_get_index(x as i32 - 1, y as i32 - 1) else {
+        return Ok(ByondValue::from(0.0));
+    };
+    let wire = Tripwire {
+        pressure_below: if pressure_below.is_null() {
+            f32::NEG_INFINITY
+        } else {
+            f32::try_from(pressure_below)?
+        },
+        pressure_above: if pressure_above.is_null() {
+            f32::INFINITY
+        } else {
+            f32::try_from(pressure_above)?
+        },
+        gases: f32::try_from(gases)? as u32,
+    };
+    let z = z as usize - 1;
+    let mut tripwires = TRIPWIRES.lock().unwrap();
+    while tripwires.len() <= z {
+        tripwires.push(std::collections::HashMap::new());
+    }
+    tripwires[z]
+        .entry(index)
+        .and_modify(|old| old.join(&wire))
+        .or_insert(wire);
+    Ok(ByondValue::from(1.0))
+}
+
+/// BYOND API for the turfs whose tripwires went off in the frame that just came in.
+#[byondapi::bind]
+fn milla_get_tripped_tiles() -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    let mut turfs: Vec<ByondValue> = Vec::new();
+    for (x, y, z) in TRIPPED_TILES.lock().unwrap().drain(..) {
+        turfs.push(byond_locatexyz(ByondXYZ::with_coords((
+            x as i16 + 1,
+            y as i16 + 1,
+            z as i16 + 1,
+        )))?);
+    }
+    Ok(turfs.as_slice().try_into()?)
+}
+
 /// BYOND API for the last tick's numbers: how long it took in milliseconds, how many tiles it
 /// worked on, how many of those changed, and how many changed in a way BYOND can see. Then two
 /// running totals since boot: tile reads, and changed tiles BYOND has been told about. Then the

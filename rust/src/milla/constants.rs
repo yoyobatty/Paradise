@@ -264,3 +264,11 @@ pub(crate) const SETTLE_WIND: f32 = 0.000_001;
 /// Any amount of a gas from this up has a partial pressure above zero whatever the temperature,
 /// so it doesn't need working out to know the gas is there. Far below anything that matters.
 pub(crate) const GAS_SURELY_PRESENT: f32 = 1e-30;
+
+/// A tripwire on a gas goes off above this many moles, the trace scrubbers look for.
+pub(crate) const TRIPWIRE_GAS_MOLES: f32 = 0.001;
+
+/// A tripwire on a pressure goes off a little early, so rounding can't hide a crossing: this
+/// fraction of the line, plus this many kPa.
+pub(crate) const TRIPWIRE_ROOM_FRACTION: f32 = 0.000_01;
+pub(crate) const TRIPWIRE_ROOM: f32 = 0.001;

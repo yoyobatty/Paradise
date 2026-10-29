@@ -1,3 +1,4 @@
+use crate::milla::constants::MAP_SIZE;
 use crate::milla::model::*;
 use crate::milla::simulate;
 use crate::milla::statics::*;
@@ -122,6 +123,24 @@ pub(crate) fn finish_tick(buffers: &Buffers) {
         TICK_TILES_WORKED_ON.store(worked_on, std::sync::atomic::Ordering::Relaxed);
         TICK_TILES_CHANGED.store(changed, std::sync::atomic::Ordering::Relaxed);
         TICK_TILES_CHANGED_FOR_BYOND.store(changed_for_byond, std::sync::atomic::Ordering::Relaxed);
+
+        // And which tripwires it set off. All of them get looked at, so a tile written to
+        // directly can't slip past.
+        let mut tripwires = TRIPWIRES.lock().unwrap();
+        let mut tripped = TRIPPED_TILES.lock().unwrap();
+        for (z, wires) in tripwires.iter_mut().enumerate() {
+            if wires.is_empty() || z >= current.0.len() {
+                continue;
+            }
+            let z_level = current.0[z].read().unwrap();
+            wires.retain(|&index, wire| {
+                if !wire.tripped_by(z_level.get_tile(index)) {
+                    return true;
+                }
+                tripped.push(((index / MAP_SIZE) as i32, (index % MAP_SIZE) as i32, z as i32));
+                false
+            });
+        }
     }
 
     let mut interesting_tiles = INTERESTING_TILES.lock().unwrap();

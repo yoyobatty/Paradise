@@ -155,6 +155,9 @@ What are the archived variables for?
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_water_vapor = clamped
 
+/// Whether a scrubber filtering these gases would find anything here to scrub. The other four it always takes.
+/datum/gas_mixture/proc/has_gas_to_scrub(oxygen, nitrogen, carbon_dioxide, toxins)
+	return (oxygen && private_oxygen > 0.001) || (nitrogen && private_nitrogen > 0.001) || (carbon_dioxide && private_carbon_dioxide > 0.001) || (toxins && private_toxins > 0.001) || private_sleeping_agent > 0.001 || private_agent_b > 0.001 || private_hydrogen > 0.001 || private_water_vapor > 0.001
 
 /datum/gas_mixture/proc/temperature()
 	return private_temperature
@@ -959,6 +962,8 @@ What are the archived variables for?
 	var/good_until = -1
 	var/turf/bound_turf = null
 	var/datum/gas_mixture/readonly/readonly = null
+	/// Goes up when something besides a MILLA tick changes this, or its tripwire goes off. See set_tile_tripwire()
+	var/wakes = 0
 
 /datum/gas_mixture/bound_to_turf/Destroy()
 	bound_turf = null
@@ -966,6 +971,7 @@ What are the archived variables for?
 
 /datum/gas_mixture/bound_to_turf/set_dirty()
 	dirty = TRUE
+	wakes++
 
 	if(!isnull(readonly))
 		readonly.private_oxygen = private_oxygen

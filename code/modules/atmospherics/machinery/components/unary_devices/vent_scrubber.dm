@@ -31,6 +31,13 @@
 
 	var/welded = FALSE
 
+	/// The air here we found nothing to scrub in. Until it wakes us, there's nothing to do
+	var/datum/gas_mixture/bound_to_turf/idle_air
+	/// idle_air's wakes when we found that
+	var/idle_wakes
+	/// Our scrubbed_gases() when we found that
+	var/idle_gases
+
 	connect_types = list(CONNECT_TYPE_NORMAL, CONNECT_TYPE_SCRUBBER) //connects to regular and scrubber pipes
 
 /obj/machinery/atmospherics/unary/vent_scrubber/on
@@ -59,6 +66,7 @@
 		initial_loc.scrubbers -= src
 
 	GLOB.all_scrubbers -= src
+	idle_air = null
 
 	return ..()
 
@@ -131,6 +139,12 @@
 	if(!on)
 		return 0
 
+	if(idle_air && scrubbing && !widenet)
+		// Still nothing to scrub, and the same filters
+		var/datum/gas_mixture/bound_to_turf/tile_air = T.bound_air
+		if(tile_air == idle_air && tile_air.wakes == idle_wakes && idle_gases == scrubbed_gases())
+			return
+
 	scrub(loc)
 	if(widenet)
 		for(var/turf/simulated/tile in adjacent_turfs)
@@ -149,30 +163,35 @@
 		return 0
 
 	if(scrubbing && !should_scrub(tile.get_readonly_air()))
+		if(tile == loc && !widenet)
+			// MILLA tells us when something we scrub turns up
+			var/gases = scrubbed_gases()
+			idle_air = null
+			if(set_tile_tripwire(tile, null, null, gases))
+				idle_air = tile.bound_air
+				idle_wakes = idle_air.wakes
+				idle_gases = gases
 		return 0
 
+	if(tile == loc)
+		idle_air = null
 	var/datum/milla_safe/vent_scrubber_process/milla = new()
 	milla.invoke_async(src, tile)
 
 /obj/machinery/atmospherics/unary/vent_scrubber/proc/should_scrub(datum/gas_mixture/environment)
-	if(scrub_O2 && environment.oxygen() > 0.001)
-		return TRUE
-	if(scrub_N2 && environment.nitrogen() > 0.001)
-		return TRUE
-	if(scrub_CO2 && environment.carbon_dioxide() > 0.001)
-		return TRUE
-	if(scrub_Toxins && environment.toxins() > 0.001)
-		return TRUE
-	if(environment.sleeping_agent() > 0.001)
-		return TRUE
-	if(environment.agent_b() > 0.001)
-		return TRUE
-	if(environment.hydrogen() > 0.001)
-		return TRUE
-	if(environment.water_vapor() > 0.001)
-		return TRUE
+	return environment.has_gas_to_scrub(scrub_O2, scrub_N2, scrub_CO2, scrub_Toxins)
 
-	return FALSE
+/// The gases should_scrub() looks for, as MILLA_WATCHED_GAS_* bits
+/obj/machinery/atmospherics/unary/vent_scrubber/proc/scrubbed_gases()
+	. = MILLA_WATCHED_GAS_SLEEPING_AGENT | MILLA_WATCHED_GAS_AGENT_B | MILLA_WATCHED_GAS_HYDROGEN | MILLA_WATCHED_GAS_WATER_VAPOR
+	if(scrub_O2)
+		. |= MILLA_WATCHED_GAS_OXYGEN
+	if(scrub_N2)
+		. |= MILLA_WATCHED_GAS_NITROGEN
+	if(scrub_CO2)
+		. |= MILLA_WATCHED_GAS_CARBON_DIOXIDE
+	if(scrub_Toxins)
+		. |= MILLA_WATCHED_GAS_TOXINS
 
 /datum/milla_safe/vent_scrubber_process
 

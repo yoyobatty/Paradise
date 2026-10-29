@@ -794,6 +794,11 @@ SUBSYSTEM_DEF(air)
 		var/datum/gas_mixture/bound_to_turf/air = T.bound_air
 		if(air)
 			air.good_until = -1
+	// Wake anything waiting on these
+	for(var/turf/T as anything in get_tripped_tiles())
+		var/datum/gas_mixture/bound_to_turf/air = T.bound_air
+		if(air)
+			air.wakes++
 
 /datum/controller/subsystem/air/proc/run_sleepless_callbacks()
 	// Just in case someone is naughty and decides to sleep, make sure that this method runs fully anyway.
