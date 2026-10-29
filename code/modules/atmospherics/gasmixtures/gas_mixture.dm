@@ -63,9 +63,14 @@ What are the archived variables for?
 	/// Is this mixture currently synchronized with MILLA? Always true for non-bound mixtures.
 	var/synchronized = TRUE
 
-/// Marks this gas mixture as changed from MILLA. Does nothing on non-bound mixtures.
+	/// Goes up every time this mixture changes
+	var/version = 0
+	/// A number no other mixture has, handed out when a pipe network first needs it. See /datum/pipeline/proc/reconcile_air()
+	var/serial
+
+/// Marks this gas mixture as changed. Bound mixtures also get written back to MILLA.
 /datum/gas_mixture/proc/set_dirty()
-	return
+	version++
 
 /datum/gas_mixture/proc/oxygen()
 	return private_oxygen
@@ -77,6 +82,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_oxygen = clamped
+	version++
 
 /datum/gas_mixture/proc/carbon_dioxide()
 	return private_carbon_dioxide
@@ -88,6 +94,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_carbon_dioxide = clamped
+	version++
 
 /datum/gas_mixture/proc/nitrogen()
 	return private_nitrogen
@@ -99,6 +106,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_nitrogen = clamped
+	version++
 
 /datum/gas_mixture/proc/toxins()
 	return private_toxins
@@ -110,6 +118,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_toxins = clamped
+	version++
 
 /datum/gas_mixture/proc/sleeping_agent()
 	return private_sleeping_agent
@@ -121,6 +130,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_sleeping_agent = clamped
+	version++
 
 /datum/gas_mixture/proc/agent_b()
 	return private_agent_b
@@ -132,6 +142,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_agent_b = clamped
+	version++
 
 /datum/gas_mixture/proc/hydrogen()
 	return private_hydrogen
@@ -143,6 +154,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_hydrogen = clamped
+	version++
 
 /datum/gas_mixture/proc/water_vapor()
 	return private_water_vapor
@@ -154,6 +166,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_water_vapor = clamped
+	version++
 
 /// Whether a scrubber filtering these gases would find anything here to scrub. The other four it always takes.
 /datum/gas_mixture/proc/has_gas_to_scrub(oxygen, nitrogen, carbon_dioxide, toxins)
@@ -169,6 +182,7 @@ What are the archived variables for?
 	if(value != clamped)
 		stack_trace("Out-of-bounds value [value] clamped to [clamped].")
 	private_temperature = clamped
+	version++
 
 /datum/gas_mixture/proc/hotspot_temperature()
 	return private_hotspot_temperature
@@ -480,6 +494,7 @@ What are the archived variables for?
 					temperature_share(sharer, OPEN_HEAT_TRANSFER_COEFFICIENT)
 
 	set_dirty()
+	sharer.version++
 	if((delta_temperature > MINIMUM_TEMPERATURE_TO_MOVE) || abs(moved_moles) > MINIMUM_MOLES_DELTA_TO_MOVE)
 		var/delta_pressure = private_temperature_archived * (total_moles() + moved_moles) - sharer.private_temperature_archived * (sharer.total_moles() - moved_moles)
 		return delta_pressure * R_IDEAL_GAS_EQUATION / volume
@@ -622,6 +637,7 @@ What are the archived variables for?
 
 			private_temperature -= heat / self_heat_capacity
 			sharer.private_temperature += heat / sharer_heat_capacity
+			sharer.version++
 
 /datum/gas_mixture/proc/temperature_turf_share(turf/simulated/sharer, conduction_coefficient) //I want this proc to die a painful death
 	var/delta_temperature = (private_temperature_archived - sharer.temperature)
@@ -831,7 +847,9 @@ What are the archived variables for?
 	private_hotspot_temperature = milla[MILLA_INDEX_HOTSPOT_TEMPERATURE]
 	private_hotspot_volume = milla[MILLA_INDEX_HOTSPOT_VOLUME]
 	private_fuel_burnt = milla[MILLA_INDEX_FUEL_BURNT]
+	version++
 
+/// Evens out the gas in these mixtures by volume. Returns TRUE if anything needed evening out.
 /proc/share_many_airs(list/mixtures, atom/root)
 	var/total_volume = 0
 	var/total_oxygen = 0
@@ -938,6 +956,8 @@ What are the archived variables for?
 
 		G.private_temperature = temperature
 		// In theory, we should G.set_dirty() here, but that's only useful for bound mixtures, and these can't be.
+		G.version++
+	return TRUE
 
 /datum/gas_mixture/proc/hotspot_expose(temperature, volume)
 	return
@@ -971,6 +991,7 @@ What are the archived variables for?
 
 /datum/gas_mixture/bound_to_turf/set_dirty()
 	dirty = TRUE
+	version++
 	wakes++
 
 	if(!isnull(readonly))
@@ -1059,6 +1080,7 @@ What are the archived variables for?
 	private_hotspot_temperature = milla[MILLA_INDEX_HOTSPOT_TEMPERATURE]
 	private_hotspot_volume = milla[MILLA_INDEX_HOTSPOT_VOLUME]
 	private_fuel_burnt = milla[MILLA_INDEX_FUEL_BURNT]
+	version++
 	good_until = SSair.milla_frame
 	dirty = FALSE
 
