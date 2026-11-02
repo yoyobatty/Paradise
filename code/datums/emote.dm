@@ -377,14 +377,15 @@
  * Returns the modified msg string.
  */
 /datum/emote/proc/replace_pronoun(mob/user, msg)
+	// This has to go before "them", which is inside it.
+	if(findtext(msg, "themselves"))
+		msg = replacetext(msg, "themselves", user.p_themselves())
 	if(findtext(msg, "their"))
 		msg = replacetext(msg, "their", user.p_their())
 	if(findtext(msg, "them"))
 		msg = replacetext(msg, "them", user.p_them())
 	if(findtext(msg, "they"))
 		msg = replacetext(msg, "they", user.p_they())
-	if(findtext(msg, "themselves"))
-		msg = replacetext(msg, "themselves", user.p_themselves())
 	if(findtext(msg, "%s"))
 		msg = replacetext(msg, "%s", user.p_s())
 	return msg

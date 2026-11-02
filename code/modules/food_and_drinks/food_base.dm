@@ -228,7 +228,7 @@
 					TrashItem = new trash(src)
 				else if(isitem(trash))
 					TrashItem = trash
-				TrashItem.forceMove(loc)
+				TrashItem.forceMove(get_turf(src))
 			qdel(src)
 		return ITEM_INTERACT_COMPLETE
 

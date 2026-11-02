@@ -264,13 +264,10 @@
 	linkedsuit = null
 	return ..()
 
-/obj/item/clothing/head/helmet/space/hardsuit/syndi/activate_self(mob/user)
-	if(..())
-		return ITEM_INTERACT_COMPLETE
-
+/obj/item/clothing/head/helmet/space/hardsuit/syndi/toggle_light(mob/user)
 	if(!isturf(user.loc))
 		to_chat(user, SPAN_WARNING("You cannot toggle your helmet while in this [user.loc]!") )
-		return ITEM_INTERACT_COMPLETE
+		return
 
 	on = !on
 	if(on)
@@ -299,7 +296,6 @@
 		var/mob/living/carbon/C = user
 		C.head_update(src, forced = 1)
 	update_action_buttons()
-	return ITEM_INTERACT_COMPLETE
 
 /obj/item/clothing/head/helmet/space/hardsuit/syndi/proc/toggle_hardsuit_mode(mob/user) //Helmet Toggles Suit Mode
 	if(linkedsuit)

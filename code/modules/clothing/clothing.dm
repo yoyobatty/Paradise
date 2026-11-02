@@ -1212,7 +1212,7 @@
 
 /obj/item/clothing/under/proc/attach_accessory(obj/item/clothing/accessory/A, mob/user, unequip = FALSE)
 	if(can_attach_accessory(A))
-		if(unequip && !user.drop_item_to_ground(A)) // Make absolutely sure this accessory is removed from hands
+		if(unequip && !user.unequip(A)) // Make absolutely sure this accessory is removed from hands
 			return FALSE
 
 		accessories += A

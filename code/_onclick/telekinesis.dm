@@ -111,6 +111,10 @@
 	after_attack(target, user)
 	return TRUE
 
+/obj/item/tk_grab/ranged_interact_with_atom(atom/target, mob/living/user, list/modifiers)
+	after_attack(target, user, FALSE, list2params(modifiers))
+	return ITEM_INTERACT_COMPLETE
+
 /obj/item/tk_grab/after_attack(atom/target, mob/user, proximity_flag, click_parameters)
 	if(!target || !user)
 		return ..()

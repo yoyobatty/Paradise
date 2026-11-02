@@ -184,8 +184,8 @@
 		)
 	else
 		user.visible_message(
-			SPAN_NOTICE("[user] opens [src]."),
-			SPAN_NOTICE("You open [src]."),
+			SPAN_NOTICE("[user] [opened ? "closes" : "opens"] [src]."),
+			SPAN_NOTICE("You [opened ? "close" : "open"] [src]."),
 			SPAN_HEAR("You hear a latch clicking.")
 		)
 	playsound(loc, 'sound/machines/click.ogg', 15, TRUE, -3)

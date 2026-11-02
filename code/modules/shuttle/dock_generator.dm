@@ -113,14 +113,14 @@
 	for(var/obj/machinery/computer/shuttle/white_ship/S in SSmachines.get_by_type(/obj/machinery/computer/shuttle/white_ship))
 		S.possibleDestinations2 = alist()
 		S.connect()
-		possibleDestinations = S.possibleDestinations2.Copy()
+		possibleDestinations = S.possibleDestinations2[shuttleId]
 
 	log_admin("[key_name(user)] created a whiteship dock named '[name]' at [COORD(port)].")
 	to_chat(user, SPAN_NOTICE("Landing zone set."))
 
 /obj/item/whiteship_port_generator/AltClick(mob/user, modifiers)
 	for(var/obj/machinery/computer/shuttle/white_ship/S in SSmachines.get_by_type(/obj/machinery/computer/shuttle/white_ship))
-		possibleDestinations = S.possibleDestinations2.Copy()
+		possibleDestinations = S.possibleDestinations2[shuttleId]
 		break
 
 	ui_interact(user)
