@@ -35,8 +35,10 @@
 	var/heat_resistance = 15000
 	var/list/affecting_areas
 
-/obj/machinery/door/firedoor/Initialize(mapload)
+/obj/machinery/door/firedoor/Initialize(mapload, frame_dir)
 	. = ..()
+	if(frame_dir)
+		dir = frame_dir
 	CalculateAffectingAreas()
 	var/direction = get_current_direction()
 	dir = direction ? direction : NORTH
@@ -322,6 +324,7 @@
 /obj/machinery/door/firedoor/deconstruct(disassembled = TRUE)
 	if(!(flags & NODECONSTRUCT))
 		var/obj/structure/firelock_frame/F = new assemblytype(get_turf(src))
+		F.dir = dir
 		if(disassembled)
 			F.constructionStep = CONSTRUCTION_PANEL_OPEN
 		else
@@ -575,9 +578,9 @@
 	user.visible_message(SPAN_NOTICE("[user] finishes the firelock."), \
 						SPAN_NOTICE("You finish the firelock."))
 	if(reinforced)
-		new /obj/machinery/door/firedoor/heavy(get_turf(src))
+		new /obj/machinery/door/firedoor/heavy(get_turf(src), dir)
 	else
-		new /obj/machinery/door/firedoor(get_turf(src))
+		new /obj/machinery/door/firedoor(get_turf(src), dir)
 	qdel(src)
 
 /obj/structure/firelock_frame/temperature_expose(exposed_temperature, exposed_volume)

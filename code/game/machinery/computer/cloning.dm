@@ -177,7 +177,8 @@
 		data["desired_limb_data"] = desired_data.limbs
 		data["desired_organ_data"] = desired_data.organs
 
-	data["feedback"] = feedback
+	// The scan is kept on the scanner, so a new or second console can have a scan but no message for it.
+	data["feedback"] = feedback || list("text" = "No scan has been run from this console.", "color" = "average")
 
 	if(feedback)
 		data["scan_successful"] = feedback["scan_succeeded"]

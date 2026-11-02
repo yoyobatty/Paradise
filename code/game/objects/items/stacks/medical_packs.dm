@@ -244,7 +244,9 @@
 	merge_type = /obj/item/stack/medical/ointment
 
 /obj/item/stack/medical/ointment/apply(mob/living/M, mob/user)
-	..()
+	if(!..())
+		return FALSE
+
 	if(!ishuman(M))
 		return TRUE
 

@@ -302,9 +302,10 @@
 	stack_trace("[type]/on_implied() not implemented!")
 
 /datum/ruleset/implied/roundstart_pre_setup()
-	// antag_amount is always 0 when this proc is called, so we need to update banned_jobs manually
-	if(GLOB.configuration.gamemode.prevent_mindshield_antags)
+	// The parent stops early when nothing was implied, but latespawns still need banned_jobs.
+	if(!antag_amount && GLOB.configuration.gamemode.prevent_mindshield_antags)
 		banned_jobs += protected_jobs
+	return ..()
 
 /datum/ruleset/implied/mindflayer
 	name = "Mindflayer"

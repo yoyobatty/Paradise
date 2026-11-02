@@ -89,15 +89,14 @@
 
 	/// Checks for empty numbers - bank accounts, etc.
 	if(max_value == 0)
-		src.min_value = 0
-		if(default)
-			src.default = 0
+		src.min_value = min(min_value, 0)
+		src.default = min(default, 0)
 
 	/// Sanity check
-	if(default < min_value)
-		src.default = min_value
+	if(src.default < src.min_value)
+		src.default = src.min_value
 
-	if(default > max_value)
+	if(src.default > max_value)
 		CRASH("Default value is greater than max value.")
 
 /datum/tgui_input_number/Destroy(force)

@@ -22,6 +22,8 @@
 /// Cancels the camera's follow target if tracking has stopped, and lights up nearby lights if the AI has
 /// "Toggle Camera Lights" enabled
 /mob/camera/eye/ai/relaymove(mob/user, direct)
+	if(istype(ai.loc, /obj/item/aicard)) // No camera network on a card.
+		return
 	..()
 	if(!ai.tracking)
 		ai.camera_follow = null

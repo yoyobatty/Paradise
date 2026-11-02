@@ -328,12 +328,15 @@
 		var/obj/item/tcgcard_hand/hand = used
 		for(var/obj/item/tcg_card/card in hand.cards)
 			if(contents.len >= max_cards)
-				return ITEM_INTERACT_COMPLETE
+				break
 
 			card.flipped = flipped
 			card.forceMove(src)
 			hand.cards.Remove(card)
 		update_icon()
+		hand.update_icon()
+		if(!length(hand.cards))
+			qdel(hand)
 		return ITEM_INTERACT_COMPLETE
 
 	return ..()

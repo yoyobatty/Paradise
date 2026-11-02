@@ -1051,7 +1051,7 @@ Note that amputating the affected organ does in fact remove the infection from t
 	for(var/obj/item/I in embedded_objects)
 		UnregisterSignal(I, COMSIG_MOVABLE_MOVED) // Else it gets removed from the embedded list
 		I.forceMove(src)
-		RegisterSignal(I, COMSIG_MOVABLE_MOVED, PROC_REF(remove_embedded_object))
+		RegisterSignal(I, COMSIG_MOVABLE_MOVED, PROC_REF(on_embedded_object_moved))
 
 	. = ..()
 
@@ -1136,17 +1136,26 @@ Note that amputating the affected organ does in fact remove the infection from t
 	embedded_objects -= I
 	UnregisterSignal(I, COMSIG_MOVABLE_MOVED)
 
+/// The throw that embedded an item can still report its move after the item is inside, so only count it if it really left.
+/obj/item/organ/external/proc/on_embedded_object_moved(obj/item/I)
+	SIGNAL_HANDLER
+	if(I.loc == src || (owner && I.loc == owner))
+		return
+	remove_embedded_object(I)
+	if(owner && !owner.has_embedded_objects())
+		owner.clear_alert("embeddedobject")
+
 /obj/item/organ/external/proc/drop_embedded_objects()
 	var/turf/T = get_turf(src)
 	for(var/obj/item/I in embedded_objects)
 		remove_embedded_object(I)
-		forceMove(T)
+		I.forceMove(T)
 
 /obj/item/organ/external/proc/add_embedded_object(obj/item/I)
 	owner.throw_alert("embeddedobject", /atom/movable/screen/alert/embeddedobject)
 	embedded_objects += I
 	I.forceMove(owner)
-	RegisterSignal(I, COMSIG_MOVABLE_MOVED, PROC_REF(remove_embedded_object))
+	RegisterSignal(I, COMSIG_MOVABLE_MOVED, PROC_REF(on_embedded_object_moved))
 
 //Remove all embedded objects from all limbs on the carbon mob
 /mob/living/carbon/human/proc/remove_all_embedded_objects()

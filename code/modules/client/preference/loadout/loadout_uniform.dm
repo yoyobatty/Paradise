@@ -501,7 +501,7 @@
 	allowed_roles = list("Chaplain")
 
 //Command and dignitary
-/datum/gear/uniform/skirt/captain
+/datum/gear/uniform/skirt/job/captain
 	display_name = "Skirt, captain"
 	path = /obj/item/clothing/under/rank/captain/skirt
 	allowed_roles = list("Captain")

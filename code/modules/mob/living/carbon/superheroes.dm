@@ -195,6 +195,7 @@
 					to_chat(user, SPAN_NOTICE("[target.p_they(TRUE)] are enslaved by Nanotrasen. You feel [target.p_their()] interest in your cause wane and disappear."))
 					user.visible_message(SPAN_DANGER("[user] stops talking for a moment, then moves back away from [target]."))
 					to_chat(target, SPAN_DANGER("Your mindshield bio-chip activates, protecting you from conversion."))
+					recruiting = FALSE
 					return
 			if(3)
 				to_chat(user, SPAN_NOTICE("You begin filling out the application form with [target]."))
