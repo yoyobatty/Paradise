@@ -258,8 +258,10 @@
 
 	REMOVE_FROM_SMOOTH_QUEUE(src)
 	QDEL_NULL(reagents)
-	invisibility = INVISIBILITY_MAXIMUM
-	LAZYCLEARLIST(overlays)
+	// A turf only gets deleted when ChangeTurf() puts a new turf in its place, which comes with its own look anyway
+	if(!isturf(src))
+		invisibility = INVISIBILITY_MAXIMUM
+		LAZYCLEARLIST(overlays)
 	LAZYCLEARLIST(priority_overlays)
 
 	managed_overlays = null
