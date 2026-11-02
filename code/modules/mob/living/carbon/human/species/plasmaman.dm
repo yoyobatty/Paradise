@@ -213,7 +213,7 @@
 		H.drop_item_to_ground(H.l_hand)
 		H.equip_or_collect(internal_tank, ITEM_SLOT_LEFT_HAND)
 		to_chat(H, SPAN_BOLDANNOUNCEOOC("Could not find an empty slot for internals! Please report this as a bug."))
-		stack_trace("Failed to equip plasmaman with a tank, with the job [J.type]")
+		stack_trace("Failed to equip plasmaman with a tank, with the job [J?.type]")
 	H.internal = internal_tank
 	to_chat(H, SPAN_NOTICE("You are now running on plasma internals from [internal_tank]. Oxygen is toxic to your species, so you must breathe plasma only."))
 	H.update_action_buttons_icon()

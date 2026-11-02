@@ -582,7 +582,7 @@
 	//Mind Flayer code
 	var/datum/antagonist/mindflayer/MF = user?.mind?.has_antag_datum(/datum/antagonist/mindflayer)
 	var/obj/item/organ/internal/brain/victims_brain = target.get_int_organ(/obj/item/organ/internal/brain) //In case someone's brain isn't in their head
-	if(MF && !MF.harvesting && user.zone_selected == victims_brain.parent_organ && target != user)
+	if(MF && !MF.harvesting && victims_brain && user.zone_selected == victims_brain.parent_organ && target != user)
 		MF.handle_harvest(target)
 		add_attack_logs(user, target, "flayerdrain")
 		return

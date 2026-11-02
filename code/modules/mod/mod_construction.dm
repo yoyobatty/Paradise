@@ -178,6 +178,7 @@
 		if(CORE_STEP)
 			if(tool.use_tool(src, user, 0, volume = 30))
 				core.forceMove(drop_location())
+				core = null
 				to_chat(user, SPAN_NOTICE("Core removed."))
 				construction_step = START_STEP
 				update_icon(UPDATE_ICON_STATE)

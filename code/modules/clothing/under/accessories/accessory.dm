@@ -382,6 +382,10 @@
 		var/obj/item/pda/pda = used
 		id_card = pda.id
 
+	if(!id_card)
+		to_chat(user, SPAN_WARNING("[used] has no ID in it!"))
+		return ITEM_INTERACT_COMPLETE
+
 	if((ACCESS_SEC_DOORS in id_card.access) || emagged)
 		to_chat(user, SPAN_NOTICE("You imprint your ID details onto the badge."))
 		stored_name = id_card.registered_name

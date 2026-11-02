@@ -379,6 +379,8 @@
 	var/active = FALSE
 	/// Is the armor disabled, and prevented from reactivating temporarly?
 	var/disabled = FALSE
+	/// Whether it was switched on when it got disabled, so rebooting doesn't turn it on by itself.
+	var/active_before_disable = FALSE
 	icon_state = "reactiveoff"
 	blood_overlay_type = "armor"
 	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, RAD = 0, FIRE = INFINITY, ACID = INFINITY)
@@ -420,11 +422,11 @@
 	if(..())
 		return ITEM_INTERACT_COMPLETE
 
-	active = !(active)
 	if(disabled)
 		to_chat(user, SPAN_WARNING("[src] is disabled and rebooting!"))
 		return ITEM_INTERACT_COMPLETE
 
+	active = !(active)
 	if(active)
 		to_chat(user, SPAN_NOTICE("[src] is now active."))
 		icon_state = "reactive"
@@ -456,6 +458,8 @@
 	return cell
 
 /obj/item/clothing/suit/armor/reactive/proc/disable(disable_time = 0)
+	if(!disabled)
+		active_before_disable = active
 	active = FALSE
 	disabled = TRUE
 	icon_state = "reactiveoff"
@@ -466,8 +470,8 @@
 
 /obj/item/clothing/suit/armor/reactive/proc/reboot()
 	disabled = FALSE
-	active = TRUE
-	icon_state = "reactive"
+	active = active_before_disable
+	icon_state = active ? "reactive" : "reactiveoff"
 	if(ishuman(loc))
 		var/mob/living/carbon/human/C = loc
 		C.update_inv_wear_suit()

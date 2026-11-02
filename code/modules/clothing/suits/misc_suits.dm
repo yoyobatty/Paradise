@@ -291,17 +291,21 @@
 	min_cold_protection_temperature = SPACE_SUIT_MIN_TEMP_PROTECT
 	hoodtype = /obj/item/clothing/head/hooded/carp_hood/dragon
 	insert_max = 1
+	/// Whether we've added "carp" to the wearer's factions.
+	var/gave_carp_faction = FALSE
 
 /obj/item/clothing/suit/hooded/carp_costume/dragon/equipped(mob/user, slot, initial)
 	. = ..()
 	if(slot == ITEM_SLOT_OUTER_SUIT)
 		user.faction += "carp"
+		gave_carp_faction = TRUE
 		to_chat(user, SPAN_CULT("You feel a something gnash in the back of your mind- the carp are your friends, not your foe."))
 		playsound(loc, 'sound/weapons/bite.ogg', 35, TRUE)
 
 /obj/item/clothing/suit/hooded/carp_costume/dragon/dropped(mob/user)
 	. = ..()
-	if(user)
+	if(user && gave_carp_faction)
+		gave_carp_faction = FALSE
 		user.faction -= "carp"
 		to_chat(user, SPAN_CULT("A sudden calm fills the gnashing void of your mind- you're alone now."))
 

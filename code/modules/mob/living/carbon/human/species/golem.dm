@@ -62,7 +62,7 @@
 
 /datum/species/golem/on_species_gain(mob/living/carbon/human/H)
 	..()
-	if(H.mind)
+	if(H.mind && !H.mind.special_role)
 		H.mind.assigned_role = "Golem"
 		if(owner)
 			H.mind.special_role = SPECIAL_ROLE_GOLEM
@@ -586,6 +586,7 @@
 /datum/species/golem/bananium/on_species_loss(mob/living/carbon/C)
 	. = ..()
 	C.RemoveElement(/datum/element/waddling)
+	C.DeleteComponent(/datum/component/slippery)
 
 /datum/species/golem/bananium/get_random_name()
 	var/clown_name = pick(GLOB.clown_names)
@@ -650,6 +651,10 @@
 	info_text = "As a <span class='danger'>Tranquillite Golem</span>, you are capable of creating invisible walls, and can regenerate by drinking your bottle of Nothing."
 	unarmed_type = /datum/unarmed_attack/golem/tranquillite
 
+/datum/species/golem/tranquillite
+	/// Whether this golem got its mime powers from the species, so a real mime keeps theirs.
+	var/gave_mime_powers = FALSE
+
 /datum/species/golem/tranquillite/get_random_name()
 	var/mime_name = pick(GLOB.mime_names)
 	var/golem_name = "[prefix] [mime_name]"
@@ -660,10 +665,18 @@
 	H.equip_to_slot_or_del(new 	/obj/item/clothing/head/beret(H), ITEM_SLOT_HEAD)
 	H.equip_to_slot_or_del(new 	/obj/item/reagent_containers/drinks/bottle/bottleofnothing(H), ITEM_SLOT_RIGHT_POCKET)
 	H.equip_to_slot_or_del(new 	/obj/item/cane(H), ITEM_SLOT_LEFT_HAND)
-	if(H.mind)
+	if(H.mind && !H.mind.miming)
 		H.mind.AddSpell(new /datum/spell/aoe/conjure/build/mime_wall(null))
 		H.mind.AddSpell(new /datum/spell/mime/speak(null))
 		H.mind.miming = TRUE
+		gave_mime_powers = TRUE
+
+/datum/species/golem/tranquillite/on_species_loss(mob/living/carbon/C)
+	. = ..()
+	if(gave_mime_powers && C.mind)
+		C.mind.RemoveSpell(/datum/spell/aoe/conjure/build/mime_wall)
+		C.mind.RemoveSpell(/datum/spell/mime/speak)
+		C.mind.miming = FALSE
 
 /datum/unarmed_attack/golem/tranquillite
 	attack_sound = null

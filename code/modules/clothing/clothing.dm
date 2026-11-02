@@ -1180,8 +1180,8 @@
 	return TRUE
 
 /obj/item/clothing/under/item_interaction(mob/living/user, obj/item/used, list/modifiers)
-	if(istype(used, /obj/item/clothing/accessory))
-		attach_accessory(used, user, TRUE)
+	if(istype(used, /obj/item/clothing/accessory) && attach_accessory(used, user, TRUE))
+		return ITEM_INTERACT_COMPLETE
 
 	if(length(accessories))
 		for(var/obj/item/clothing/accessory/A in accessories)

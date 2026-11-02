@@ -44,7 +44,7 @@
 		return ITEM_INTERACT_COMPLETE
 
 /obj/item/clothing/head/helmet/item_interaction(mob/living/user, obj/item/used, list/modifiers)
-	if(!issignaler(used))
+	if(!issignaler(used) || type != /obj/item/clothing/head/helmet)
 		return ..()
 	var/obj/item/assembly/signaler/S = used
 	if(S.secured)

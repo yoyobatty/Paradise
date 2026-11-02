@@ -88,6 +88,8 @@
 	tgui_id = "rad_counter"
 	materials = list(MAT_IRIDIUM = 2500, MAT_GLASS = 5000)
 	var/original_armor = null // coppied from the CBRN module, unsure if this is the "correct" way todo this
+	/// flags_2 of each part before this turned on, by UID, since some suits have radiation protection of their own.
+	var/list/original_flags = list()
 
 /obj/item/mod/module/rad_protection/on_suit_activation()
 	. = ..()
@@ -95,14 +97,15 @@
 	for(var/obj/item/part as anything in parts)
 		original_armor = part.armor
 		part.armor = part.armor.modifyRating(rad_value = INFINITY) // definining the specific value feels better rather than 0, 0, 0, 0, 0, INFINITY
-		part.flags_2 = RAD_PROTECT_CONTENTS_2 | RAD_NO_CONTAMINATE_2
+		original_flags[part.UID()] = part.flags_2
+		part.flags_2 |= RAD_PROTECT_CONTENTS_2 | RAD_NO_CONTAMINATE_2
 
 /obj/item/mod/module/rad_protection/on_suit_deactivation(deleting = FALSE)
 	. = ..()
 	var/list/parts = mod.mod_parts + mod
 	for(var/obj/item/part as anything in parts)
 		part.armor = original_armor
-		part.flags_2 = initial(part.flags_2)
+		part.flags_2 = original_flags[part.UID()]
 
 /obj/item/mod/module/rad_protection/add_ui_data()
 	. = ..()

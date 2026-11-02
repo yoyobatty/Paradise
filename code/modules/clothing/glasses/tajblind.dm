@@ -65,6 +65,8 @@
 			Availability on the wider market is highly restricted as a result of their cultural importance, as well as the patent held by the Alchemists Guild, and the lenses are very hard to reverse engineer. Popular theories suggest this as a result of the unique materials available on Adhomai, or the inability to recreate the light conditions of the Tajara homeworld."
 
 /obj/item/clothing/glasses/hud/tajblind/CtrlShiftClick(mob/user, modifiers)
+	if(!Adjacent(user))
+		return
 	if(!initial(hud_types))
 		return
 	if(electronics)
@@ -96,6 +98,8 @@
 	desc += "<br>[SPAN_NOTICE("It has an optical meson scanner integrated into it.")]"
 
 /obj/item/clothing/glasses/hud/tajblind/meson/CtrlShiftClick(mob/user, modifiers)
+	if(!Adjacent(user))
+		return
 	if(electronics)
 		electronics = FALSE
 		if(user.get_item_by_slot(ITEM_SLOT_EYES) == src)
@@ -134,6 +138,8 @@
 	desc += "<br>[SPAN_NOTICE("It has science goggles integrated into it.")]"
 
 /obj/item/clothing/glasses/hud/tajblind/sci/CtrlShiftClick(mob/user, modifiers)
+	if(!Adjacent(user))
+		return
 	if(electronics)
 		electronics = FALSE
 		scan_reagents = FALSE
@@ -219,6 +225,8 @@
 	desc += "<br>[SPAN_NOTICE("It has an optical meson scanner integrated into it.")]"
 
 /obj/item/clothing/glasses/hud/tajblind/shaded/meson/CtrlShiftClick(mob/user, modifiers)
+	if(!Adjacent(user))
+		return
 	if(electronics)
 		electronics = FALSE
 		if(user.get_item_by_slot(ITEM_SLOT_EYES) == src)
@@ -257,6 +265,8 @@
 	desc += "<br>[SPAN_NOTICE("It has science goggles integrated into it.")]"
 
 /obj/item/clothing/glasses/hud/tajblind/shaded/sci/CtrlShiftClick(mob/user, modifiers)
+	if(!Adjacent(user))
+		return
 	if(electronics)
 		electronics = FALSE
 		scan_reagents = FALSE

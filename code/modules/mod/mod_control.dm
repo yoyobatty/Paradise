@@ -414,6 +414,7 @@
 	if(screwdriver.use_tool(src, user, 1 SECONDS))
 		if(active || activating)
 			to_chat(user, SPAN_WARNING("Deactivate the suit first!"))
+			return TRUE
 		to_chat(user, SPAN_NOTICE("Cover [open ? "closed" : "opened"]"))
 		open = !open
 	return TRUE

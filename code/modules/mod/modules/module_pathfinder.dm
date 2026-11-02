@@ -123,7 +123,7 @@
 		to_chat(imp_in, SPAN_WARNING("The implant does not recognize you as a known species!"))
 		return FALSE
 	var/mob/living/carbon/human/H = imp_in
-	set_path(get_path_to(module.mod, target, 150, access = H?.wear_id.GetAccess(), simulated_only = FALSE)) //Yes, science proves jetpacks work in space. More at 11.
+	set_path(get_path_to(module.mod, target, 150, access = H.wear_id?.GetAccess(), simulated_only = FALSE)) //Yes, science proves jetpacks work in space. More at 11.
 	if(!length(path)) //Cannot reach target. Give up and announce the issue.
 		to_chat(H, SPAN_WARNING("No viable path found!"))
 		return FALSE
@@ -185,9 +185,11 @@
 			addtimer(CALLBACK(src, PROC_REF(mod_step)), 2 * (step_number - 1))
 	if(tries >= 5)
 		set_path(null)
+		tries = 0
+		return FALSE
 	var/target = get_turf(imp_in)
 	var/mob/living/carbon/human/H = imp_in
-	set_path(get_path_to(module.mod, target, 150, access = H?.wear_id.GetAccess(), simulated_only = FALSE)) //Yes, science proves jetpacks work in space. More at 11.
+	set_path(get_path_to(module.mod, target, 150, access = H.wear_id?.GetAccess(), simulated_only = FALSE)) //Yes, science proves jetpacks work in space. More at 11.
 	addtimer(CALLBACK(src, PROC_REF(mod_move), target), 6) //I'll value this properly soon
 
 	return TRUE

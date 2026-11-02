@@ -89,7 +89,9 @@
 	return ITEM_INTERACT_COMPLETE
 
 /obj/item/clothing/shoes/orange/item_interaction(mob/living/user, obj/item/used, list/modifiers)
-	if(!istype(used, /obj/item/restraints/handcuffs) || shackles)
+	if(!istype(used, /obj/item/restraints/handcuffs))
+		return ..()
+	if(shackles)
 		return ITEM_INTERACT_COMPLETE
 
 	if(user.drop_item())

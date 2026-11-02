@@ -38,6 +38,9 @@
 /obj/item/clothing/head/helmet/space/hardsuit/Destroy()
 	STOP_PROCESSING(SSobj, src)
 	QDEL_NULL(soundloop)
+	if(suit?.helmet == src)
+		suit.helmet = null
+		suit.suit_toggled = FALSE
 	suit = null
 	return ..()
 

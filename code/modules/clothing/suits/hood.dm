@@ -24,7 +24,7 @@
 
 /obj/item/clothing/suit/hooded/clean_blood(radiation_clean)
 	. = ..()
-	hood.clean_blood()
+	hood?.clean_blood()
 
 /obj/item/clothing/suit/hooded/ui_action_click()
 	ToggleHood()
@@ -83,6 +83,10 @@
 	var/obj/item/clothing/suit/hooded/suit
 
 /obj/item/clothing/head/hooded/Destroy()
+	if(suit?.hood == src)
+		suit.hood = null
+		suit.suit_adjusted = FALSE
+		suit.icon_state = initial(suit.icon_state)
 	suit = null
 	return ..()
 

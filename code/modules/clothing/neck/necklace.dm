@@ -35,7 +35,8 @@
 
 /obj/item/clothing/neck/necklace/locket/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(!istype(used, /obj/item/paper) && !istype(used, /obj/item/photo))
-		to_chat(user, SPAN_WARNING("Only photographs and papers will fit inside [src]!"))
+		if(open)
+			to_chat(user, SPAN_WARNING("Only photographs and papers will fit inside [src]!"))
 		return ..()
 
 	if(!open)

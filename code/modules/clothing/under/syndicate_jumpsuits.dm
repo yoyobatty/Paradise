@@ -49,7 +49,7 @@
 
 /obj/item/clothing/under/syndicate/silicon_cham/dropped(mob/user)
 	. = ..()
-	if(user)
+	if(user && HAS_TRAIT_FROM(user, TRAIT_AI_UNTRACKABLE, "silicon_cham[UID()]"))
 		REMOVE_TRAIT(user, TRAIT_AI_UNTRACKABLE, "silicon_cham[UID()]")
 		user.set_invisible(INVISIBILITY_MINIMUM)
 		to_chat(user, SPAN_NOTICE("You feel a slight shiver as the cybernetic obfuscators deactivate."))

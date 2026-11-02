@@ -72,7 +72,7 @@
 /datum/species/drask/do_compressor_grind(mob/living/carbon/human/H)
 	new /obj/item/soap(H.loc)
 
-/datum/species/drask/skin_tone_from_body_color(datum/species/old_species, body_color)
+/datum/species/drask/skin_tone_from_body_color(body_color)
 	return 35 - (220 - ceil(rgb2num(body_color, COLORSPACE_HSL)[3] * 2.2))
 
 /datum/species/drask/skin_tone_to_hex(skin_tone)
