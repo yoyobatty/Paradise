@@ -163,6 +163,7 @@
 /datum/theft_objective/anomalous_particulate
 	name = "Anomalous particulate."
 	objective_name_overide = "Collect 3 clouds of anomalous particulate, and return with the PPPProcessor. Check your bag for further instructions"
+	typepath = /obj/item/ppp_processor
 	special_equipment = /obj/item/storage/box/syndie_kit/anomalous_particulate
 	job_possession = FALSE
 

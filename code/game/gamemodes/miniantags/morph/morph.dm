@@ -102,7 +102,7 @@
 		eat_self_message = SPAN_WARNING("You start eating [A]... disgusting....")
 	else
 		eat_self_message = SPAN_NOTICE("You start eating [A].")
-	visible_message(SPAN_WARNING("[src] starts eating [target]!"), eat_self_message, "You hear loud crunching!")
+	visible_message(SPAN_WARNING("[src] starts eating [A]!"), eat_self_message, "You hear loud crunching!")
 	if(do_after(src, 3 SECONDS, target = A))
 		if(food_value + gathered_food < 0)
 			to_chat(src, SPAN_WARNING("You can't force yourself to eat more disgusting items. Eat some living things first."))

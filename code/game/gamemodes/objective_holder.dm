@@ -32,7 +32,7 @@
 /datum/objective_holder/proc/clear(check_type)
 	for(var/datum/objective/Objective as anything in objectives)
 		if(check_type && !istype(Objective, check_type))
-			return
+			continue
 		remove_objective(Objective)
 		. = TRUE
 

@@ -185,6 +185,7 @@
 
 /obj/item/organ/internal/heart/gland/ventcrawling/remove(mob/living/carbon/M, special = 0)
 	owner.ventcrawler = initial(owner.ventcrawler)
+	return ..()
 
 /obj/item/organ/internal/heart/gland/viral
 	cooldown_low = 1800

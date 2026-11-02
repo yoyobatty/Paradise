@@ -207,9 +207,9 @@
 /obj/structure/cult/functional/forge/item_interaction(mob/living/user, obj/item/I, list/modifiers)
 	if(istype(I, /obj/item/grab))
 		var/obj/item/grab/G = I
-		if(!iscarbon(G.affecting))
+		if(!ishuman(G.affecting))
 			return ITEM_INTERACT_COMPLETE
-		if(G.affecting == LAVA_PROOF)
+		if("lava" in G.affecting.weather_immunities)
 			to_chat(user, SPAN_WARNING("[G.affecting] is immune to lava!"))
 			return ITEM_INTERACT_COMPLETE
 		if(G.affecting.stat == DEAD)

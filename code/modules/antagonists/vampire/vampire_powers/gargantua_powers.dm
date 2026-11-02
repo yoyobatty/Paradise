@@ -256,7 +256,7 @@
 	// First we leap towards the enemy target
 	user.add_stun_absorption("gargantua", INFINITY, 2) // We temporarily make the gargantua immune to stuns to stop any matrix fuckery from happening
 	animate(user, 1 SECONDS, pixel_z = 64, flags = ANIMATION_RELATIVE, easing = SINE_EASING|EASE_OUT)
-	addtimer(CALLBACK(user, user.spin(12, 1), 3, 2), 0.3 SECONDS)
+	addtimer(CALLBACK(user, TYPE_PROC_REF(/mob, spin), 12, 1), 0.3 SECONDS)
 	var/angle = get_angle(user, target) + 180
 	user.transform = user.transform.Turn(angle)
 	for(var/i in 1 to 10)

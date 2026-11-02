@@ -342,6 +342,7 @@ GLOBAL_LIST_EMPTY(multiverse)
 		var/list/candidates = SSghost_spawns.poll_candidates("Do you want to play as the wizard apprentice of [user.real_name]?", ROLE_WIZARD, TRUE, 10 SECONDS, source = source)
 		if(!length(candidates))
 			to_chat(user, "You fail to summon any copies of yourself. Perhaps you should try again in a bit.")
+			return ITEM_INTERACT_COMPLETE
 		var/mob/C = pick(candidates)
 		spawn_copy(C.client, get_turf(user.loc), user)
 		to_chat(user, SPAN_WARNING("<B>The sword flashes, and you find yourself face to face with...you!</B>"))

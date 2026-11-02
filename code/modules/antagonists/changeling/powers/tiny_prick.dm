@@ -86,7 +86,8 @@
 
 /datum/action/changeling/sting/extract_dna/can_sting(mob/user, mob/target)
 	if(..())
-		return cling.can_absorb_dna(target)
+		// can_absorb_dna() only warns about DNA we have, because Absorb DNA still has to work on someone we stung.
+		return cling.can_absorb_dna(target) && !cling.get_dna(target.dna)
 
 /datum/action/changeling/sting/extract_dna/sting_action(mob/user, mob/living/carbon/human/target)
 	add_attack_logs(user, target, "Extraction sting (changeling)")

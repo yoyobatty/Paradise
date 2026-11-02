@@ -180,8 +180,9 @@
 		qdel(to_add)
 		return FALSE
 
-	if(to_add.current_cost > get_swarms())
-		send_swarm_message("We need [to_add.current_cost - get_swarms()] more swarm\s for this...")
+	// A new spell has no current_cost yet, base_cost is what gets charged below.
+	if(to_add.base_cost > get_swarms())
+		send_swarm_message("We need [to_add.base_cost - get_swarms()] more swarm\s for this...")
 		qdel(to_add)
 		return FALSE
 

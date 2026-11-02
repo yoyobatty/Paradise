@@ -32,6 +32,7 @@
 	var/obj/item/W = new weapon_type(user, silent, src)
 	user.put_in_hands(W)
 	cling.chem_recharge_slowdown += recharge_slowdown
+	RegisterSignal(W, COMSIG_PARENT_QDELETING, PROC_REF(on_weapon_deleted))
 	RegisterSignal(user, COMSIG_MOB_WILLINGLY_DROP, PROC_REF(retract), override = TRUE)
 	RegisterSignal(user, COMSIG_MOB_WEAPON_APPEARS, PROC_REF(retract), override = TRUE)
 	playsound(owner.loc, 'sound/effects/bone_break_1.ogg', 100, TRUE)
@@ -56,7 +57,11 @@
 	if(done && !silent)
 		playsound(owner.loc, 'sound/effects/bone_break_2.ogg', 100, TRUE)
 		owner.visible_message(SPAN_WARNING("With a sickening crunch, [owner] reforms [owner.p_their()] [weapon_name_simple] into an arm!"), SPAN_NOTICE("We assimilate the [weapon_name_simple] back into our body."), SPAN_WARNING("You hear organic matter ripping and tearing!"))
-	cling.chem_recharge_slowdown -= recharge_slowdown // We handle this here because more things can retract without going through try_to_sting
+
+/// The slowdown ends with the weapon, because losing the arm or using Last Resort deletes it without a retract.
+/datum/action/changeling/weapon/proc/on_weapon_deleted(datum/source)
+	SIGNAL_HANDLER
+	cling.chem_recharge_slowdown -= recharge_slowdown
 
 //Parent to space suits and armor.
 /datum/action/changeling/suit
@@ -90,7 +95,6 @@
 			H.add_splatter_floor()
 			playsound(H.loc, 'sound/effects/splat.ogg', 50, 1) //So real sounds
 
-		cling.chem_recharge_slowdown -= recharge_slowdown
 		return FALSE
 	..(H, target)
 
@@ -104,11 +108,18 @@
 			to_chat(user, "\the [user.head] is stuck on your head, you cannot grow a [helmet_name_simple] over it!")
 			return FALSE
 
-	user.equip_to_slot_if_possible(new suit_type(user), ITEM_SLOT_OUTER_SUIT, TRUE, TRUE)
+	var/obj/item/suit = new suit_type(user)
+	user.equip_to_slot_if_possible(suit, ITEM_SLOT_OUTER_SUIT, TRUE, TRUE)
 	user.equip_to_slot_if_possible(new helmet_type(user), ITEM_SLOT_HEAD, TRUE, TRUE)
 
 	cling.chem_recharge_slowdown += recharge_slowdown
+	RegisterSignal(suit, COMSIG_PARENT_QDELETING, PROC_REF(on_suit_deleted))
 	return TRUE
+
+/// The slowdown ends with the suit, because Last Resort or sawing the armor off deletes it without a cast off.
+/datum/action/changeling/suit/proc/on_suit_deleted(datum/source)
+	SIGNAL_HANDLER
+	cling.chem_recharge_slowdown -= recharge_slowdown
 
 
 //fancy headers yo

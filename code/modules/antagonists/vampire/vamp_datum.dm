@@ -96,9 +96,12 @@ RESTRICT_TYPE(/datum/antagonist/vampire)
 	if(hud?.vampire_blood_display)
 		hud.remove_vampire_hud()
 	mob_override.dna?.species.hunger_icon = initial(mob_override.dna.species.hunger_icon)
-	owner.current.alpha = 255
-	REMOVE_TRAITS_IN(owner.current, "vampire")
-	UnregisterSignal(owner, COMSIG_ATOM_HOLY_ATTACK)
+	mob_override.alpha = 255
+	if(HAS_TRAIT_FROM(mob_override, TRAIT_FORCE_DOORS, VAMPIRE_TRAIT))
+		mob_override.move_resist = MOVE_FORCE_DEFAULT
+		mob_override.status_flags |= CANPUSH
+	REMOVE_TRAITS_IN(mob_override, "vampire")
+	UnregisterSignal(mob_override, COMSIG_ATOM_HOLY_ATTACK)
 
 /datum/antagonist/vampire/exfiltrate(mob/living/carbon/human/extractor, obj/item/radio/radio)
 	remove_all_powers()

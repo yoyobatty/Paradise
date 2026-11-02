@@ -92,7 +92,7 @@ RESTRICT_TYPE(/datum/antagonist/changeling)
 /datum/antagonist/changeling/greet()
 	. = ..()
 	SEND_SOUND(owner.current, sound('sound/ambience/antag/ling_alert.ogg'))
-	. += SPAN_DANGER("Use say \":g message\" to communicate with your fellow changelings. Remember: you get all of their absorbed DNA if you absorb a fellow changeling.")
+	. += SPAN_DANGER("Use say \":g message\" to communicate with your fellow changelings. Remember: you get their chemicals and absorb count if you absorb a fellow changeling.")
 
 /datum/antagonist/changeling/farewell()
 	to_chat(owner.current, SPAN_BIGGERDANGER("<b>You grow weak and lose your powers! You are no longer a changeling and are stuck in your current form!</b>"))

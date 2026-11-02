@@ -14,11 +14,10 @@ RESTRICT_TYPE(/datum/antagonist/mindslave/thrall)
 	SSticker.mode.vampire_enthralled -= owner
 
 /datum/antagonist/mindslave/thrall/apply_innate_effects(mob/living/mob_override)
-	mob_override = ..()
-	var/datum/mind/M = mob_override.mind
-	M.AddSpell(new /datum/spell/vampire/thrall_commune)
+	. = ..()
+	owner.AddSpell(new /datum/spell/vampire/thrall_commune)
 
 /datum/antagonist/mindslave/thrall/remove_innate_effects(mob/living/mob_override)
-	mob_override = ..()
-	var/datum/mind/M = mob_override.mind
-	M.RemoveSpell(/datum/spell/vampire/thrall_commune)
+	. = ..()
+	// The old body has already lost its mind during a body change, so this has to use owner.
+	owner.RemoveSpell(/datum/spell/vampire/thrall_commune)

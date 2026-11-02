@@ -56,7 +56,7 @@ RESTRICT_TYPE(/datum/antagonist/traitor)
 		A.remove_malf_abilities()
 		QDEL_NULL(A.malf_picker)
 		var/datum/atom_hud/data/human/malf_ai/H = GLOB.huds[DATA_HUD_MALF_AI]
-		H.remove_hud_from(usr, src)
+		H.remove_hud_from(A, src)
 		for(var/mob/living/silicon/robot/borg in A.connected_robots)
 			H.remove_hud_from(borg, src)
 

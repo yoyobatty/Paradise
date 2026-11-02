@@ -303,10 +303,8 @@
 
 /datum/game_mode/proc/is_operatives_are_dead()
 	for(var/datum/mind/operative_mind in syndicates)
-		if(!ishuman(operative_mind.current))
-			if(operative_mind.current)
-				if(operative_mind.current.stat!=2)
-					return 0
+		if(ishuman(operative_mind.current) && operative_mind.current.stat != DEAD)
+			return 0
 	return 1
 
 
