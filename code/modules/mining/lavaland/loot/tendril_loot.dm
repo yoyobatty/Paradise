@@ -340,7 +340,8 @@
 	if(SEND_SIGNAL(user, COMSIG_MOVABLE_TELEPORTING, get_turf(linked)) & COMPONENT_BLOCK_TELEPORT)
 		return ITEM_INTERACT_COMPLETE
 
-	if(is_station_level(user.z) && !iswizard(user)) // specifically not station (instead of lavaland) so it works for explorers potentially
+	var/turf/user_turf = get_turf(user) // A mob in a locker has no z of its own.
+	if(is_station_level(user_turf.z) && !iswizard(user)) // specifically not station (instead of lavaland) so it works for explorers potentially
 		user.visible_message(SPAN_WARNING("[user] begins to channel [src]!"), SPAN_WARNING("You begin channeling [src], cutting through the interference of the station!"))
 		if(!do_after_once(user, 4 SECONDS, TRUE, src, allow_moving = TRUE, must_be_held = TRUE))
 			return ITEM_INTERACT_COMPLETE

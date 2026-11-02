@@ -234,7 +234,7 @@
 
 /obj/item/food/warmdonkpocket/on_exit_storage(obj/item/storage/S)
 	. = ..()
-	if(warm)
+	if(warm && !cool_timer)
 		donk_heat()
 
 /obj/item/food/warmdonkpocket/Post_Consume(mob/living/M)

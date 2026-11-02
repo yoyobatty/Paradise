@@ -17,7 +17,6 @@
 		var/limit
 		for(var/obj/structure/ore_box/B in T)
 			for(var/obj/item/stack/ore/O in B)
-				B.contents -= O
 				unload_mineral(O)
 				limit++
 				if(limit>=10)

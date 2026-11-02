@@ -243,7 +243,7 @@
 			if(!P2.spl)
 				available_nodes -= P2
 				all_nodes -= P2.hash()
-				qdel(P)
+				qdel(P2)
 			else
 				log_debug("Isolated z level at ([P2.x],[P2.y]): [P2.spl.zpos]")
 	P.deactivate()

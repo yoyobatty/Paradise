@@ -2010,7 +2010,7 @@ Eyes need to have significantly high darksight to shine unless the mob has the X
 /mob/living/carbon/human/selfDrink(obj/item/reagent_containers/drinks/toDrink)
 	if(!check_has_mouth())
 		if(!ismachineperson(src))
-			to_chat(src, SPAN_NOTICE("Where do you intend to put \the [src]? You don't have a mouth!"))
+			to_chat(src, SPAN_NOTICE("Where do you intend to put \the [toDrink]? You don't have a mouth!"))
 			return FALSE
 		else
 			to_chat(src, SPAN_NOTICE("You pour a bit of liquid from [toDrink] into your connection port."))

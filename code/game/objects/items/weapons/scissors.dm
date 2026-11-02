@@ -33,6 +33,8 @@
 	var/f_new_style = tgui_input_list(user, "Select a facial hair style", "Grooming", target.generate_valid_facial_hairstyles())
 	// Hair atop head.
 	var/h_new_style = tgui_input_list(user, "Select a hair style", "Grooming", target.generate_valid_hairstyles())
+	if((!f_new_style && !h_new_style) || !user.Adjacent(target))
+		return ITEM_INTERACT_COMPLETE
 	user.visible_message(
 		SPAN_NOTICE("[user] starts cutting [target]'s hair!"),
 		SPAN_NOTICE("You start cutting [target]'s hair!"),

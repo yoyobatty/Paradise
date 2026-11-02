@@ -61,6 +61,9 @@
 		return ITEM_INTERACT_COMPLETE
 
 	if(istype(used, /obj/item/hair_dye_bottle))
+		if(stat & (NOPOWER|BROKEN))
+			to_chat(user, SPAN_WARNING("[src] isn't working!"))
+			return ITEM_INTERACT_COMPLETE
 		var/obj/item/hair_dye_bottle/HD = used
 		user.visible_message(
 			SPAN_NOTICE("[user] fills [HD] up with some dye."),

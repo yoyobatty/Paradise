@@ -10,26 +10,26 @@ do {\
 	if(istype(used, /obj/item/food) && !(used.flags & NODROP))
 		MAKE_CUSTOM_FOOD(used, user, /obj/item/food/customizable/sandwich)
 		return ITEM_INTERACT_COMPLETE
-	..()
+	return ..()
 
 /obj/item/food/bun/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(istype(used, /obj/item/food) && !(used.flags & NODROP))
 		MAKE_CUSTOM_FOOD(used, user, /obj/item/food/customizable/burger)
 		return ITEM_INTERACT_COMPLETE
-	..()
+	return ..()
 
 /obj/item/food/sliceable/flatdough/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 
 	if(istype(used, /obj/item/food) && !(used.flags & NODROP))
 		MAKE_CUSTOM_FOOD(used, user, /obj/item/food/customizable/pizza)
 		return ITEM_INTERACT_COMPLETE
-	..()
+	return ..()
 
 /obj/item/food/boiledspaghetti/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(istype(used, /obj/item/food) && !(used.flags & NODROP))
 		MAKE_CUSTOM_FOOD(used, user, /obj/item/food/customizable/pasta)
 		return ITEM_INTERACT_COMPLETE
-	..()
+	return ..()
 
 /obj/item/trash/plate/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(istype(used, /obj/item/food) && !(used.flags & NODROP))

@@ -89,7 +89,7 @@
 				LAZYADD(dish_drive_contents, I)
 				visible_message(SPAN_NOTICE("[src] beams up [I]!"))
 				I.forceMove(src)
-				SEND_SIGNAL(src, COMSIG_ATOM_DISINFECTED)
+				SEND_SIGNAL(I, COMSIG_ATOM_DISINFECTED)
 				playsound(src, 'sound/items/pshoom.ogg', 15, TRUE)
 				flick("synthesizer_beam", src)
 			else

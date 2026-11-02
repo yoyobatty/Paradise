@@ -287,7 +287,7 @@
 
 /obj/item/lightreplacer/bluespace/update_icon_state() // Does not have an emagged icon state
 	icon_state = "lightreplacer_blue"
-	belt_icon = "lightreplacer_blue"
+	belt_icon = "light_replacer_blue"
 
 /obj/item/lightreplacer/bluespace/emag_act()
 	return  // long range explosions are stupid

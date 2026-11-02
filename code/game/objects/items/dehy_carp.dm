@@ -15,8 +15,6 @@
 
 // Attack self
 /obj/item/toy/plushie/carpplushie/dehy_carp/activate_self(mob/user)
-	if(..())
-		return
 	src.add_fingerprint(user)	// Anyone can add their fingerprints to it with this
 	if(owned)
 		to_chat(user, SPAN_NOTICE("[src] stares up at you with friendly eyes."))

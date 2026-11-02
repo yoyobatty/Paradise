@@ -125,7 +125,7 @@
 
 /obj/item/reagent_containers/drinks/drinkingglass/shotglass/MouseDrop(mob/living/carbon/human/user)
 	if(!ishuman(user))
-		return
+		return ..()
 	if(HAS_TRAIT(user, TRAIT_CLUMSY) && prob(50) && (resistance_flags & ON_FIRE))
 		clumsilyDrink(user)
 	else

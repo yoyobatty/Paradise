@@ -839,7 +839,7 @@
 				if(IS_ACOLYTE(H))
 					H.mind.remove_antag_datum(/datum/antagonist/acolyte)
 					cleansing = FALSE
-					return
+					return ITEM_INTERACT_COMPLETE
 
 				if(IS_CULTIST(H))
 					var/datum/antagonist/cultist/cultist = IS_CULTIST(H)
@@ -862,7 +862,7 @@
 				H.adjustBruteLoss(-5)
 				H.adjustFireLoss(-5)
 
-			cleansing = FALSE
+		cleansing = FALSE
 
 	else
 		to_chat(user, SPAN_NOTICE("Your [msg_cleansing_action] was interrupted."))

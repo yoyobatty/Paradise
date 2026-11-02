@@ -214,6 +214,7 @@
 				usr.gib()
 			else
 				SSblackbox.record_feedback("tally", "arcade_status", 1, "loss_mana_normal")
+			return
 
 	else if((enemy_hp <= 10) && (enemy_mp > 4))
 		previous_event = "[enemy_name] heals for 4 health!"
