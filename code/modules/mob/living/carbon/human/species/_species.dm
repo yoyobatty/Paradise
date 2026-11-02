@@ -287,7 +287,7 @@
 
 	for(var/index in has_organ)
 		var/obj/item/organ/internal/organ_path = has_organ[index]
-		if(initial(organ_path.parent_organ) in bodyparts_to_omit)
+		if(check_zone(initial(organ_path.parent_organ)) in bodyparts_to_omit) // check_zone as eyes live in the head.
 			continue
 
 		// heads up for any brave future coders:
