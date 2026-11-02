@@ -791,6 +791,7 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 	icon_state = "Standard"
 	base_icon_state = "Standard"
 	module.remove_subsystems_and_actions(src)
+	module.handle_death(src, FALSE) // Empties bags and grippers, like when the cyborg dies.
 	QDEL_NULL(module)
 
 	camera.network.Remove(list("Engineering", "Medical", "Mining Outpost"))

@@ -28,7 +28,8 @@
 	origin_test.Fail("could not spawn puppeteer near [src]")
 
 /datum/test_puppeteer/proc/spawn_obj_in_hand(obj_type)
-	var/obj/new_obj = origin_test.allocate(obj_type, null)
+	// Made on the puppet, as a stack made on a random tile can merge into one lying there and delete itself.
+	var/obj/new_obj = origin_test.allocate(obj_type, puppet)
 	if(puppet.put_in_hands(new_obj))
 		return new_obj
 

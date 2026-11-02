@@ -18,6 +18,12 @@
 	var/holocreator_busy = FALSE // To prevent placing multiple holo barriers at once.
 	new_attack_chain = TRUE
 
+/obj/item/holosign_creator/Destroy()
+	for(var/obj/structure/holosign/sign as anything in signs)
+		sign.projector = null
+	signs.Cut()
+	return ..()
+
 /obj/item/holosign_creator/interact_with_atom(atom/target, mob/living/user, list/modifiers)
 	if(isstorage(target) || is_surface(target))
 		return ..()

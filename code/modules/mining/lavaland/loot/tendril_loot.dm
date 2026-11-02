@@ -25,6 +25,20 @@
 	new_attack_chain = TRUE
 	var/obj/item/storage/backpack/shared/bag
 
+/obj/item/shared_storage/Destroy()
+	if(bag)
+		var/obj/item/shared_storage/other_half = (bag.red == src) ? bag.blue : bag.red
+		if(bag.red == src)
+			bag.red = null
+		else
+			bag.blue = null
+		if(!other_half)
+			qdel(bag)
+		else if(bag.loc == src) // The storage lives in one half, so it moves over to keep what's inside.
+			bag.forceMove(other_half)
+		bag = null
+	return ..()
+
 /obj/item/shared_storage/Moved(atom/oldloc, dir, forced = FALSE)
 	. = ..()
 	bag?.update_viewers()
