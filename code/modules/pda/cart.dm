@@ -28,6 +28,8 @@
 	for(var/A in messenger_plugins)
 		var/datum/data/pda/messenger_plugin/P = A
 		P.pda = pda
+		// The messenger sets this again each time the plugin is used, so don't keep the last PDA's messenger around
+		P.messenger = null
 
 /obj/item/cartridge/engineering
 	name = "Power-ON Cartridge"

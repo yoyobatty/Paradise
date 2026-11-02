@@ -238,10 +238,14 @@
 				index++
 				if(index > 3000)
 					break
+				// The message is a list of lines typed by players, so encode each one
+				var/list/message_lines = list()
+				for(var/line in rc.message)
+					message_lines += html_encode(line)
 				// Del - Sender   - Recepient - Message
 				// X   - Al Green - Your Mom  - WHAT UP!?
 				dat += {"<tr><td width = '5%'><center><A href='byond://?src=[UID()];deleter=\ref[rc]' style='color: rgb(255,0,0)'>X</a></center></td><td width='15%'>[rc.send_dpt]</td>
-				<td width='15%'>[rc.rec_dpt]</td><td width='300px'>[rc.message]</td><td width='15%'>[rc.stamp]</td><td width='15%'>[rc.id_auth]</td><td width='15%'>[rc.priority]</td></tr>"}
+				<td width='15%'>[rc.rec_dpt]</td><td width='300px'>[jointext(message_lines, "<br>")]</td><td width='15%'>[rc.stamp]</td><td width='15%'>[rc.id_auth]</td><td width='15%'>[rc.priority]</td></tr>"}
 			dat += "</table>"
 	dat += "</body>"
 	message = defaultmsg
@@ -268,9 +272,21 @@
 
 /obj/machinery/computer/message_monitor/proc/ResetMessage()
 	customsender 	= "System Administrator"
-	customrecepient = null
+	set_custom_recepient(null)
 	custommessage 	= "This is a test, please ignore."
 	customjob 		= "Admin"
+
+/obj/machinery/computer/message_monitor/proc/set_custom_recepient(obj/item/pda/new_recepient)
+	if(customrecepient)
+		UnregisterSignal(customrecepient, COMSIG_PARENT_QDELETING)
+	customrecepient = new_recepient
+	if(customrecepient)
+		RegisterSignal(customrecepient, COMSIG_PARENT_QDELETING, PROC_REF(clear_custom_recepient))
+
+/// Lets go of the chosen PDA when it's deleted, so it can be cleaned up
+/obj/machinery/computer/message_monitor/proc/clear_custom_recepient()
+	SIGNAL_HANDLER
+	customrecepient = null
 
 /obj/machinery/computer/message_monitor/Topic(href, href_list)
 	if(..(href, href_list))
@@ -337,13 +353,13 @@
 					if(dkey && dkey != "")
 						if(src.linkedServer.decryptkey == dkey)
 							var/newkey = trim(input(usr,"Please enter the new key (3 - 16 characters max):"))
-							if(length(newkey) <= 3)
+							if(length(newkey) < 3)
 								message = SPAN_NOTICE("NOTICE: Decryption key too short!")
 							else if(length(newkey) > 16)
 								message = SPAN_NOTICE("NOTICE: Decryption key too long!")
 							else if(newkey && newkey != "")
 								src.linkedServer.decryptkey = newkey
-							message = SPAN_NOTICE("NOTICE: Decryption key set.")
+								message = SPAN_NOTICE("NOTICE: Decryption key set.")
 						else
 							message = incorrectkey
 
@@ -408,10 +424,10 @@
 							if(!PM || !PM.can_receive())
 								continue
 							sendPDAs += P
+						var/obj/item/pda/chosen_pda = null
 						if(GLOB.PDAs && length(GLOB.PDAs) > 0)
-							customrecepient = tgui_input_list(usr, "Select a PDA from the list.", items = sortAtom(sendPDAs))
-						else
-							customrecepient = null
+							chosen_pda = tgui_input_list(usr, "Select a PDA from the list.", items = sortAtom(sendPDAs))
+						set_custom_recepient(chosen_pda)
 
 					//Enter custom job
 					if("RecJob")
@@ -459,12 +475,13 @@
 						//Sender is faking as someone who exists
 						else
 							src.linkedServer.send_pda_message("[customrecepient.owner]", "[PDARec.owner]","[custommessage]")
-							recipient_messenger.tnote.Add(list(list("sent" = 0, "owner" = "[PDARec.owner]", "job" = "[customjob]", "message" = "[custommessage]", "target" ="\ref[PDARec]")))
+							// Stored decoded like the messenger does, since the PDA's window escapes it
+							recipient_messenger.tnote.Add(list(list("sent" = 0, "owner" = "[PDARec.owner]", "job" = "[html_decode(customjob)]", "message" = "[html_decode(custommessage)]", "target" ="[PDARec.UID()]")))
 
-							if(!recipient_messenger.conversations.Find("\ref[PDARec]"))
-								recipient_messenger.conversations.Add("\ref[PDARec]")
+							if(!recipient_messenger.conversations.Find("[PDARec.UID()]"))
+								recipient_messenger.conversations.Add("[PDARec.UID()]")
 
-							recipient_messenger.notify("<b>Message from [PDARec.owner] ([customjob]), </b>\"[custommessage]\" (<a href='byond://?src=[recipient_messenger.UID()];choice=Message;target=\ref[PDARec]'>Reply</a>)")
+							recipient_messenger.notify("<b>Message from [PDARec.owner] ([customjob]), </b>\"[custommessage]\" (<a href='byond://?src=[recipient_messenger.UID()];choice=Message;target=[PDARec.UID()]'>Reply</a>)")
 							sender_identity = PDARec.owner
 
 						// Logging

@@ -55,7 +55,7 @@
 	for(var/atom/atom in pod.contents)
 		var/client/client = CLIENT_FROM_VAR(atom)
 		if(!client)
-			return
+			continue
 
 		for(var/held_key in client.input_data.keys_held)
 			if(held_key in client.movement_kb_dirs)

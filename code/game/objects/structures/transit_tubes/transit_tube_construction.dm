@@ -96,6 +96,7 @@
 			user.visible_message(SPAN_NOTICE("[user] installs [src]."))
 
 			qdel(src)
+			return
 
 	to_chat(user, SPAN_WARNING("[src] can only be installed in a transit tube!"))
 
@@ -125,6 +126,14 @@
 	installed_type = /obj/structure/transit_tube/station
 	base_icon_state = "transit_station"
 	icon_state = "transit_station"
+	is_station = TRUE
+
+/obj/structure/transit_tube_construction/terminus
+	installed_type = /obj/structure/transit_tube/station/reverse
+	installed_type_flipped = /obj/structure/transit_tube/station/reverse/flipped
+	// There is no sprite for a plain terminus piece, so it borrows the dispenser terminus one
+	base_icon_state = "transit_dispenser_terminus"
+	icon_state = "transit_dispenser_terminus"
 	is_station = TRUE
 
 /obj/structure/transit_tube_construction/terminus/dispenser

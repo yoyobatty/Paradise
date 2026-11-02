@@ -335,7 +335,7 @@
 				to_chat(usr, SPAN_ALERT("<b>ERROR:</b> User already in filtering list."))
 			else
 				nttc.filtering |= name_to_add
-				log_action(usr, "has added [name_to_add] to the NTTC filter list on core with ID [network_id]", TRUE)
+				log_action(usr, "has added [html_encode(name_to_add)] to the NTTC filter list on core with ID [network_id]", TRUE)
 				to_chat(usr, SPAN_NOTICE("Successfully added <b>[name_to_add]</b> to the NTTC filtering list."))
 
 		if("remove_filter")
@@ -346,7 +346,7 @@
 				var/confirm = tgui_alert(usr, "Are you sure you want to remove [name_to_remove] from the filtering list?", "Confirm Removal", list("Yes", "No"))
 				if(confirm == "Yes")
 					nttc.filtering -= name_to_remove
-					log_action(usr, "has removed [name_to_remove] from the NTTC filter list on core with ID [network_id]", TRUE)
+					log_action(usr, "has removed [html_encode(name_to_remove)] from the NTTC filter list on core with ID [network_id]", TRUE)
 					to_chat(usr, SPAN_NOTICE("Successfully removed <b>[name_to_remove]</b> from the NTTC filtering list."))
 
 /obj/machinery/tcomms/core/proc/on_new_z(datum/source, name, linkage, list/traits, transition_tag, level_type, z_level)

@@ -188,6 +188,10 @@ GLOBAL_LIST_EMPTY(deadsay_radio_systems)
 	data["loudspeaker"] = loudspeaker
 	return data
 
+/// Keeps a frequency from the radio's UI inside the band this radio is allowed to tune to.
+/obj/item/radio/proc/sanitize_tuned_frequency(new_frequency)
+	return sanitize_frequency(new_frequency, freerange ? RADIO_LOW_FREQ : PUBLIC_LOW_FREQ, freerange ? RADIO_HIGH_FREQ : PUBLIC_HIGH_FREQ)
+
 /obj/item/radio/ui_act(action, params, datum/tgui/ui)
 	if(..())
 		return
@@ -198,19 +202,19 @@ GLOBAL_LIST_EMPTY(deadsay_radio_systems)
 				return
 			var/tune = isnum(params["tune"]) ? params["tune"] : text2num(params["tune"])
 			var/adjust = isnum(params["adjust"]) ? params["adjust"] : text2num(params["adjust"])
-			if(tune == "reset")
-				tune = initial(frequency)
+			if(params["tune"] == "reset")
+				// Not sanitized, since some radios start outside the public band, like the command intercom
+				set_frequency(initial(frequency))
 			else if(adjust)
-				tune = frequency + adjust * 10
+				set_frequency(sanitize_tuned_frequency(frequency + adjust * 10))
 			else if(!isnull(tune))
-				tune = tune * 10
+				set_frequency(sanitize_tuned_frequency(tune * 10))
 			else
 				. = FALSE
+			// Checked after tuning, so the uplink opens as soon as its frequency is dialed
 			if(hidden_uplink)
 				if(hidden_uplink.check_trigger(usr, frequency, traitor_frequency))
 					usr << browse(null, "window=radio")
-			if(.)
-				set_frequency(sanitize_frequency(tune, freerange))
 		if("ichannel") // Change primary frequency to an internal channel authorized by access, for non-headset radios only
 			if(freqlock)
 				return
@@ -218,12 +222,12 @@ GLOBAL_LIST_EMPTY(deadsay_radio_systems)
 			if(has_channel_access(usr, num2text(freq)))
 				set_frequency(freq)
 		if("listen")
-			listening = !listening
+			ToggleReception()
 		if("broadcast")
 			if((ui.user.get_active_hand() != src && ui.user.get_inactive_hand() != src) && !issilicon(ui.user) && !stationary) // I'm pretty sure there is a easier way to check this, but i'm no tgui wizard.
 				to_chat(ui.user, SPAN_WARNING("[src] needs to be in your hands to switch its hotmic [broadcasting ? "off" : "on"]!"))
 				return
-			broadcasting = !broadcasting
+			ToggleBroadcast()
 		if("channel") // For keyed channels on headset radios only
 			var/channel = params["channel"]
 			if(!(channel in channels))

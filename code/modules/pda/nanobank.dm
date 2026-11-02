@@ -177,7 +177,7 @@
 			if(!transfer_amount || transfer_amount < 0) //if null, 0, or negative amount
 				return
 			var/datum/money_account/transfer_to = locateUID(params["transfer_to_account"])
-			if(!istype(transfer_to) || transfer_to == src)
+			if(!istype(transfer_to) || transfer_to == user_account)
 				return //account no longer exists or something fucked is going on
 			if(transfer_funds(user, transfer_amount, transfer_to))
 				to_chat(user, SPAN_NOTICE("NanoBank: Transfer Successful"))
@@ -193,6 +193,7 @@
 			var/purpose = length(params["purpose"]) ? params["purpose"] : ""
 			if(length(purpose) >= MAX_NAME_LEN)
 				error_message(user, "Purpose too long, please limit to [MAX_NAME_LEN] characters max")
+				return
 			if(!transfer_amount || transfer_amount < 0) //if null, 0, or negative amount
 				return
 			var/datum/money_account/request_from = locateUID(params["transfer_to_account"])

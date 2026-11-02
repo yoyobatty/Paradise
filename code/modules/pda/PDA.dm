@@ -311,7 +311,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 			var/datum/data/pda/app/nanobank/nanobank_program = (locate(/datum/data/pda/app/nanobank) in programs)
 			if(nanobank_program && idcard.associated_account_number)
 				nanobank_program.reconnect_database()
-				nanobank_program.user_account = nanobank_program.account_database?.find_user_account(idcard.associated_account_number)
+				nanobank_program.attempt_login(idcard.associated_account_number, null, user)
 			owner = idcard.registered_name
 			ownjob = idcard.assignment
 			ownrank = idcard.rank
@@ -426,7 +426,7 @@ GLOBAL_LIST_EMPTY(PDAs)
 			S = 'sound/machines/twobeep_high.ogg'
 		playsound(loc, S, 50, TRUE)
 	for(var/mob/O in hearers(3, loc))
-		O.show_message(text("[bicon(src)] *[ttone]*"))
+		O.show_message(text("[bicon(src)] *[html_encode(ttone)]*"))
 
 /obj/item/pda/proc/set_ringtone(mob/user)
 	var/new_tone = tgui_input_text(user, "Please enter new ringtone", name, ttone, max_length = 20, encode = FALSE)

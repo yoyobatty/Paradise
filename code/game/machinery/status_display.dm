@@ -79,6 +79,8 @@ GLOBAL_LIST_EMPTY(status_displays)
 	if(stat & (BROKEN|NOPOWER))
 		..(severity)
 		return
+	// Alert mode, so update() doesn't draw text over the blue screen
+	set_mode(STATUS_DISPLAY_ALERT)
 	set_picture("ai_bsod")
 	..(severity)
 
@@ -193,11 +195,12 @@ GLOBAL_LIST_EMPTY(status_displays)
 
 /obj/machinery/status_display/proc/remove_display()
 	picture_state = null
+	maptext = null
 	update_icon(UPDATE_OVERLAYS)
 
 /proc/post_status(mode, data1, data2)
 	if(usr && mode == STATUS_DISPLAY_MESSAGE)
-		log_and_message_admins("set status screen message: [data1] [data2]")
+		log_and_message_admins("set status screen message: [html_encode(data1)] [html_encode(data2)]")
 
 	for(var/obj/machinery/status_display/SD as anything in GLOB.status_displays)
 		if(SD.is_supply)

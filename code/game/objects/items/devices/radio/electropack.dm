@@ -126,9 +126,9 @@
 			integrated_signaler.receiving = !integrated_signaler.receiving
 
 		if("freq")
-			var/value = params["freq"]
+			var/value = text2num(params["freq"])
 			if(value)
-				integrated_signaler.frequency = sanitize_frequency(value)
+				integrated_signaler.frequency = sanitize_frequency(value * 10)
 			else
 				. = FALSE
 

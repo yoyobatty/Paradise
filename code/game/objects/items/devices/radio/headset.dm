@@ -37,7 +37,7 @@
 		if(keyslot2.syndie)
 			syndiekey = keyslot2
 
-	recalculateChannels(TRUE)
+	recalculateChannels()
 
 /obj/item/radio/headset/Destroy()
 	QDEL_NULL(keyslot1)
@@ -449,7 +449,7 @@
 	else
 		to_chat(user, SPAN_NOTICE("This headset doesn't have any encryption keys!  How useless..."))
 
-/obj/item/radio/headset/recalculateChannels(setDescription = FALSE)
+/obj/item/radio/headset/recalculateChannels()
 	channels = list()
 	translate_binary = FALSE
 	translate_hive = FALSE
@@ -495,8 +495,7 @@
 
 		secure_radio_connections[ch_name] = SSradio.add_object(src, SSradio.radiochannels[ch_name],  RADIO_CHAT)
 
-	if(setDescription)
-		setupRadioDescription()
+	setupRadioDescription()
 
 	return
 

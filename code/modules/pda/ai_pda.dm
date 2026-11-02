@@ -53,10 +53,9 @@
 		to_chat(usr, SPAN_WARNING("Cannot use messenger!"))
 	var/HTML = "<html><meta charset='utf-8'><head><title>AI PDA Message Log</title></head><body>"
 	for(var/index in M.tnote)
-		if(index["sent"])
-			HTML += addtext("<i><b>&rarr; To <a href='byond://?src=[UID()];choice=Message;target=",index["src"],"'>", index["owner"],"</a>:</b></i><br>", index["message"], "<br>")
-		else
-			HTML += addtext("<i><b>&larr; From <a href='byond://?src=[UID()];choice=Message;target=",index["target"],"'>", index["owner"],"</a>:</b></i><br>", index["message"], "<br>")
+		// tnote is stored decoded for the TGUI window, so it has to be encoded for this plain HTML one.
+		var/link = "<a href='byond://?src=[M.UID()];choice=Message;target=[index["target"]]'>[html_encode(index["owner"])]</a>"
+		HTML += "<i><b>[index["sent"] ? "&rarr; To" : "&larr; From"] [link]:</b></i><br>[html_encode(index["message"])]<br>"
 	HTML +="</body></html>"
 	usr << browse(HTML, "window=log;size=400x444;border=1;can_resize=1;can_close=1;can_minimize=0")
 

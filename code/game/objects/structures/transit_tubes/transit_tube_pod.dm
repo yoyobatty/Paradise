@@ -102,6 +102,8 @@
 	var/saveddir = dir
 	var/turf/destination = get_edge_target_turf(src, saveddir)
 	visible_message(SPAN_WARNING("[src] ejects its insides out!"))
+	// Things still inside the pod can't be thrown, so put them on the floor first
+	empty_pod()
 	for(var/i in savedcontents)
 		var/atom/movable/AM = i
 		AM.throw_at(destination, rand(1, 3), 5)

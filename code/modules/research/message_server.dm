@@ -35,12 +35,12 @@ GLOBAL_LIST_EMPTY(message_servers)
 		id_auth = param_id_auth
 	if(param_priority)
 		switch(param_priority)
-			if(1)
+			if(RQ_LOWPRIORITY)
+				priority = "Low"
+			if(RQ_NORMALPRIORITY)
 				priority = "Normal"
-			if(2)
+			if(RQ_HIGHPRIORITY)
 				priority = "High"
-			if(3)
-				priority = "Extreme"
 			else
 				priority = "Undetermined"
 
@@ -85,7 +85,7 @@ GLOBAL_LIST_EMPTY(message_servers)
 /obj/machinery/message_server/proc/send_rc_message(recipient = "", sender = "", message = list(), stamp = "Not stamped", id_auth = "Not verified", priority = RQ_NORMALPRIORITY)
 	if(!islist(message))
 		message = list(message)
-	rc_msgs += new/datum/data_rc_msg(recipient,sender,message,stamp,id_auth)
+	rc_msgs += new/datum/data_rc_msg(recipient,sender,message,stamp,id_auth,priority)
 	for(var/C in GLOB.allRequestConsoles)
 		var/obj/machinery/requests_console/RC = C
 		if(ckey(RC.department) == ckey(recipient))

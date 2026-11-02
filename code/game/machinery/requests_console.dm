@@ -59,7 +59,7 @@ GLOBAL_LIST_EMPTY(allRequestConsoles)
 	var/recipient = ""; //the department which will be receiving the message
 	var/priority = -1 ; //Priority of the message being sent
 	var/datum/announcer/announcer = new(config_type = /datum/announcement_configuration/requests_console)
-	/// The ID card of the person requesting a secondary goal.
+	/// The UID of the ID card of the person requesting a secondary goal.
 	var/goalRequester
 	var/list/shipping_log = list()
 	var/ship_tag_name = ""
@@ -234,8 +234,9 @@ GLOBAL_LIST_EMPTY(allRequestConsoles)
 			reset_message(TRUE)
 
 		if("requestSecondaryGoal")
-			has_active_secondary_goal = check_for_active_secondary_goal(goalRequester)
-			if(has_active_secondary_goal || !secondaryGoalAuth)
+			var/obj/item/card/id/requester_card = locateUID(goalRequester)
+			has_active_secondary_goal = check_for_active_secondary_goal(requester_card)
+			if(has_active_secondary_goal || !secondaryGoalAuth || !requester_card)
 				return
 			var/found_message_server = FALSE
 			for(var/obj/machinery/message_server/MS as anything in GLOB.message_servers)
@@ -246,7 +247,7 @@ GLOBAL_LIST_EMPTY(allRequestConsoles)
 				screen = RCS_SENTFAIL
 				return
 
-			generate_secondary_goal(department, goalRequester, usr)
+			generate_secondary_goal(department, requester_card, usr)
 			reset_message(FALSE)
 			view_messages()
 			screen = RCS_VIEWMSGS
@@ -268,7 +269,7 @@ GLOBAL_LIST_EMPTY(allRequestConsoles)
 			if(tempScreen == RCS_MAINMENU)
 				reset_message()
 			if(tempScreen == RCS_SECONDARY)
-				has_active_secondary_goal = check_for_active_secondary_goal(goalRequester)
+				has_active_secondary_goal = check_for_active_secondary_goal(locateUID(goalRequester))
 			screen = tempScreen
 
 		if("shipSelect")
@@ -280,7 +281,7 @@ GLOBAL_LIST_EMPTY(allRequestConsoles)
 			var/error_message
 			if(!ship_tag_index)
 				error_message = "Please select a destination."
-			else if(!msgVerified)
+			else if(msgVerified == "Not verified")
 				error_message = "Please verify shipper ID."
 			else if(world.time < print_cooldown)
 				error_message = "Please allow the printer time to prepare the next shipping label."
@@ -334,8 +335,8 @@ GLOBAL_LIST_EMPTY(allRequestConsoles)
 		return TRUE
 	if(screen == RCS_SECONDARY)
 		secondaryGoalAuth = TRUE
-		goalRequester = id_card
-		has_active_secondary_goal = check_for_active_secondary_goal(goalRequester)
+		goalRequester = id_card.UID()
+		has_active_secondary_goal = check_for_active_secondary_goal(id_card)
 
 		return TRUE
 	if(screen == RCS_SHIPPING)

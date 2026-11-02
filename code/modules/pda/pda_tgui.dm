@@ -96,13 +96,15 @@
 				for(var/datum/data/pda/P in notifying_programs)
 					if(P in C.programs)
 						P.unnotify()
+				C.update_programs(null)
 				cartridge = null
 				update_shortcuts()
 				playsound(src, 'sound/machines/terminal_eject.ogg', 50, TRUE)
 		if("Authenticate") //Checks for ID
 			id_check(ui.user, 1)
 		if("Available_Ringtones")
-			ttone = params["selected_ringtone"]
+			if(params["selected_ringtone"] in GLOB.pda_ringtone_choices)
+				ttone = params["selected_ringtone"]
 		if("Ringtone")
 			if(!silent)
 				playsound(src, 'sound/machines/terminal_select.ogg', 15, TRUE)

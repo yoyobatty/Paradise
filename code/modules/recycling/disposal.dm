@@ -81,6 +81,7 @@
 	var/obj/structure/disposalconstruct/C = new (loc)
 	transfer_fingerprints_to(C)
 	C.ptype = ptype
+	C.dir = dir
 	C.update()
 	C.anchored = FALSE
 	C.density = TRUE
@@ -303,7 +304,6 @@
 	if(target != user && !user.restrained() && !user.stat && !user.IsWeakened() && !user.IsStunned() && !user.IsParalyzed())
 		if(target.anchored)
 			return
-		user.visible_message(SPAN_WARNING("[user] starts stuffing [target.name] into the disposal."))
 		user.visible_message(
 			SPAN_WARNING("[user] starts stuffing [target] into the disposal unit!"),
 			SPAN_WARNING("You start stuffing [target] into the disposal unit."),
@@ -688,18 +688,25 @@
 	return ..()
 
 	// initialize a holder from the contents of a disposal unit
-/obj/structure/disposalholder/proc/init(obj/machinery/disposal/D)
+	// to_send is what to take, for when the unit should only send part of what's in it
+/obj/structure/disposalholder/proc/init(obj/machinery/disposal/D, list/to_send)
 	gas = D.air_contents// transfer gas resv. into holder object
+
+	if(isnull(to_send))
+		to_send = D.contents.Copy()
+	else
+		// Leave out anything that left the unit since the list was made
+		to_send = to_send & D.contents
 
 	//Check for any living mobs trigger hasmob.
 	//hasmob effects whether the package goes to cargo or its tagged destination.
-	for(var/mob/living/M in D)
+	for(var/mob/living/M in to_send)
 		if(M && M.stat != 2 && !isdrone(M) && !istype(M, /mob/living/silicon/robot/syndicate/saboteur))
 			hasmob = 1
 
 	//Checks 1 contents level deep. This means that players can be sent through disposals...
 	//...but it should require a second person to open the package. (i.e. person inside a wrapped locker)
-	for(var/obj/O in D)
+	for(var/obj/O in to_send)
 		if(O.contents)
 			for(var/mob/living/M in O.contents)
 				if(M && M.stat != 2 && !isdrone(M) && !istype(M, /mob/living/silicon/robot/syndicate/saboteur))
@@ -707,7 +714,7 @@
 
 	// now everything inside the disposal gets put into the holder
 	// note AM since can contain mobs or objs
-	for(var/atom/movable/AM in D)
+	for(var/atom/movable/AM in to_send)
 		AM.forceMove(src)
 		SEND_SIGNAL(AM, COMSIG_MOVABLE_DISPOSING, src, D)
 		if(ishuman(AM))
@@ -1589,6 +1596,7 @@
 		WELDER_FLOOR_SLICE_SUCCESS_MESSAGE
 		var/obj/structure/disposalconstruct/C = new (src.loc)
 		C.ptype = PIPE_DISPOSALS_OUTLET
+		C.dir = dir
 		C.update()
 		C.anchored = TRUE
 		C.density = TRUE
@@ -1612,6 +1620,7 @@
 	var/obj/structure/disposalconstruct/C = new (loc)
 	transfer_fingerprints_to(C)
 	C.ptype = PIPE_DISPOSALS_OUTLET
+	C.dir = dir
 	C.update()
 	C.anchored = FALSE
 	C.density = TRUE

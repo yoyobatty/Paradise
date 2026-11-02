@@ -108,6 +108,7 @@
 			var/obj/item/pda/P = locateUID(params["target"])
 			if(!P)
 				to_chat(usr, "PDA not found.")
+				return
 
 			var/datum/data/pda/messenger_plugin/plugin = locateUID(params["plugin"])
 			if(plugin && (plugin in pda.cartridge.messenger_plugins))

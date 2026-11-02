@@ -197,23 +197,27 @@
 		if("messagelist")
 			currmsg = null
 			aicurrmsg = null
-			if(params["msgid"])
-				setCurrentMessage(ui.user, text2num(params["msgid"]))
+			var/id = text2num(params["msgid"])
+			// The list on screen can be out of date if someone else deleted a message
+			if(id >= 1 && id <= length(messagetext))
+				setCurrentMessage(ui.user, id)
 			setMenuState(ui.user, COMM_SCREEN_MESSAGES)
 
 		if("delmessage")
-			if(params["msgid"])
-				currmsg = text2num(params["msgid"])
-			if(currmsg)
-				var/id = getCurrentMessage()
-				var/title = messagetitle[id]
-				var/text  = messagetext[id]
-				messagetitle.Remove(title)
-				messagetext.Remove(text)
+			var/id = text2num(params["msgid"])
+			if(id >= 1 && id <= length(messagetext))
+				// Cut by position, since two messages can have the same title or text
+				messagetitle.Cut(id, id + 1)
+				messagetext.Cut(id, id + 1)
+				// Keep the open messages pointing at the same messages now that the ones after this moved up
 				if(currmsg == id)
 					currmsg = null
+				else if(currmsg > id)
+					currmsg--
 				if(aicurrmsg == id)
 					aicurrmsg = null
+				else if(aicurrmsg > id)
+					aicurrmsg--
 			setMenuState(ui.user, COMM_SCREEN_MESSAGES)
 
 		if("status")
@@ -235,11 +239,15 @@
 			setMenuState(ui.user, COMM_SCREEN_STAT)
 
 		if("setmsg1")
-			stat_msg1 = tgui_input_text(ui.user, "Line 1", stat_msg1, "Enter Message Text", encode = FALSE)
+			var/new_message = tgui_input_text(ui.user, "Line 1", "Enter Message Text", stat_msg1, encode = FALSE)
+			if(!isnull(new_message))
+				stat_msg1 = new_message
 			setMenuState(ui.user, COMM_SCREEN_STAT)
 
 		if("setmsg2")
-			stat_msg2 = tgui_input_text(ui.user, "Line 2", stat_msg2, "Enter Message Text", encode = FALSE)
+			var/new_message = tgui_input_text(ui.user, "Line 2", "Enter Message Text", stat_msg2, encode = FALSE)
+			if(!isnull(new_message))
+				stat_msg2 = new_message
 			setMenuState(ui.user, COMM_SCREEN_STAT)
 
 		if("nukerequest")

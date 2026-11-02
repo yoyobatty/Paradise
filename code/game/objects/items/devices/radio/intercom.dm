@@ -206,8 +206,10 @@
 	to_chat(user, SPAN_NOTICE("You secure the electronics!"))
 	update_icon(UPDATE_ICON_STATE)
 	update_operating_status()
-	for(var/i, i<= 5, i++)
-		wires.on_cut(i, 1)
+	// Taking it down needed every wire cut, so mend them and start the speaker and microphone like a new intercom
+	wires.repair()
+	listening = initial(listening)
+	broadcasting = initial(broadcasting)
 
 /obj/item/radio/intercom/wirecutter_act(mob/user, obj/item/I)
 	if(!(buildstage == 3 && b_stat && wires.is_all_cut()))

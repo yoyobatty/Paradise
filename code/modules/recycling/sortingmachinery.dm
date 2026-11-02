@@ -417,6 +417,11 @@
 	var/delivery_check = FALSE
 	var/obj/structure/disposalholder/H = new(src)	// virtual holder object which actually
 													// travels through the pipes.
+	// Only send what is in the chute now, so a package that comes in during the wait gets its own flush and keeps its own tag
+	var/list/to_send = list()
+	for(var/atom/movable/AM in src)
+		if(!istype(AM, /obj/structure/disposalholder))
+			to_send += AM
 	for(var/obj/structure/big_delivery/O in src)
 		delivery_check = TRUE
 	for(var/obj/item/small_delivery/O in src)
@@ -434,7 +439,7 @@
 		last_sound = world.time
 	sleep(5) // wait for animation to finish
 
-	H.init(src)	// copy the contents of disposer to holder
+	H.init(src, to_send)	// copy the contents of disposer to holder
 	air_contents = new() // The holder just took our gas; replace it
 	H.start(src) // start the holder processing movement
 	flushing = 0
@@ -466,6 +471,7 @@
 		WELDER_FLOOR_SLICE_SUCCESS_MESSAGE
 		var/obj/structure/disposalconstruct/C = new (loc)
 		C.ptype = deconstructs_to
+		C.dir = dir
 		C.update()
 		C.anchored = TRUE
 		C.density = TRUE

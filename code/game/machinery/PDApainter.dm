@@ -132,7 +132,8 @@
 		if("eject_pda")
 			ejectpda(ui.user)
 		if("choose_pda")
-			preview_icon_state = params["selectedPda"]
+			if(params["selectedPda"] in colorlist)
+				preview_icon_state = params["selectedPda"]
 		if("paint_pda")
 			paintpda()
 

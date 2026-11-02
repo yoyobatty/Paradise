@@ -16,7 +16,7 @@
 	. = ..()
 	if(pipe_type)
 		ptype = pipe_type
-	if(dir)
+	if(direction)
 		dir = direction
 	update()
 

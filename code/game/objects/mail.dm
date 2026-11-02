@@ -289,10 +289,19 @@
 
 	to_chat(user, SPAN_NOTICE("You add [envelope] to the active database."))
 	playsound(loc, 'sound/mail/mailscanned.ogg', 50, TRUE)
+	clear_saved()
 	saved = envelope
+	RegisterSignal(saved, COMSIG_PARENT_QDELETING, PROC_REF(clear_saved))
 	SSblackbox.record_feedback("amount", "successful_mail_scan", 1)
 	add_fingerprint(user)
 	return TRUE
+
+/// Lets go of the logged letter, which also stops a deleted letter being held on to.
+/obj/item/mail_scanner/proc/clear_saved()
+	SIGNAL_HANDLER
+	if(saved)
+		UnregisterSignal(saved, COMSIG_PARENT_QDELETING)
+		saved = null
 
 /obj/item/mail_scanner/proc/scan_recipient(mob/living/recipient, mob/user)
 	if(!istype(recipient))
@@ -300,6 +309,13 @@
 
 	if(!saved)
 		to_chat(user, SPAN_WARNING("Error: You have not logged mail to the mail scanner!"))
+		playsound(loc, 'sound/mail/maildenied.ogg', 50, TRUE)
+		return FALSE
+
+	// Another scanner may have delivered this letter since we logged it.
+	if(saved.has_been_scanned)
+		clear_saved()
+		to_chat(user, SPAN_WARNING("This letter has already been logged to the active database!"))
 		playsound(loc, 'sound/mail/maildenied.ogg', 50, TRUE)
 		return FALSE
 
@@ -319,7 +335,7 @@
 		return FALSE
 
 	saved.has_been_scanned = TRUE
-	saved = null
+	clear_saved()
 	to_chat(user, SPAN_NOTICE("Successful delivery acknowledged! [MAIL_DELIVERY_BONUS] credits added to Supply account!"))
 	playsound(loc, 'sound/mail/mailapproved.ogg', 50, TRUE)
 	GLOB.station_money_database.credit_account(SSeconomy.cargo_account, MAIL_DELIVERY_BONUS, "Mail Delivery Compensation", "Nanotrasen Mail and Interstellar Logistics", supress_log = FALSE)
