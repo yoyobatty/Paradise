@@ -97,7 +97,16 @@
 	return ..()
 
 /mob/living/simple_animal/hostile/megafauna/drop_loot()
-	var/obj/structure/closet/crate/necropolis/loot_drop = new(get_turf(src))
+	var/turf/loot_turf = get_turf(src)
+	// A chest made over a chasm falls in and takes the loot with it, so use the closest solid ground.
+	if(istype(loot_turf, /turf/simulated/floor/chasm))
+		var/closest_distance = INFINITY
+		for(var/turf/simulated/floor/nearby in RANGE_TURFS(7, src))
+			if(istype(nearby, /turf/simulated/floor/chasm) || islava(nearby) || get_dist(src, nearby) >= closest_distance)
+				continue
+			closest_distance = get_dist(src, nearby)
+			loot_turf = nearby
+	var/obj/structure/closet/crate/necropolis/loot_drop = new(loot_turf)
 	for(var/item in loot)
 		new item(loot_drop)
 	spawn_ore_reward(loot_drop)
@@ -142,7 +151,7 @@
 
 /mob/living/simple_animal/hostile/megafauna/on_changed_z_level(turf/old_turf, turf/new_turf)
 	. = ..()
-	if(!istype(get_area(src), /area/shuttle)) //I'll be funny and make non teleported enrage mobs not lose enrage. Harder to pull off, and also funny when it happens accidently. Or if one gets on the escape shuttle.
+	if(enraged && !istype(get_area(src), /area/shuttle)) //I'll be funny and make non teleported enrage mobs not lose enrage. Harder to pull off, and also funny when it happens accidently. Or if one gets on the escape shuttle.
 		unrage()
 
 /mob/living/simple_animal/hostile/megafauna/onShuttleMove(turf/oldT, turf/T1, rotation, mob/caller_mob)

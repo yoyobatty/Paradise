@@ -58,11 +58,13 @@ GLOBAL_LIST_EMPTY(wormhole_effect)
 		J.teleport(user)
 	playsound(src,'sound/effects/sparks4.ogg',50,1)
 	qdel(src)
+	return TRUE
 
+/// Returns TRUE if this got the user away from the chasm.
 /obj/item/wormhole_jaunter/proc/chasm_react(mob/user)
 	if(user.get_item_by_slot(ITEM_SLOT_BELT) == src)
 		to_chat(user, "Your [name] activates, saving you from the chasm!</span>")
-		activate(user, FALSE)
+		return activate(user, FALSE)
 	else
 		to_chat(user, "[src] is not attached to your belt, preventing it from saving you from the chasm. RIP.</span>")
 

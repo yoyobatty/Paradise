@@ -159,8 +159,8 @@ Difficulty: Hard
 	desc = "ERROR_NULL_ENTRY"
 
 /mob/living/simple_animal/hostile/megafauna/ancient_robot/death(gibbed, allowed = FALSE)
-	icon = 'icons/mob/lavaland/corpses.dmi'
 	if(allowed)
+		icon = 'icons/mob/lavaland/corpses.dmi'
 		overlays.Cut()
 		underlays.Cut()
 		QDEL_NULL(TR)

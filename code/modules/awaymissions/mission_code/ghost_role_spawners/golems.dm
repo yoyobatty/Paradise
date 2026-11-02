@@ -151,6 +151,11 @@
 	if(.)
 		return
 	if(isgolem(user) && can_transfer)
+		var/transfer_choice = tgui_alert(user, "Transfer your soul to [src]? (Warning, your old body will die!)", "Respawn", list("Yes","No"))
+		if(transfer_choice != "Yes")
+			return
+		if(QDELETED(src) || uses <= 0 || user.stat || !Adjacent(user) || !isgolem(user))
+			return
 		var/datum/species/golem/g = user.dna.species
 		if(g.owner)
 			has_owner = TRUE
@@ -158,11 +163,6 @@
 		else
 			has_owner = FALSE
 			owner = null
-		var/transfer_choice = tgui_alert(user, "Transfer your soul to [src]? (Warning, your old body will die!)", "Respawn", list("Yes","No"))
-		if(transfer_choice != "Yes")
-			return
-		if(QDELETED(src) || uses <= 0)
-			return
 		log_game("[key_name(user)] golem-swapped into [src]")
 		user.visible_message(SPAN_NOTICE("A faint light leaves [user], moving to [src] and animating it!"),SPAN_NOTICE("You leave your old body behind, and transfer into [src]!"))
 		create(ckey = user.ckey, name = user.real_name)

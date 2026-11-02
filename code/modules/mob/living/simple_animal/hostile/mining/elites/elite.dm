@@ -186,7 +186,7 @@ While using this makes the system rely on OnFire, it still gives options for tim
 	switch(activity)
 		if(TUMOR_PASSIVE)
 			// Prevents the user from being forcemoved back and forth between two elite arenas.
-			if(HAS_TRAIT(src, TRAIT_ELITE_CHALLENGER))
+			if(HAS_TRAIT(user, TRAIT_ELITE_CHALLENGER))
 				user.visible_message(SPAN_WARNING("[user] reaches for [src] with [user.p_their()] arm, but nothing happens."),
 					SPAN_WARNING("You reach for [src] with your arm... but nothing happens."))
 				return
@@ -199,7 +199,7 @@ While using this makes the system rely on OnFire, it still gives options for tim
 				to_chat(mychild, SPAN_WARNING("Someone has activated your tumor. You will be returned to fight shortly, get ready!"))
 			addtimer(CALLBACK(src, PROC_REF(return_elite)), 3 SECONDS)
 		if(TUMOR_INACTIVE)
-			if(HAS_TRAIT(src, TRAIT_ELITE_CHALLENGER))
+			if(HAS_TRAIT(user, TRAIT_ELITE_CHALLENGER))
 				user.visible_message(SPAN_WARNING("[user] reaches for [src] with [user.p_their()] arm, but nothing happens."),
 					SPAN_WARNING("You reach for [src] with your arm... but nothing happens."))
 				return
@@ -283,7 +283,7 @@ While using this makes the system rely on OnFire, it still gives options for tim
 		activator = null
 	else
 		mychild = null
-	REMOVE_TRAIT(source, TRAIT_ELITE_CHALLENGER, "clear activation")
+	REMOVE_TRAIT(source, TRAIT_ELITE_CHALLENGER, "activation")
 	UnregisterSignal(source, COMSIG_PARENT_QDELETING)
 
 /obj/structure/elite_tumor/process()

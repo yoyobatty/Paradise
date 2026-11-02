@@ -60,9 +60,10 @@
 		return
 
 	stop_flying()
-	to_chat(loc, SPAN_NOTICE("[src] flutters to the ground, refusing to deploy. Maybe you can't do that here?"))
+	visible_message(SPAN_NOTICE("[src] flutters to the ground, refusing to deploy. Maybe you can't do that here?"))
 
 /obj/item/bridge_capsule/proc/stop_flying()
+	used = FALSE
 	REMOVE_TRAIT(src, TRAIT_FLYING, "[UID()]")
 	// Easiest/fastest way to trigger chasms/lava underneath us to
 	// determine if something needs to happen when we lose our trait

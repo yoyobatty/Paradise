@@ -66,7 +66,6 @@
 	if(S.pickup_all_on_tile)
 		for(var/obj/item/stack/ore/O in contents)
 			S.try_insert_item(O, user)
-			return
 
 /turf/simulated/floor/plating/asteroid/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(QDELETED(user)|| QDELETED(used))

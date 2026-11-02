@@ -14,7 +14,7 @@
 		to_chat(owner, SPAN_WARNING("I am unable to summon servants!"))
 		return
 
-	var/list/all_possible_dirs = GLOB.alldirs
+	var/list/all_possible_dirs = GLOB.alldirs.Copy()
 	for(var/i in 1 to 2)
 		var/mob/living/new_mob
 		var/spawn_loc = get_step(summoner, pick_n_take(all_possible_dirs))

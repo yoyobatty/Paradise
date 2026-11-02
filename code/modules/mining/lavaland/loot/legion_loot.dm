@@ -60,6 +60,7 @@
 	cig.light(user, target)
 	playsound(target, 'sound/magic/lightningbolt.ogg', 50, TRUE)
 	thunder_charges--
+	addtimer(CALLBACK(src, PROC_REF(recharge)), thunder_charge_time)
 	return TRUE
 
 /obj/item/storm_staff/activate_self(mob/user)

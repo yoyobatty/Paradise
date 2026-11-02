@@ -69,10 +69,12 @@
 
 /obj/item/clothing/suit/space/hostile_environment/on_changed_z_level(turf/old_turf, turf/new_turf, notify_contents)
 	. = ..()
-	if(!is_mining_level(new_turf.z))
-		armor = list(MELEE = 60, BULLET = 35, LASER = 25, ENERGY = 25, BOMB = 150, RAD = INFINITY, FIRE = INFINITY, ACID = INFINITY) // Still good. Not OP.
+	if(!new_turf)
 		return
-	armor = list(MELEE = 120, BULLET = 35, LASER = 25, ENERGY = 25, BOMB = 150, RAD = INFINITY, FIRE = INFINITY, ACID = INFINITY)
+	if(!is_mining_level(new_turf.z))
+		armor = getArmor(arglist(list(MELEE = 60, BULLET = 35, LASER = 25, ENERGY = 25, BOMB = 150, RAD = INFINITY, FIRE = INFINITY, ACID = INFINITY))) // Still good. Not OP.
+		return
+	armor = getArmor(arglist(list(MELEE = 120, BULLET = 35, LASER = 25, ENERGY = 25, BOMB = 150, RAD = INFINITY, FIRE = INFINITY, ACID = INFINITY)))
 
 /obj/item/clothing/suit/space/hostile_environment/Destroy()
 	STOP_PROCESSING(SSobj, src)
@@ -105,10 +107,12 @@
 
 /obj/item/clothing/head/helmet/space/hostile_environment/on_changed_z_level(turf/old_turf, turf/new_turf, notify_contents)
 	. = ..()
-	if(!is_mining_level(new_turf.z))
-		armor = list(MELEE = 50, BULLET = 35, LASER = 25, ENERGY = 25, BOMB = 150, RAD = INFINITY, FIRE = INFINITY, ACID = INFINITY) // Still good. Not OP.
+	if(!new_turf)
 		return
-	armor = list(MELEE = 120, BULLET = 35, LASER = 25, ENERGY = 25, BOMB = 150, RAD = INFINITY, FIRE = INFINITY, ACID = INFINITY)
+	if(!is_mining_level(new_turf.z))
+		armor = getArmor(arglist(list(MELEE = 50, BULLET = 35, LASER = 25, ENERGY = 25, BOMB = 150, RAD = INFINITY, FIRE = INFINITY, ACID = INFINITY))) // Still good. Not OP.
+		return
+	armor = getArmor(arglist(list(MELEE = 120, BULLET = 35, LASER = 25, ENERGY = 25, BOMB = 150, RAD = INFINITY, FIRE = INFINITY, ACID = INFINITY)))
 
 /obj/item/clothing/suit/space/prisoner_gulag
 	name = "prisoner gulag suit"

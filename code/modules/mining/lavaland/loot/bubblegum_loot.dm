@@ -38,7 +38,7 @@
 	var/spawn_exit = list()
 	for(var/obj/effect/landmark/spawner/bubblegum_exit/E in GLOB.landmarks_list)
 		for(var/turf/T in range(4, E))
-			if(T.density)
+			if(T.density || islava(T))
 				continue
 			spawn_exit += get_turf(T)
 	var/area/probably_bubblearena = get_area(src)

@@ -156,7 +156,8 @@
 	for(var/obj/effect/temp_visual/resonance/field in orange(1, src))
 		if(field.rupturing)
 			continue
-		if(parent_resonator.mode == RESONATOR_MODE_AUTO || parent_resonator.mode == RESONATOR_MODE_MANUAL)
+		// Fields from a kinetic accelerator have no resonator.
+		if(!parent_resonator || parent_resonator.mode == RESONATOR_MODE_AUTO || parent_resonator.mode == RESONATOR_MODE_MANUAL)
 			field.burst()
 	if(!prob(failure_prob) && parent_resonator)
 		for(var/turf/simulated/mineral/mineral_spread in orange(1, src))

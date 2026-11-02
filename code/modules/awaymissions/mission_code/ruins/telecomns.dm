@@ -398,12 +398,15 @@ GLOBAL_LIST_EMPTY(telecomms_trap_tank)
 		to_chat(user, SPAN_WARNING("You are more likely to damage this with an emag than to achieve something useful."))
 		return ITEM_INTERACT_COMPLETE
 
-	var/time_to_die = integrated_console.item_interaction(user, used, modifiers)
-	if(time_to_die)
+	var/obj/item/ai_module/module = used
+	if(!istype(module))
+		return ..()
+
+	if(integrated_console.check_valid_selection(user) && module.install(integrated_console))
 		to_chat(user, SPAN_DANGER("[src]'s relay begins to overheat..."))
 		playsound(loc, 'sound/weapons/armbomb.ogg', 75, 1, -3)
 		addtimer(CALLBACK(src, PROC_REF(prime)), 5 SECONDS)
-		return ITEM_INTERACT_COMPLETE
+	return ITEM_INTERACT_COMPLETE
 
 /obj/item/remote_ai_upload/proc/prime()
 		explosion(loc, -1, -1, 2, 4, flame_range = 4, cause = "Remote AI Upload explosion")

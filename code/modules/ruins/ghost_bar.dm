@@ -86,7 +86,11 @@ GLOBAL_LIST_EMPTY(occupants_by_key)
 
 /obj/effect/mob_spawn/human/alive/ghost_bar/proc/clear_references_to_owner(mob/mob_to_obliterate)
 	SIGNAL_HANDLER  // COMSIG_PARENT_QDELETING
-	GLOB.occupants_by_key -= mob_to_obliterate.ckey
+	// The ckey can't be used, because the player may have already moved to a ghost role.
+	for(var/owner_key in GLOB.occupants_by_key)
+		if(GLOB.occupants_by_key[owner_key] == mob_to_obliterate)
+			GLOB.occupants_by_key -= owner_key
+			return
 
 /obj/structure/ghost_bar_cryopod
 	name = "returning sarcophagus"

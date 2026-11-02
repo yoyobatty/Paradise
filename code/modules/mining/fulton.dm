@@ -89,7 +89,7 @@ GLOBAL_LIST_EMPTY(total_extraction_beacons)
 			if(isliving(A))
 				var/mob/living/M = A
 				M.Weaken(32 SECONDS) // Keep them from moving during the duration of the extraction.
-				unbuckle_mob(M, force = TRUE) // Unbuckle them to prevent anchoring problems.
+				M.buckled?.unbuckle_mob(M, force = TRUE) // Unbuckle them to prevent anchoring problems.
 			else
 				A.anchored = TRUE
 				A.density = FALSE

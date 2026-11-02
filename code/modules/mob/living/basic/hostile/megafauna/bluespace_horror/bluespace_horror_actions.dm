@@ -15,7 +15,7 @@
 		return
 
 	var/amount_to_spawn = rand(2, 5)
-	var/list/all_possible_dirs = GLOB.alldirs
+	var/list/all_possible_dirs = GLOB.alldirs.Copy()
 	for(var/i in 1 to amount_to_spawn)
 		var/mob/living/new_mob
 		var/spawn_loc = get_step(summoner, pick_n_take(all_possible_dirs))

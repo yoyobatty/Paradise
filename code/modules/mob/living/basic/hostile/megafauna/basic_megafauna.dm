@@ -118,7 +118,7 @@
 
 /mob/living/basic/megafauna/on_changed_z_level(turf/old_turf, turf/new_turf)
 	. = ..()
-	if(!istype(get_area(src), /area/shuttle))
+	if(enraged && !istype(get_area(src), /area/shuttle))
 		unrage()
 
 /mob/living/basic/megafauna/onShuttleMove(turf/oldT, turf/T1, rotation, mob/caller_mob)
