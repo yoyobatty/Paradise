@@ -376,7 +376,7 @@
 	if(href_list["process"])
 		var/list/choices = list("Glass Bottle" = 1, "Plastic Bottle" = 2, "Metal Can" = 3)
 		var/selection = tgui_input_list(usr, "Select a container for your beverage.", "Container", choices)
-		if(!selection)
+		if(!selection || bottling)
 			return
 		else
 			selection = choices[selection]
@@ -402,7 +402,7 @@
 		icon_state = "bottler_off"
 
 /obj/machinery/bottler/proc/resetSlots()
-	QDEL_LIST_ASSOC_VAL(slots)
+	QDEL_LIST_CONTENTS(slots)
 	slots.len = 3
 
 #undef MAX_GLASS

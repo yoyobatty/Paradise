@@ -123,7 +123,7 @@
 			return
 		item_present = TRUE
 
-	if(istype(used, /obj/item/reagent_containers/spray))
+	if(istype(used, /obj/item/reagent_containers/spray) && !istype(used, /obj/item/reagent_containers/spray/mister))
 		if(!my_spray)
 			my_spray = used
 			put_in_cart(user, used)

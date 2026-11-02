@@ -522,10 +522,10 @@
 
 /datum/reagent/jestosterone/on_mob_delete(mob/living/M)
 	..()
+	M.DeleteComponent(/datum/component/squeak)
 	if(M.mind?.assigned_role != "Clown")
 		REMOVE_TRAIT(M, TRAIT_COMIC_SANS, id)
 		M.RemoveElement(/datum/element/waddling)
-		M.DeleteComponent(/datum/component/squeak)
 
 /datum/reagent/mimestrogen
 	name = "Mimestrogen"

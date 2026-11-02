@@ -101,7 +101,10 @@ GLOBAL_LIST_EMPTY(monkey_recyclers)
 				if(target.stat == CONSCIOUS)
 					to_chat(user, SPAN_WARNING("The monkey is struggling far too much to put it in the recycler."))
 				else
+					add_attack_logs(user, target, "Recycled in [src]")
 					user.drop_item()
+					for(var/obj/item/I in target.get_all_slots())
+						target.drop_item_to_ground(I, force = TRUE)
 					qdel(target)
 					target = null //we sleep in this proc, clear reference NOW
 					to_chat(user, SPAN_NOTICE("You stuff the monkey in the machine."))

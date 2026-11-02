@@ -79,6 +79,8 @@
 		steps++
 
 /datum/component/squeak/proc/on_atom_entered(datum/source, atom/movable/entered)
+	if(!isturf(source))
+		return
 	if(istype(entered, /obj/effect))
 		return
 	if(ismob(entered))
@@ -90,21 +92,13 @@
 			if(L.floating)
 				return
 	else if(isitem(entered))
-		var/obj/item/I = source
+		var/obj/item/I = entered
 		if(I.flags & ABSTRACT)
 			return
-		if(isprojectile(entered))
-			var/obj/projectile/P = entered
-			if(P.original != parent)
-				return
-	if(ismob(source))
-		var/mob/M = source
-		if(HAS_TRAIT(M, TRAIT_FLYING))
+	else if(isprojectile(entered))
+		var/obj/projectile/P = entered
+		if(P.original != parent)
 			return
-		if(isliving(source))
-			var/mob/living/L = M
-			if(L.floating)
-				return
 	play_squeak()
 
 /datum/component/squeak/proc/use_squeak()

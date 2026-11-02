@@ -20,6 +20,10 @@
 	component_parts += new /obj/item/stock_parts/manipulator(null)
 	RefreshParts()
 
+/obj/machinery/processor/Destroy()
+	dropContents()
+	return ..()
+
 /obj/machinery/processor/upgraded/Initialize(mapload)
 	. = ..()
 	component_parts = list()
@@ -211,7 +215,8 @@
 	if(default_unfasten_wrench(user, used, time = 4 SECONDS))
 		return ITEM_INTERACT_COMPLETE
 
-	default_deconstruction_crowbar(user, used)
+	if(default_deconstruction_crowbar(user, used))
+		return ITEM_INTERACT_COMPLETE
 
 	var/obj/item/what = used
 

@@ -2,6 +2,10 @@
 	cooker_id = COOKER_SURFACE_ICE_CREAM_MIXER
 	allow_temp_change = FALSE
 
+// A mixer has no heat, so its food can't burn.
+/datum/cooking_surface/ice_cream_mixer/set_burn_ignite_callbacks()
+	return
+
 /obj/machinery/cooking/ice_cream_mixer
 	name = "ice cream mixer"
 	desc = "An industrial mixing device for desserts of all kinds."

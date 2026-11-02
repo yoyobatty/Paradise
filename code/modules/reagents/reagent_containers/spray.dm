@@ -106,7 +106,7 @@
 
 /obj/item/reagent_containers/spray/examine(mob/user)
 	. = ..()
-	if(get_dist(user, src) && user == loc)
+	if(user == loc)
 		. += "[round(reagents.total_volume)] units left."
 	. += SPAN_NOTICE("<b>Alt-Shift-Click</b> to empty it.")
 

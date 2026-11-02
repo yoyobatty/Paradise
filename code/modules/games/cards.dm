@@ -631,10 +631,10 @@
 		return ..()
 
 	M.visible_message(
-		SPAN_WARNING("[M] catches [hand] and adds it to [M.p_their()] hand!"),
-		SPAN_DANGER("You catch [hand] and add it to your existing hand!")
+		SPAN_WARNING("[M] catches [src] and adds it to [M.p_their()] hand!"),
+		SPAN_DANGER("You catch [src] and add it to your existing hand!")
 	)
-	add_cardhand_to_self(hand)
+	hand.add_cardhand_to_self(src)
 
 /// Merge the target cardhand into the current cardhand
 /obj/item/cardhand/proc/add_cardhand_to_self(obj/item/cardhand/hand)

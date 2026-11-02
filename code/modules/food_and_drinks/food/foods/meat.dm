@@ -256,9 +256,10 @@
 
 /obj/item/food/telebacon/On_Consume(mob/M, mob/user)
 	if(!reagents.total_volume)
-		baconbeacon.forceMove(user)
+		baconbeacon.forceMove(M)
 		baconbeacon.digest_delay()
 		baconbeacon = null
+	return ..()
 
 /obj/item/food/meat/patty
 	name = "patty"

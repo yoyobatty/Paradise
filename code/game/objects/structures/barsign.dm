@@ -172,6 +172,8 @@
 	pick_sign(user)
 
 /obj/machinery/barsign/AltClick(mob/user)
+	if(!Adjacent(user) || user.incapacitated())
+		return
 	add_fingerprint(user)
 	if(toggle_on_off())
 		return

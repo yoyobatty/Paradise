@@ -328,6 +328,9 @@ do {\
 		return ..()
 
 	if(!istype(used, /obj/item/food))
+		// Condiments, syringes and droppers do their work after this.
+		if(istype(used, /obj/item/reagent_containers) || isstorage(used))
+			return ..()
 		to_chat(user, SPAN_WARNING("[used] isn't exactly something that you would want to eat."))
 		return ITEM_INTERACT_COMPLETE
 

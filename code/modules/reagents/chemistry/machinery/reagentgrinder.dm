@@ -136,7 +136,8 @@
 	efficiency = 0.8 + T * 0.1
 
 /obj/machinery/reagentgrinder/Destroy()
-	QDEL_NULL(beaker)
+	dropContents()
+	beaker = null
 	return ..()
 
 /obj/machinery/reagentgrinder/AltClick(mob/user, modifiers)

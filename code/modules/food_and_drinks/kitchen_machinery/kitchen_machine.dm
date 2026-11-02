@@ -43,6 +43,7 @@
 
 /obj/machinery/kitchen_machine/Destroy()
 	QDEL_NULL(soundloop)
+	dropContents()
 	return ..()
 
 /obj/machinery/kitchen_machine/proc/init_lists()
@@ -84,7 +85,8 @@
 		if(istype(used, /obj/item/storage/part_replacer))
 			return ..()
 
-	default_deconstruction_crowbar(user, used)
+	if(default_deconstruction_crowbar(user, used))
+		return ITEM_INTERACT_COMPLETE
 
 	if(dirty == MAX_DIRT) // The machine is all dirty so can't be used!
 		if(istype(used, /obj/item/reagent_containers/spray/cleaner) || istype(used, /obj/item/soap) || istype(used, /obj/item/reagent_containers/glass/rag)) // If they're trying to clean it then let them
@@ -395,6 +397,7 @@
 		playsound(loc, 'sound/machines/ding.ogg', 50, 1)
 
 /obj/machinery/kitchen_machine/proc/abort()
+	soundloop?.stop()
 	operating = FALSE // Turn it off again aferwards
 	update_icon(UPDATE_ICON_STATE)
 
@@ -557,6 +560,8 @@
 
 			cook()
 		if("eject")
+			if(operating)
+				return
 			dispose(ui.user)
 
 /obj/machinery/kitchen_machine/AltClick(mob/user)

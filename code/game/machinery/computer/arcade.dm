@@ -564,6 +564,7 @@
 
 	else if(href_list["killcrew"]) //shoot a crewmember
 		if(length(settlers) <= 0 || alive <= 0)
+			busy = FALSE
 			return
 		var/sheriff = remove_crewmember() //I shot the sheriff
 		playsound(loc, 'sound/weapons/gunshots/gunshot.ogg', 100, TRUE)

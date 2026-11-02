@@ -330,10 +330,10 @@
 
 /obj/item/food/sliceable/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if((slices_num <= 0 || !slices_num) || !slice_path)
-		return ITEM_INTERACT_COMPLETE
+		return ..()
 
 	if(!used.sharp)
-		return NONE
+		return ..()
 
 	var/inaccurate = TRUE
 	if(istype(used, /obj/item/kitchen/knife) || istype(used, /obj/item/scalpel))

@@ -65,6 +65,7 @@
 		)
 		M.fakevomit(no_text = 1)
 		M.adjust_nutrition(-rand(5, 10))
+	return ..()
 
 /obj/item/food/rations/nutrient_prism
 	name = "type I survival bar"

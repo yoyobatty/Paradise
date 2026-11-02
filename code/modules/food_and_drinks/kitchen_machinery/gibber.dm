@@ -276,23 +276,13 @@
 	if(!stealthmode && ishuman(occupant))
 		var/mob/living/carbon/human/H = occupant
 		for(var/obj/item/I in H.get_contents())
-			if(I.resistance_flags & INDESTRUCTIBLE)
+			if(!(I.resistance_flags & INDESTRUCTIBLE))
+				continue
+			// Worn items have to be properly unequipped, or the mob's Destroy() deletes them from their slot.
+			if(I.loc == H)
+				H.transfer_item_to(I, get_turf(src), force = TRUE)
+			else
 				I.forceMove(get_turf(src))
-		if(H.get_item_by_slot(ITEM_SLOT_SUIT_STORE))
-			var/obj/item/ws = H.get_item_by_slot(ITEM_SLOT_SUIT_STORE)
-			if(ws.resistance_flags & INDESTRUCTIBLE)
-				ws.forceMove(get_turf(src))
-				H.s_store = null
-		if(H.get_item_by_slot(ITEM_SLOT_LEFT_POCKET))
-			var/obj/item/ls = H.get_item_by_slot(ITEM_SLOT_LEFT_POCKET)
-			if(ls.resistance_flags & INDESTRUCTIBLE)
-				ls.forceMove(get_turf(src))
-				H.l_store = null
-		if(H.get_item_by_slot(ITEM_SLOT_RIGHT_POCKET))
-			var/obj/item/rs = H.get_item_by_slot(ITEM_SLOT_RIGHT_POCKET)
-			if(rs.resistance_flags & INDESTRUCTIBLE)
-				rs.forceMove(get_turf(src))
-				H.r_store = null
 	occupant.death(1)
 	occupant.ghostize()
 
@@ -322,6 +312,12 @@
 
 /obj/machinery/gibber/force_eject_occupant(mob/target)
 	go_out()
+
+/obj/machinery/gibber/Exited(atom/movable/gone, direction)
+	. = ..()
+	if(gone == occupant)
+		occupant = null
+		update_icon(UPDATE_OVERLAYS | UPDATE_ICON_STATE)
 
 /* AUTOGIBBER */
 

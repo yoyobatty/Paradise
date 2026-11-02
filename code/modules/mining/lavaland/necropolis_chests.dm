@@ -47,7 +47,8 @@
 		if(12)
 			new /obj/item/clothing/suit/hooded/berserker(src)
 		if(13)
-			new /obj/item/nullrod/scythe/talking(src)
+			var/obj/item/nullrod/scythe/talking/blade = new(src)
+			blade.reskinned = TRUE // Otherwise using it only ever opens the null rod reskin menu.
 		if(14)
 			new /obj/item/nullrod/armblade/mining(src)
 		if(15)

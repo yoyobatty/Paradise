@@ -157,7 +157,7 @@
 		backpack_contents += /obj/item/stack/sheet/mineral/tranquillite/fifty
 	if(H.gender == FEMALE)
 		uniform = /obj/item/clothing/under/rank/civilian/mime/sexy
-		suit = /obj/item/clothing/mask/gas/sexymime
+		mask = /obj/item/clothing/mask/gas/sexymime
 
 	if(visualsOnly)
 		return

@@ -463,7 +463,8 @@
 		fail_text = "You struggle, but [loccer]'s handle on magic easily neutralizes your movement."
 		particle_to_spawn = /obj/effect/particle_effect/sparks
 
-	new particle_to_spawn(get_turf(loccer))
+	if(particle_to_spawn)
+		new particle_to_spawn(get_turf(loccer))
 
 	if(prob(resist_chance))
 		return TRUE

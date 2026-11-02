@@ -51,7 +51,7 @@
 	desc = "A fried ring of seafood meat covered in batter."
 	icon = 'icons/obj/food/cannibalism.dmi'
 	icon_state = "calamari_1"
-	var/list/possible_iconstates = list("calamri_1", "calamari_2", "calamari_3", "calamari_4")
+	var/list/possible_iconstates = list("calamari_1", "calamari_2", "calamari_3", "calamari_4")
 	list_reagents = list("nutriment" = 1, "protein" = 1)
 	tastes = list("squid" = 1, "batter" = 1)
 	goal_difficulty = FOOD_GOAL_EXCESSIVE

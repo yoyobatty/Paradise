@@ -316,8 +316,8 @@
 				return FALSE
 
 			var/index = text2num(params["index"])
-			var/amount = text2num(params["amount"])
-			if(isnull(index) || !ISINDEXSAFE(item_quants, index) || !amount)
+			var/amount = round(text2num(params["amount"]))
+			if(isnull(index) || !ISINDEXSAFE(item_quants, index) || amount < 1)
 				return FALSE
 			var/K = item_quants[index]
 			var/count = item_quants[K]
@@ -402,10 +402,12 @@
 				throw_item = I
 				update_icon(UPDATE_OVERLAYS)
 				break
+		if(throw_item)
+			break
 	if(!throw_item)
 		return FALSE
 
-	INVOKE_ASYNC(throw_item, TYPE_PROC_REF(/atom/movable, throw_at), target, 16, 3, src)
+	INVOKE_ASYNC(throw_item, TYPE_PROC_REF(/atom/movable, throw_at), target, 16, 3)
 	visible_message(SPAN_WARNING("[src] launches [throw_item.name] at [target.name]!"))
 	return TRUE
 
@@ -1027,8 +1029,7 @@
 			SStgui.update_uis(src)
 		return TRUE
 	for(var/obj/item/stack/sheet/wetleather/WL in contents)
-		var/obj/item/stack/sheet/leather/L = new(loc)
-		L.amount = WL.amount
+		new /obj/item/stack/sheet/leather(loc, WL.amount)
 		item_quants[WL.name]--
 		qdel(WL)
 		SStgui.update_uis(src)
