@@ -256,7 +256,7 @@
 	if(!length(parts))
 		return
 	var/obj/item/organ/external/picked = pick(parts)
-	if(picked.receive_damage(brute, burn, sharp, updating_health))
+	if(picked.receive_damage(brute, burn, sharp, updating_health = updating_health))
 		UpdateDamageIcon()
 
 

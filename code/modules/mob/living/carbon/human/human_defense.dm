@@ -613,7 +613,7 @@ emp_act
 	if(isnull(b_color))
 		b_color = "#A10808"
 	if(gloves)
-		gloves.add_blood(blood_dna, blood_color, amount, max_amount)
+		gloves.add_blood(blood_dna, b_color, amount, max_amount)
 	else
 		hand_blood_color = b_color
 		if(isnull(amount))

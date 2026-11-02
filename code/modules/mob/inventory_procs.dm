@@ -61,7 +61,8 @@
 /mob/proc/is_holding_item_of_types(list/typepaths)
 	for(var/typepath in typepaths)
 		var/ret_item = is_holding_item_of_type(typepath)
-		return ret_item
+		if(ret_item)
+			return ret_item
 
 //Returns the thing in our inactive hand
 /mob/proc/get_inactive_hand()

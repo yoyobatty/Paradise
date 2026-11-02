@@ -366,8 +366,8 @@
 		return
 
 	if(!isnull(final_words))
-		create_log(MISC_LOG, "gave their final words, [last_words]")
 		last_words = final_words
+		create_log(MISC_LOG, "gave their final words, [last_words]")
 		whisper(final_words)
 
 	add_attack_logs(src, src, "[src] has [!isnull(final_words) ? "whispered [p_their()] final words" : "succumbed to death"] with [round(health, 0.1)] points of health!")
@@ -589,7 +589,7 @@
 
 	if(iscarbon(src))
 		var/mob/living/carbon/C = src
-		C.handcuffed = initial(C.handcuffed)
+		C.clear_handcuffs()
 
 		for(var/thing in C.viruses)
 			var/datum/disease/D = thing

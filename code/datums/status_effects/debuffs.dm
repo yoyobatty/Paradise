@@ -350,7 +350,7 @@
 /datum/status_effect/transient/dizziness/on_remove()
 	if(owner.client)
 		// smoothly back to normal
-		animate(owner.client, 0.2 SECONDS, pixel_x = -px_diff, pixel_y = -py_diff, flags = ANIMATION_PARALLEL)
+		animate(owner.client, 0.2 SECONDS, pixel_x = 0, pixel_y = 0, flags = ANIMATION_PARALLEL)
 	return ..()
 
 /datum/status_effect/transient/dizziness/tick()
@@ -1320,7 +1320,7 @@
 
 	linked_alert?.update_appearance() // we may have not initialized it yet
 
-	addtimer(CALLBACK(src, PROC_REF(handle_after_effects), 1 SECONDS)) // give it a second to let the failure sink in before we exact our toll
+	addtimer(CALLBACK(src, PROC_REF(handle_after_effects)), 1 SECONDS) // give it a second to let the failure sink in before we exact our toll
 
 /// Makes a nice lorey message about the curse level we're at. I think it's nice
 /datum/status_effect/cursed/proc/handle_after_effects()
@@ -1506,6 +1506,7 @@
 	. = ..()
 	if(--foam_level <= 0)
 		qdel(src)
+		return
 	refresh_overlay()
 
 /datum/status_effect/c_foamed/refresh()
