@@ -540,8 +540,11 @@
 		if(!length(special_blend))
 			continue // Ignore stackables that don't grind into anything
 
-		var/space = beaker.reagents.maximum_volume - beaker.reagents.total_volume
 		while(O.amount)
+			// Check the space for every sheet, since a reaction in the beaker can use up what the last sheet added
+			var/space = beaker.reagents.maximum_volume - beaker.reagents.total_volume
+			if(space <= 0)
+				return
 			O.amount--
 
 			for(var/r_id in special_blend)

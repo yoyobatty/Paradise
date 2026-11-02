@@ -1375,6 +1375,7 @@
 			metabolization_rate += 15
 			M.fakevomit()
 		return ..()
+	var/update_flags = STATUS_UPDATE_NONE
 	var/datum/antagonist/mindflayer/flayer = M.mind?.has_antag_datum(/datum/antagonist/mindflayer)
 	if(flayer && (flayer.total_swarms_gathered > 0)) // Inherited from conductive lube
 		M.Jitter(15 SECONDS_TO_JITTER)
@@ -1383,7 +1384,7 @@
 	M.bodytemperature += 5
 	if(prob(20))
 		metabolization_rate += 1.6 // if it kicks your butt, make it kick some of the drink out too.
-		M.adjustBruteLoss(2, FALSE)
+		update_flags |= M.adjustBruteLoss(2, FALSE)
 		playsound(get_turf(M), 'sound/effects/hit_punch.ogg', 60, TRUE)
 		var/beat_verbs = pick("assaults","batters")
 		M.Jitter(0.5 SECONDS)
@@ -1394,7 +1395,7 @@
 		)
 		if(prob(25))
 			M.KnockDown(2 SECONDS)
-	return ..()
+	return ..() | update_flags
 
 /datum/reagent/consumable/drink/soft_reset
 	name = "Soft Reset"

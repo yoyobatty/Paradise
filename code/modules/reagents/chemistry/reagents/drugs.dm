@@ -183,7 +183,7 @@
 	var/obj/item/organ/internal/lungs/A = M.get_int_organ(/obj/item/organ/internal/lungs)
 	if(ishuman(M))
 		if(prob(5))
-			A.receive_damage(1)
+			A?.receive_damage(1)
 			M.emote("cough")
 
 	return ..() | update_flags
@@ -798,7 +798,8 @@
 	..()
 
 /datum/reagent/fliptonium/on_mob_delete(mob/living/M)
-	M.SpinAnimation(speed = 12, loops = -1, parallel = FALSE)
+	// Do one last slow spin as it wears off, instead of spinning forever.
+	M.SpinAnimation(speed = 12, loops = 1, parallel = FALSE)
 
 /datum/reagent/fliptonium/overdose_process(mob/living/M, severity)
 	var/list/overdose_info = ..()
@@ -1109,7 +1110,9 @@
 	var/update_flags = STATUS_UPDATE_NONE
 	L.Jitter(2.2 SECONDS) // Slowly will build up over time due to low process rate
 	update_flags |= L.adjustToxLoss(1 * REAGENTS_EFFECT_MULTIPLIER, FALSE)
-	return ..() | update_flags
+	var/list/overdose_info = ..()
+	overdose_info[REAGENT_OVERDOSE_FLAGS] |= update_flags
+	return overdose_info
 
 //This proc is for IPCS, skeletons, golems, and people with corazone. IPCS are treated lightly, power loss and brute on OD. Used to be brain damage but new brain damage is much deadlier and ipcs would fall asleep in the middle of using the drug
 //IPC brute damage scales over time. Endleslly running an OD on this will not work well. Theoretically they could run a low dose well, but over 10 minutes will make them explode on wear off.

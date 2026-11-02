@@ -10,7 +10,7 @@
 
 /obj/effect/particle_effect/water/Move(turf/newloc)
 	if(--life < 1)
-		qdel()
+		qdel(src)
 		return 0
 	if(newloc.density)
 		return 0

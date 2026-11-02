@@ -67,9 +67,9 @@
 		for(var/datum/reagent/R in reagents.reagent_list)
 			injected += R.name
 		var/contained = english_list(injected)
-		add_attack_logs(user, C, "Dripped with [src] containing ([contained]), transfering [to_transfer]")
 
 		to_transfer = reagents.trans_to(C, amount_per_transfer_from_this)
+		add_attack_logs(user, C, "Dripped with [src] containing ([contained]), transfering [to_transfer]")
 		to_chat(user, SPAN_NOTICE("You transfer [to_transfer] units of the solution."))
 
 /obj/item/reagent_containers/dropper/normal_act(atom/target, mob/living/user)

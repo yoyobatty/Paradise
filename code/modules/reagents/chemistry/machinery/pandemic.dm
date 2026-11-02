@@ -361,7 +361,7 @@ GLOBAL_LIST_EMPTY(detected_advanced_diseases)
 			eject_beaker()
 			update_static_data(ui.user)
 		if("destroy_eject_beaker")
-			beaker.reagents.clear_reagents()
+			beaker?.reagents.clear_reagents()
 			eject_beaker()
 			update_static_data(ui.user)
 		if("print_release_forms")
@@ -397,10 +397,8 @@ GLOBAL_LIST_EMPTY(detected_advanced_diseases)
 			A.AssignName(new_name)
 			for(var/datum/disease/advance/AD in GLOB.active_diseases)
 				AD.Refresh(TRUE, FALSE, FALSE, FALSE)
-			var/datum/reagent/blood = locate() in beaker.reagents.reagent_list
-			if(blood.data && blood.data["viruses"])
-				for(var/datum/disease/advance/virus in blood.data["viruses"])
-					virus.AssignName(new_name)
+			for(var/datum/disease/advance/virus in GetViruses())
+				virus.AssignName(new_name)
 			update_static_data(ui.user)
 		if("switch_strain")
 			var/strain_index = text2num(params["strain_index"])
@@ -537,6 +535,8 @@ GLOBAL_LIST_EMPTY(detected_advanced_diseases)
 	data["analysis_difficulty"] = analysis_difficulty
 
 /obj/machinery/pandemic/proc/eject_beaker()
+	if(!beaker)
+		return
 	beaker.forceMove(loc)
 	beaker = null
 	icon_state = "pandemic0"

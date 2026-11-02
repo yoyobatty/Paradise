@@ -328,13 +328,13 @@
 		if("add")
 			var/id = params["id"]
 			var/amount = text2num(params["amount"])
-			if(!id || !amount)
+			if(!id || !amount || amount < 0)
 				return
 			R.trans_id_to(src, id, amount)
 		if("remove")
 			var/id = params["id"]
 			var/amount = text2num(params["amount"])
-			if(!id || !amount)
+			if(!id || !amount || amount < 0)
 				return
 			if(mode)
 				reagents.trans_id_to(beaker, id, amount)

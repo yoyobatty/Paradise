@@ -231,7 +231,7 @@
 			var/mouth_covered = victim.is_mouth_covered()
 			var/eyes_covered = victim.is_eyes_covered()
 
-			if(!mouth_covered && !(victim.flags & GODMODE))
+			if(!mouth_covered && !(victim.status_flags & GODMODE))
 				victim.apply_status_effect(STATUS_EFFECT_PEPPERSPRAYED)
 			if(!eyes_covered)
 				to_chat(victim, SPAN_DANGER("Your eyes burns!"))
@@ -295,7 +295,9 @@
 	var/update_flags = STATUS_UPDATE_NONE
 	if(prob(70))
 		update_flags |= M.adjustBrainLoss(1, FALSE)
-	return ..() | update_flags
+	var/list/overdose_info = ..()
+	overdose_info[REAGENT_OVERDOSE_FLAGS] |= update_flags
+	return overdose_info
 
 /datum/reagent/consumable/potass_chloride
 	name = "Potassium Salt"
@@ -312,7 +314,9 @@
 	var/update_flags = STATUS_UPDATE_NONE
 	if(prob(50))
 		update_flags |= M.adjustBrainLoss(1, FALSE)
-	return ..() | update_flags
+	var/list/overdose_info = ..()
+	overdose_info[REAGENT_OVERDOSE_FLAGS] |= update_flags
+	return overdose_info
 
 /datum/reagent/consumable/blackpepper
 	name = "Black Pepper"

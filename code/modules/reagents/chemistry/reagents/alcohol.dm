@@ -1619,8 +1619,8 @@
 		COOLDOWN_START(src, monitor_change_cooldown, 1 MINUTES)
 		var/mob/living/carbon/human/H = M
 		var/obj/item/organ/external/head/head_organ = M.get_organ("head")
-		var/datum/robolimb/robohead = GLOB.all_robolimbs[head_organ.model]
-		if(head_organ && robohead.is_monitor)
+		var/datum/robolimb/robohead = GLOB.all_robolimbs[head_organ?.model]
+		if(robohead?.is_monitor)
 			H.change_hair("Blue IPC Screen", 1)
 			var/bluescreen_message = pick("Stack underflow.", "Null pointer exception.", "Syntax error.", "500 Internal Server Error.", "Segmentation fault.", "Runtime exception.", "418 I'm a teapot.", "Could not open [M]: No such file or directory.", "fatal: not a git repository (or any of the parent directories): .git", "Display error: No signal.")
 			to_chat(M, SPAN_WARNING("[bluescreen_message]"))
@@ -2141,7 +2141,7 @@
 			SPAN_WARNING("A vile gushing sound fills the air followed by the splattering of a thick liquid on the floor!")
 		)
 		new /obj/effect/particle_effect/foam(M.loc)
-	return list(0)
+	return list(0, STATUS_UPDATE_NONE)
 
 /datum/reagent/consumable/ethanol/diona_smash
 	name = "Diona Smash"
@@ -2157,30 +2157,38 @@
 	nutriment_factor = 2 * REAGENTS_METABOLISM
 	goal_difficulty = REAGENT_GOAL_NORMAL
 	var/damage_mod = 4
+	/// Whether damage_mod has been added to the drinker's melee_bonus, so it is only added and taken off once.
+	var/bonus_applied = FALSE
 
 /datum/reagent/consumable/ethanol/diona_smash/on_mob_add(mob/living/M)
 	if(iskidan(M))
 		to_chat(M, SPAN_NOTICE("Delicious! You feel a surge of energy in your muscles, you feel like you can smash anything!"))
 		var/mob/living/carbon/human/H = M
 		H.physiology.melee_bonus += damage_mod
+		bonus_applied = TRUE
 	RegisterSignal(M, COMSIG_AFTER_SPECIES_CHANGE, PROC_REF(on_species_change))
 	return ..()
 
 /datum/reagent/consumable/ethanol/diona_smash/on_mob_delete(mob/living/M)
-	if(iskidan(M))
+	if(bonus_applied)
 		to_chat(M, SPAN_WARNING("You no longer have the energy to smash!"))
 		var/mob/living/carbon/human/H = M
 		H.physiology.melee_bonus -= damage_mod
+		bonus_applied = FALSE
 	UnregisterSignal(M, COMSIG_AFTER_SPECIES_CHANGE)
 	return ..()
 
 /datum/reagent/consumable/ethanol/diona_smash/proc/on_species_change(mob/living/M)
 	SIGNAL_HANDLER // COMSIG_AFTER_SPECIES_CHANGE
-	if(iskidan(M))
-		var/mob/living/carbon/human/H = M
+	var/mob/living/carbon/human/H = M
+	if(iskidan(M) && !bonus_applied)
 		H.physiology.melee_bonus += damage_mod
+		bonus_applied = TRUE
 		to_chat(M, SPAN_NOTICE("You feel a surge of energy in your muscles, you feel like you can smash anything!"))
-	// No need to change the damage modifier when turning into a non-Kidan, it gets reset when species changes.
+	else if(!iskidan(M) && bonus_applied)
+		// melee_bonus is kept on physiology, which a species change doesn't reset, so take the bonus back off here.
+		H.physiology.melee_bonus -= damage_mod
+		bonus_applied = FALSE
 
 /datum/reagent/consumable/ethanol/durkehiet
 	name = "Durkehiet"

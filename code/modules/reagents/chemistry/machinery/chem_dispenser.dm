@@ -209,7 +209,7 @@
 				return
 			var/datum/reagents/R = beaker.reagents
 			var/free = R.maximum_volume - R.total_volume
-			var/actual = min(amount, (cell.charge * powerefficiency) * 10, free)
+			var/actual = min(amount, cell.charge * powerefficiency, free)
 			if(!cell.use(actual / powerefficiency))
 				atom_say("Not enough energy to complete operation!")
 				return
@@ -464,7 +464,7 @@
 	switch(mode)
 		if("dispense")
 			var/free = target.reagents.maximum_volume - target.reagents.total_volume
-			var/actual = min(amount, round(cell.charge * efficiency), free)
+			var/actual = min(amount, round(cell?.charge * efficiency), free)
 			if(actual)
 				target.reagents.add_reagent(current_reagent, actual)
 				cell.charge -= actual / efficiency
@@ -504,8 +504,8 @@
 
 	data["glass"] = is_drink
 	data["amount"] = amount
-	data["energy"] = cell.charge ? cell.charge * efficiency : "0" //To prevent NaN in the UI.
-	data["maxEnergy"] = cell.maxcharge * efficiency
+	data["energy"] = cell?.charge ? cell.charge * efficiency : "0" //To prevent NaN in the UI.
+	data["maxEnergy"] = cell?.maxcharge * efficiency
 	data["current_reagent"] = current_reagent
 	data["mode"] = mode
 

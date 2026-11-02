@@ -158,7 +158,7 @@
 	if(addiction_threshold < current_threshold_accumulated && prob(addiction_chance) && prob(addiction_chance_additional))
 		to_chat(M, SPAN_DANGER("You suddenly feel invigorated and guilty..."))
 		var/datum/reagent/new_reagent = new type()
-		new_reagent.last_addiction_dose = world.timeofday
+		new_reagent.last_addiction_dose = world.time
 		M.reagents.addiction_list.Add(new_reagent)
 
 /datum/reagent/proc/sate_addiction(mob/living/M) //reagents sate their own withdrawals
@@ -166,7 +166,7 @@
 		for(var/A in M.reagents.addiction_list)
 			var/datum/reagent/AD = A
 			if(AD && istype(AD, src))
-				AD.last_addiction_dose = world.timeofday
+				AD.last_addiction_dose = world.time
 				AD.addiction_stage = 1
 
 /datum/reagent/proc/on_mob_death(mob/living/M)	//use this to have chems have a "death-triggered" effect

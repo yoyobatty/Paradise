@@ -222,7 +222,7 @@
 		if(neighbor.density)
 			continue
 		var/has_nanofrost = FALSE
-		for(var/datum/effect_system/smoke_spread/freezing in neighbor)
+		for(var/obj/effect/particle_effect/smoke/freezing/other_smoke in neighbor)
 			has_nanofrost = TRUE
 			break
 		if(has_nanofrost)

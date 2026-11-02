@@ -373,7 +373,7 @@
 			if(R.addiction_stage < 5)
 				if(prob(5))
 					R.addiction_stage++
-			if(world.timeofday > R.last_addiction_dose) //time check so addiction act doesn't play over and over. Allows incremental dosages to work.
+			if(world.time > R.last_addiction_dose) //time check so addiction act doesn't play over and over. Allows incremental dosages to work.
 				switch(R.addiction_stage)
 					if(1)
 						update_flags |= R.addiction_act_stage1(M)
@@ -385,7 +385,7 @@
 						update_flags |= R.addiction_act_stage4(M)
 					if(5)
 						update_flags |= R.addiction_act_stage5(M)
-			if(prob(20) && (world.timeofday > (R.last_addiction_dose + ADDICTION_TIME))) //Each addiction lasts 8 minutes before it can end
+			if(prob(20) && (world.time > (R.last_addiction_dose + ADDICTION_TIME))) //Each addiction lasts 8 minutes before it can end
 				to_chat(M, SPAN_NOTICE("You no longer feel reliant on [R.name]!"))
 				addiction_list.Remove(R)
 				qdel(R)
@@ -587,6 +587,8 @@
 		var/datum/reagent/R = A
 		if(R.volume < MINIMUM_REAGENT_AMOUNT)
 			del_reagent(R.id)
+			// del_reagent() calls update_total() again, which has already added up the rest of the reagents.
+			return FALSE
 		else
 			total_volume += R.volume
 	return FALSE

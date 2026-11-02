@@ -1032,7 +1032,7 @@
 
 /datum/reagent/medicine/sanguine_reagent/on_mob_life(mob/living/M)
 	if(!ishuman(M))
-		return
+		return ..()
 
 	var/mob/living/carbon/human/H = M
 
@@ -1053,7 +1053,7 @@
 /datum/reagent/medicine/sanguine_reagent/overdose_process(mob/living/M, severity)
 	var/update_flags = STATUS_UPDATE_NONE
 	if(!ishuman(M))
-		return
+		return list(0, update_flags)
 	var/mob/living/carbon/human/H = M
 	if(volume < 20)
 		if(prob(10))
@@ -1104,7 +1104,9 @@
 			else
 				new /obj/item/organ/internal/bone_tumor(H, H)
 
-	return ..()
+	var/list/overdose_info = ..()
+	overdose_info[REAGENT_OVERDOSE_FLAGS] |= update_flags
+	return overdose_info
 
 /datum/reagent/medicine/mannitol
 	name = "Mannitol"
@@ -1559,7 +1561,9 @@
 /datum/reagent/medicine/kelotane/overdose_process(mob/living/M)
 	var/update_flags = STATUS_UPDATE_NONE
 	update_flags |= M.adjustFireLoss(4*REAGENTS_EFFECT_MULTIPLIER, FALSE)
-	return ..() | update_flags
+	var/list/overdose_info = ..()
+	overdose_info[REAGENT_OVERDOSE_FLAGS] |= update_flags
+	return overdose_info
 
 
 /// Created by ambrosia gaia plants
@@ -1719,7 +1723,9 @@
 	update_flags |= M.adjustBruteLoss(3*REAGENTS_EFFECT_MULTIPLIER, FALSE)
 	update_flags |= M.adjustFireLoss(3*REAGENTS_EFFECT_MULTIPLIER, FALSE)
 	update_flags |= M.adjustToxLoss(3*REAGENTS_EFFECT_MULTIPLIER, FALSE)
-	return ..() | update_flags
+	var/list/overdose_info = ..()
+	overdose_info[REAGENT_OVERDOSE_FLAGS] |= update_flags
+	return overdose_info
 
 // First level, prevents scratches from infecting you and cures stage 1 zombie infections.
 /datum/reagent/zombie_cure

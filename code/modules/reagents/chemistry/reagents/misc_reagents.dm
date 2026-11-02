@@ -536,6 +536,8 @@
 	drink_desc = "The color of the glass' surroundings seem to drain as you look at it."
 	taste_description = "an entertaining flavor"
 	taste_flag = ORGANIC | SYNTHETIC
+	/// The mind this turned into a mime, so it gets its voice back even if it moves to another body first.
+	var/datum/mind/muted_mind
 
 /datum/reagent/mimestrogen/on_new()
 	..()
@@ -548,13 +550,35 @@
 		else if(C.mind.assigned_role == "Clown")
 			to_chat(C, SPAN_WARNING("You feel nauseous."))
 			C.AdjustDizzy(volume STATUS_EFFECT_CONSTANT)
-			C.mind.miming = TRUE
+			mute_mind(C.mind)
 			ADD_TRAIT(C, TRAIT_COLORBLIND, id)
 		else
 			to_chat(C, SPAN_WARNING("Something doesn't feel right..."))
 			C.AdjustDizzy(volume STATUS_EFFECT_CONSTANT)
-			C.mind.miming = TRUE // Jestosterone gives comic sans which makes one more clown-like, comic sans also unlocks clown healing, minus Jestoserone. So, mind.miming makes one more like a mime and unlocks mime healing, minus Mimestrogen.
+			mute_mind(C.mind) // Jestosterone gives comic sans which makes one more clown-like, comic sans also unlocks clown healing, minus Jestoserone. So, mind.miming makes one more like a mime and unlocks mime healing, minus Mimestrogen.
 			ADD_TRAIT(C, TRAIT_COLORBLIND, id)
+
+/datum/reagent/mimestrogen/Destroy()
+	unmute_mind()
+	return ..()
+
+/// Makes the drinker's mind a mime, unless it already was one.
+/datum/reagent/mimestrogen/proc/mute_mind(datum/mind/drinker_mind)
+	if(drinker_mind.miming)
+		return
+	drinker_mind.miming = TRUE
+	muted_mind = drinker_mind
+	// Cloning, borging and the like move the mind out of this body, so give its voice back when that happens.
+	RegisterSignal(drinker_mind, COMSIG_MIND_TRANSER_TO, PROC_REF(unmute_mind))
+
+/// Gives the voice back to the mind that mute_mind() turned into a mime.
+/datum/reagent/mimestrogen/proc/unmute_mind()
+	SIGNAL_HANDLER // COMSIG_MIND_TRANSER_TO
+	if(!muted_mind)
+		return
+	UnregisterSignal(muted_mind, COMSIG_MIND_TRANSER_TO)
+	muted_mind.miming = FALSE
+	muted_mind = null
 
 /datum/reagent/mimestrogen/on_mob_life(mob/living/carbon/human/M)
 	var/update_flags = STATUS_UPDATE_NONE
@@ -593,8 +617,8 @@
 
 /datum/reagent/mimestrogen/on_mob_delete(mob/living/M)
 	..()
+	unmute_mind()
 	if(M.mind?.assigned_role != "Mime")
-		M.mind.miming = FALSE
 		if(M.client)
 			M.client.color = null
 			REMOVE_TRAIT(M, TRAIT_COLORBLIND, id)

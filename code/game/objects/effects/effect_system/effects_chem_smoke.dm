@@ -70,7 +70,7 @@
 	carry.clear_reagents()
 	if(!silent)
 		var/contained = ""
-		for(var/reagent in carry.reagent_list)
+		for(var/reagent in chemholder.reagents.reagent_list)
 			contained += " [reagent] "
 		if(contained)
 			contained = "\[[contained]\]"

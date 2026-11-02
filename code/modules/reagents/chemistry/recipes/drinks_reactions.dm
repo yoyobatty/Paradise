@@ -1515,7 +1515,7 @@
 /datum/chemical_reaction/bellini
 	name = "Bellini"
 	id = "bellini"
-	result = "peach_bellini"
+	result = "bellini"
 	required_reagents = list("peachjuice" = 2, "white_wine" = 4, "tonic" = 1)
 	result_amount = 7
 	mix_message = "You hear Pachelbel's opus in the distance."
