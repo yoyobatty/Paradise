@@ -358,7 +358,7 @@ Difficulty: Very Hard
 	icon_state = "chronobolt"
 	damage = 25
 	armor_penetration_percentage = 100
-	speed = 2
+	speed = 1.167
 
 /obj/projectile/colossus/on_hit(atom/target, blocked = 0)
 	. = ..()

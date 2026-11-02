@@ -176,7 +176,7 @@
 	nodamage = 1
 	stamina = 60
 	knockdown = 4 SECONDS
-	speed = 1.5
+	speed = 1
 
 /obj/projectile/energy/net/fire(setAngle)
 	if(firer)

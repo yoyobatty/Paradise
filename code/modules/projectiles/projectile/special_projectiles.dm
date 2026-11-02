@@ -459,7 +459,7 @@
 	hitsound = 'sound/effects/curse/curse4.ogg'
 	layer = LARGE_MOB_LAYER
 	damage = 0
-	speed = 1.5
+	speed = 1
 	range = 16
 	forcedodge = -1
 	var/burn_damage = 10
@@ -520,7 +520,7 @@
 
 /obj/projectile/curse_hand/hel //Used in helbital's impure reagent
 	name = "Hel's grasp"
-	speed = 1
+	speed = 0.75
 	range = 20
 	color = "#ff7e7e"//Tint it slightly
 	burn_damage = 5

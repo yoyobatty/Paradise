@@ -122,7 +122,7 @@ Difficulty: Medium
 
 /obj/projectile/kinetic/miner
 	damage = 20
-	speed = 0.9
+	speed = 0.7
 	icon_state = "ka_tracer"
 	range = MINER_DASH_RANGE
 

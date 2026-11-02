@@ -227,7 +227,7 @@
 	icon_state = "chronobolt"
 	damage = 15
 	armor_penetration_percentage = 50
-	speed = 2
+	speed = 1.167
 
 /obj/projectile/herald/teleshot
 	name = "golden bolt"

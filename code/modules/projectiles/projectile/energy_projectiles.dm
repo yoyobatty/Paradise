@@ -66,7 +66,7 @@
 	range = 9
 	knockdown = 4 SECONDS //This is going to knock you off your feet
 	eyeblur = 10 SECONDS
-	speed = 2
+	speed = 1.167
 	alwayslog = TRUE
 
 /obj/item/ammo_casing/energy/bsg/ready_proj(atom/target, mob/living/user, quiet, zone_override = "")

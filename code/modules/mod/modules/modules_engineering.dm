@@ -157,7 +157,7 @@
 	icon_state = "tether_projectile"
 	icon = 'icons/obj/clothing/modsuit/mod_modules.dmi'
 	var/chain_icon_state = "line"
-	speed = 2
+	speed = 1.167
 	damage = 5
 	range = 15
 	hitsound = 'sound/weapons/batonextend.ogg'

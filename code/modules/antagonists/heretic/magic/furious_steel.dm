@@ -82,7 +82,7 @@
 	name = "blade"
 	icon = 'icons/effects/eldritch.dmi'
 	icon_state = "dio_knife"
-	speed = 2
+	speed = 1.167
 	damage = 25
 	damage_type = BRUTE
 	nodamage = FALSE

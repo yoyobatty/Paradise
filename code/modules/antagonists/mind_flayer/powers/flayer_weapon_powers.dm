@@ -155,7 +155,7 @@
 	damage = 15
 	icon_state = "flayer_claw"
 	chain_icon_state = "flayer_tether"
-	speed = 3
+	speed = 1.5
 	yank_speed = 2
 	/// The ammo this came from
 	var/obj/item/ammo_casing/magic/grapple_ammo/ammo

@@ -181,7 +181,7 @@
 	damage = 60
 	forcedodge = -1
 	weaken = 0
-	speed = 0.75
+	speed = 0.5
 	pass_flags = PASSTABLE //damage glass
 
 // MARK: Toy ammo

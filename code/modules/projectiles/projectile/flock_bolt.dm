@@ -7,7 +7,7 @@
 	hitsound = 'sound/effects/sparks3.ogg'
 
 	pass_flags = PASSGLASS | PASSTABLE | PASSGRILLE | PASSFLOCK
-	speed = 0.7
+	speed = 0.5
 	damage = 4
 
 	stamina = 25

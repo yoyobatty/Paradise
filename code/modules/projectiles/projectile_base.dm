@@ -35,7 +35,7 @@
 	var/paused = FALSE //for suspending the projectile midair
 	var/p_x = 16
 	var/p_y = 16 // the pixel location of the tile that the player clicked. Default is the center
-	var/speed = 1			//Amount of deciseconds it takes for projectile to travel
+	var/speed = 0.75			//Amount of deciseconds it takes for projectile to travel
 	var/Angle = null
 	var/original_angle = null //Angle at firing
 	var/spread = 0			//amount (in degrees) of projectile spread
@@ -81,6 +81,8 @@
 	var/last_projectile_move = 0
 	/// Left over ticks in movement calculation
 	var/time_offset = 0
+	/// Set when the projectile jumped to another z-level, so the next glide doesn't slide it in from the old one.
+	var/trajectory_glide_blocked = FALSE
 	/// The projectile's trajectory
 	var/datum/point_precise/vector/trajectory
 	/// Instructs forceMove to NOT reset our trajectory to the new location!
@@ -366,6 +368,7 @@
 		last_projectile_move = world.time
 		return
 	var/elapsed_time_deciseconds = (world.time - last_projectile_move) + time_offset
+	last_projectile_move = world.time
 	time_offset = 0
 	var/required_moves = hitscan ? MOVES_HITSCAN : FLOOR(elapsed_time_deciseconds / speed, 1)
 	if(required_moves == MOVES_HITSCAN)
@@ -378,18 +381,37 @@
 
 	for(var/i in 1 to required_moves)
 		pixel_move(1)
+	if(required_moves && !QDELETED(src))
+		glide()
+
+/// Shows the projectile sliding along at a steady pace. It's drawn one move behind where it really is, so there's
+/// always somewhere to slide to, and time_offset says how far through the next move we are.
+/obj/projectile/proc/glide()
+	if(!trajectory || trajectory_glide_blocked)
+		trajectory_glide_blocked = FALSE
+		return
+	// time_offset can be more than one move when a laggy tick hit the move limit.
+	var/partway = min(time_offset, speed)
+	var/time_behind = max(speed, world.tick_lag) - partway
+	// One tick longer than needed, because the next move only happens on a tick and the slide shouldn't stop before it.
+	var/glide_time = max(speed - partway, world.tick_lag) + world.tick_lag
+	var/pixels_per_decisecond_x = trajectory.mpx * SSprojectiles.global_iterations_per_move / speed
+	var/pixels_per_decisecond_y = trajectory.mpy * SSprojectiles.global_iterations_per_move / speed
+	var/end_x = trajectory.return_px() + pixels_per_decisecond_x * (glide_time - time_behind)
+	var/end_y = trajectory.return_py() + pixels_per_decisecond_y * (glide_time - time_behind)
+	pixel_x = trajectory.return_px() - pixels_per_decisecond_x * time_behind
+	pixel_y = trajectory.return_py() - pixels_per_decisecond_y * time_behind
+	animate(src, pixel_x = end_x, pixel_y = end_y, time = glide_time, flags = ANIMATION_END_NOW)
 
 /obj/projectile/proc/pixel_move(trajectory_multiplier, hitscanning = FALSE)
 	if(!loc || !trajectory)
 		return
-	last_projectile_move = world.time
 	// Keep on course
 	if(!hitscanning)
 		var/matrix/M = new
 		M.Turn(Angle)
 		transform = M
 	// Iterate
-	var/forcemoved = FALSE
 	for(var/i in 1 to SSprojectiles.global_iterations_per_move)
 		if(QDELETED(src))
 			return
@@ -407,7 +429,7 @@
 			if(!hitscanning)
 				pixel_x = trajectory.return_px()
 				pixel_y = trajectory.return_py()
-			forcemoved = TRUE
+				trajectory_glide_blocked = TRUE
 			hitscan_last = loc
 		else if(T != loc)
 			step_towards(src, T)
@@ -417,10 +439,6 @@
 				Bump(original, TRUE)
 	if(QDELETED(src)) //deleted on last move
 		return
-	if(!hitscanning && !forcemoved)
-		pixel_x = trajectory.return_px() - trajectory.mpx * trajectory_multiplier * SSprojectiles.global_iterations_per_move
-		pixel_y = trajectory.return_py() - trajectory.mpy * trajectory_multiplier * SSprojectiles.global_iterations_per_move
-		animate(src, pixel_x = trajectory.return_px(), pixel_y = trajectory.return_py(), time = 1, flags = ANIMATION_END_NOW)
 	Range()
 
 /obj/projectile/proc/fire(setAngle)
@@ -445,6 +463,8 @@
 		process_hitscan()
 	START_PROCESSING(SSprojectiles, src)
 	pixel_move(1, FALSE)
+	if(!QDELETED(src))
+		glide()
 
 /obj/projectile/proc/reflect_back(atom/source, list/position_modifiers = list(0, 0, 0, 0, 0, -1, 1, -2, 2))
 	if(!starting)

@@ -491,7 +491,7 @@
 		marker.icon_state = "chronobolt"
 		marker.damage = bonus_value
 		marker.nodamage = FALSE
-		marker.speed = 2
+		marker.speed = 1.167
 		deadly_shot = FALSE
 
 /obj/item/crusher_trophy/blaster_tubes/on_mark_detonation(mob/living/target, mob/living/user)
