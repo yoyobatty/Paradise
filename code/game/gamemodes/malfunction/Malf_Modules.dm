@@ -170,6 +170,8 @@
 	if(!is_ai(usr))
 		return
 	var/mob/living/silicon/ai/A = usr
+	if(A.malf_picker != src)
+		return
 
 	if(A.stat == DEAD)
 		to_chat(A, SPAN_WARNING("You are already dead!"))

@@ -245,8 +245,8 @@ GLOBAL_LIST_EMPTY(rnd_network_managers)
 
 		// Set network password
 		if("network_password")
-			var/new_password = tgui_input_text(usr, "Please enter a new network ID", "Network ID", network_password)
-			if(!Adjacent(usr))
+			var/new_password = tgui_input_text(usr, "Please enter a new network password", "Network Password", network_password)
+			if(!Adjacent(usr) || !length(new_password))
 				return
 			to_chat(usr, SPAN_NOTICE("Network password changed from <code>[network_password]</code> to <code>[new_password]</code>."))
 			network_password = new_password

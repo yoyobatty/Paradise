@@ -118,6 +118,9 @@
 		if(stat & (NOPOWER|BROKEN))
 			to_chat(user, SPAN_WARNING("[src] is offline and cannot take an AI at this time!"))
 			return
+		if(occupant)
+			to_chat(user, SPAN_WARNING("[src] already has an AI in it!"))
+			return
 		AI.forceMove(src)
 		occupant = AI
 		AI.control_disabled = TRUE

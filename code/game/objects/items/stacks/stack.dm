@@ -139,6 +139,11 @@
 		merge(hitting)
 	. = ..()
 
+/// Turns materials from the cost of the whole stack into the cost per unit, which is what recycling counts.
+/obj/item/stack/proc/spread_materials_over_stack()
+	for(var/mat in materials)
+		materials[mat] /= amount
+
 /obj/item/stack/proc/add(newamount)
 	if(is_cyborg)
 		source.add_charge(newamount * cost)

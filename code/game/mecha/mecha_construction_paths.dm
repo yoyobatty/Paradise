@@ -339,7 +339,7 @@
 		list(
 			"key" = /obj/item/mecha_parts/core,
 			"backkey" = TOOL_SCREWDRIVER,
-			"desc" = "Mech power core is secured."),
+			"desc" = "Advanced scanner module is secured."),
 		//9
 		list(
 			"key" = TOOL_SCREWDRIVER,
@@ -349,12 +349,12 @@
 		list(
 			"key" = /obj/item/stock_parts/scanning_module/adv,
 			"backkey" = TOOL_SCREWDRIVER,
-			"desc" = "Scanning module is secured."),
+			"desc" = "Weapon control module is secured."),
 		//11
 		list(
 			"key" = TOOL_SCREWDRIVER,
 			"backkey" = TOOL_CROWBAR,
-			"desc" = "Scanning module is installed."),
+			"desc" = "Weapon control module is installed."),
 		//12
 		list(
 			"key" = /obj/item/circuitboard/mecha/gygax/targeting,
@@ -521,7 +521,7 @@
 				user.visible_message(SPAN_NOTICE("[user] installs the internal armor layer to the [holder]."), SPAN_NOTICE("You install the internal armor layer to the [holder]."))
 				holder.icon_state = "gygax15"
 			else
-				user.visible_message(SPAN_NOTICE("[user] unfastens the advanced capacitor."), SPAN_NOTICE("You unfasten the advanced capacitor."))
+				user.visible_message(SPAN_NOTICE("[user] unfastens the mech power core."), SPAN_NOTICE("You unfasten the mech power core."))
 				holder.icon_state = "gygax13"
 		if(5)
 			if(diff==CONSTRUCTION_PATH_FORWARDS)
@@ -1029,12 +1029,12 @@
 		list(
 			"key" = /obj/item/stock_parts/scanning_module/phasic,
 			"backkey" = TOOL_SCREWDRIVER,
-			"desc" = "Scanning module is secured."),
+			"desc" = "Weapon control module is secured."),
 		//11
 		list(
 			"key" = TOOL_SCREWDRIVER,
 			"backkey" = TOOL_CROWBAR,
-			"desc" = "Scanning module is installed."),
+			"desc" = "Weapon control module is installed."),
 		//12
 		list(
 			"key" = /obj/item/circuitboard/mecha/durand/targeting,
@@ -1348,12 +1348,12 @@
 		list(
 			"key" = /obj/item/stock_parts/scanning_module/phasic,
 			"backkey" = TOOL_SCREWDRIVER,
-			"desc" = "Scanning module is secured."),
+			"desc" = "Weapon control module is secured."),
 		//15
 		list(
 			"key" = TOOL_SCREWDRIVER,
 			"backkey" = TOOL_CROWBAR,
-			"desc" = "Scanning module is installed."),
+			"desc" = "Weapon control module is installed."),
 		//16
 		list(
 			"key" = /obj/item/circuitboard/mecha/phazon/targeting,
@@ -1400,6 +1400,10 @@
 			"desc" = "The hydraulic systems are disconnected.")
 	)
 
+
+/datum/construction/reversible/mecha/phazon
+	/// The kind of crystal put in, so taking it out gives the same kind back.
+	var/crystal_type = /obj/item/stack/ore/bluespace_crystal
 
 /datum/construction/reversible/mecha/phazon/action(atom/used_atom,mob/user as mob)
 	return check_step(used_atom,user)
@@ -1519,6 +1523,7 @@
 		if(10)
 			if(diff==CONSTRUCTION_PATH_FORWARDS)
 				user.visible_message("[user] installs the bluespace crystal.", "You install the bluespace crystals.")
+				crystal_type = used_atom.type
 				holder.icon_state = "phazon15"
 			else
 				user.visible_message("[user] unsecures the super capacitor from the [holder].", "You unsecure the super capacitor from the [holder].")
@@ -1529,7 +1534,7 @@
 				holder.icon_state = "phazon16"
 			else
 				user.visible_message("[user] removes the bluespace crystal from the [holder].", "You remove the bluespace crystal from the [holder].")
-				new /obj/item/stack/ore/bluespace_crystal(get_turf(holder), 5)
+				new crystal_type(get_turf(holder), 5)
 				holder.icon_state = "phazon14"
 		if(8)
 			if(diff==CONSTRUCTION_PATH_FORWARDS)
@@ -1537,6 +1542,7 @@
 				holder.icon_state = "phazon17"
 			else
 				user.visible_message("[user] disconnects the bluespace crystal from the [holder].", "You disconnect the bluespace crystal from the [holder].")
+				new /obj/item/stack/cable_coil(get_turf(holder), 4)
 				holder.icon_state = "phazon15"
 		if(7)
 			if(diff==CONSTRUCTION_PATH_FORWARDS)
@@ -2003,7 +2009,7 @@
 				user.visible_message("[user] secures a floor buffer into [holder].", "You secure the floor buffer into [holder].")
 				holder.icon_state = "nkarrdem10"
 			else
-				user.visible_message("[user] removes the floor buffer from the [holder].", "You unfasten  the floor buffer from the [holder].")
+				user.visible_message("[user] removes the floor buffer from the [holder].", "You remove the floor buffer from the [holder].")
 				new /obj/item/borg/upgrade/floorbuffer(get_turf(holder))
 				holder.icon_state = "nkarrdem8"
 		if(6)

@@ -260,7 +260,10 @@
 		SSblackbox.record_feedback("tally", "station_mechfab_production", 1, "[D.type]")
 	if(isitem(A))
 		var/obj/item/I = A
-		I.materials = final_cost
+		I.materials = final_cost.Copy()
+		if(isstack(I))
+			var/obj/item/stack/new_stack = I
+			new_stack.spread_materials_over_stack()
 		if(D.locked)
 			var/obj/item/storage/lockbox/research/modsuit/L = new(get_step(src, output_dir))
 			I.forceMove(L)
@@ -295,8 +298,7 @@
   * * amount_inserted - The amount of sheets inserted.
   */
 /obj/machinery/mecha_part_fabricator/proc/on_material_insert(type_inserted, id_inserted, amount_inserted)
-	var/stack_name = copytext(id_inserted, 2)
-	add_overlay("fab-load-[stack_name]")
+	add_overlay("fab-load-[id_inserted]")
 	addtimer(CALLBACK(src, PROC_REF(on_material_insert_timer_finish)), 1 SECONDS)
 	process_queue()
 	SStgui.update_uis(src)

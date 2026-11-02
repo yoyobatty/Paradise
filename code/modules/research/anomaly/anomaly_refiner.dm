@@ -89,13 +89,19 @@
 		linked_doppler.linked_machines |= src
 		to_chat(user, SPAN_NOTICE("You link [multi.buffer] to [src]."))
 
+/obj/machinery/anomaly_refinery/Destroy()
+	if(linked_doppler)
+		linked_doppler.linked_machines -= src
+		linked_doppler = null
+	return ..()
+
 /obj/machinery/anomaly_refinery/proc/refine_core(explosion_size)
 	if(!inserted_core)
 		return
 	if(inserted_core.target_explosion_size != explosion_size)
 		atom_say("Temporal displacement detected. Criticality status: FAILURE.")
 		return
-	inserted_core = null
+	QDEL_NULL(inserted_core)
 	if(emagged)
 		atom_say("Temporal displacement detected. Criticality status: SUCCESS.")
 		atom_say("ERROR: CONTAINMENT STATUS - NONFUNCTIONAL.")

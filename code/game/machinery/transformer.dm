@@ -25,7 +25,12 @@
 	. = ..()
 	if(_ai)
 		masterAI = _ai
+		RegisterSignal(masterAI, COMSIG_PARENT_QDELETING, PROC_REF(on_master_ai_deleted))
 	initialize_belts()
+
+/obj/machinery/transformer/proc/on_master_ai_deleted()
+	SIGNAL_HANDLER
+	masterAI = null
 
 /// Used to create all of the belts the transformer will be using. All belts should be pushing `WEST`.
 /obj/machinery/transformer/proc/initialize_belts()

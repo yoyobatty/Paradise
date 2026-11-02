@@ -156,8 +156,11 @@ won't update every console in existence) but it's more of a hassle to do. Also, 
 			RNC.consoles += UID()
 
 /obj/machinery/computer/rdconsole/Destroy()
-	QDEL_NULL(t_disk)
-	QDEL_NULL(d_disk)
+	var/turf/our_turf = get_turf(src)
+	t_disk?.forceMove(our_turf)
+	t_disk = null
+	d_disk?.forceMove(our_turf)
+	d_disk = null
 	matching_designs.Cut()
 	if(linked_analyzer)
 		linked_analyzer.linked_console = null
@@ -239,7 +242,7 @@ won't update every console in existence) but it's more of a hassle to do. Also, 
 	else if(t_disk && t_disk.tech_id)
 		var/datum/tech/tech = files.find_possible_tech_with_id(t_disk.tech_id)
 		if(!isnull(tech))
-			tech.level = t_disk.tech_level
+			tech.level = max(tech.level, t_disk.tech_level)
 	SStgui.update_uis(src)
 
 /obj/machinery/computer/rdconsole/proc/find_devices()
@@ -462,6 +465,9 @@ won't update every console in existence) but it's more of a hassle to do. Also, 
 					new_item.investigate_log("built by [key]",INVESTIGATE_SINGULO)
 				if(!istype(new_item, /obj/item/stack/sheet)) // To avoid materials dupe glitches
 					new_item.materials = efficient_mats.Copy()
+					if(isstack(new_item))
+						var/obj/item/stack/new_stack = new_item
+						new_stack.spread_materials_over_stack()
 				if(being_built.locked)
 					var/obj/item/storage/lockbox/research/L = new/obj/item/storage/lockbox/research(machine.loc)
 					new_item.forceMove(L)

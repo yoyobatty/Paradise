@@ -163,6 +163,7 @@
 	return TRUE
 
 /obj/machinery/computer/telescience/proc/finish_tele(mob/user, sending, trueX, trueY)
+	teleporting = FALSE
 	var/obj/machinery/telepad/TP = get_linked_pad()
 
 	if(!TP)
@@ -176,7 +177,6 @@
 	if(!target)
 		return // If our target turf somehow got deleted - abort
 
-	teleporting = FALSE
 	teleport_cooldown = world.time + (power * 2)
 	teles_left -= 1
 
@@ -316,10 +316,10 @@
 	SStgui.update_uis(src)
 
 /obj/machinery/computer/telescience/proc/eject_crystals()
-	var/to_eject
-	for(var/i in 1 to crystals)
-		to_eject += 1
+	if(!crystals)
+		return
 
+	var/to_eject = crystals
 	crystals = 0
 	power = power_options[1] // Reset this
 	// Yes this means some real ones put in will become artificial after

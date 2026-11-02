@@ -52,7 +52,7 @@ Note: Must be placed within 3 tiles of the R&D Console
 	if(istype(used, /obj/item/storage/part_replacer) || istype(used, /obj/item/gripper))
 		return ..()
 
-	if(default_deconstruction_screwdriver(user, "s_analyzer_t", "s_analyzer", used))
+	if(!busy && default_deconstruction_screwdriver(user, "s_analyzer_t", "s_analyzer", used))
 		if(linked_console)
 			linked_console.linked_analyzer = null
 			linked_console = null

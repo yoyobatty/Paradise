@@ -84,7 +84,7 @@
 				if(!M.laws)
 					to_chat(usr, SPAN_WARNING("This AI module can not be applied directly to AI cores."))
 					return ITEM_INTERACT_COMPLETE
-				laws = M.laws
+				laws = new M.laws.type()
 				to_chat(usr, SPAN_NOTICE("Added [M.laws.name] laws."))
 				return ITEM_INTERACT_COMPLETE
 
@@ -237,6 +237,9 @@
 	if(circuit)
 		circuit.forceMove(loc)
 		circuit = null
+	if(brain)
+		brain.forceMove(loc)
+		brain = null
 	new /obj/item/stack/sheet/plasteel(loc, 4)
 	qdel(src)
 

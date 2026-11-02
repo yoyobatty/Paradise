@@ -110,7 +110,8 @@
 		data["linked"] = FALSE
 		var/list/controllers = list()
 		for(var/obj/machinery/computer/rnd_network_controller/RNC in GLOB.rnd_network_managers)
-			controllers += list(list("addr" = RNC.UID(), "net_id" = RNC.network_name))
+			if(atoms_share_level(RNC, src))
+				controllers += list(list("addr" = RNC.UID(), "net_id" = RNC.network_name))
 
 		data["controllers"] = controllers
 
@@ -234,11 +235,12 @@
 				return FALSE
 
 			var/obj/machinery/computer/rnd_network_controller/C = locateUID(params["target_controller"])
-			if(istype(C, /obj/machinery/computer/rnd_network_controller))
+			if(istype(C, /obj/machinery/computer/rnd_network_controller) && atoms_share_level(C, src))
 				var/user_pass = tgui_input_text(usr, "Please enter network password", "Password Entry")
 				// Check the password
 				if(user_pass == C.network_password)
 					network_manager_uid = C.UID()
+					C.backupconsoles += UID()
 					to_chat(usr, SPAN_NOTICE("Successfully linked to <b>[C.network_name]</b>."))
 
 				else

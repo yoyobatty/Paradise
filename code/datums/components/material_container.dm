@@ -264,7 +264,7 @@
 	while(sheet_amt > MAX_STACK_SIZE)
 		new M.sheet_type(target, MAX_STACK_SIZE)
 		count += MAX_STACK_SIZE
-		use_amount_type(sheet_amt * MINERAL_MATERIAL_AMOUNT, M.id)
+		use_amount_type(MAX_STACK_SIZE * MINERAL_MATERIAL_AMOUNT, M.id)
 		sheet_amt -= MAX_STACK_SIZE
 	if(sheet_amt >= 1)
 		new M.sheet_type(target, sheet_amt)

@@ -199,15 +199,12 @@
 			message_admins(SPAN_NOTICE("[key_name_admin(usr)] locked all cyborgs!"))
 			log_game(SPAN_NOTICE("[key_name(usr)] locked all cyborgs!"))
 			for(var/mob/living/silicon/robot/R in GLOB.mob_list)
-				if(isdrone(R))
-					continue
-				// Ignore antagonistic cyborgs
-				if(R.scrambledcodes)
+				if(!console_shows(R))
 					continue
 				to_chat(R, SPAN_DANGER("Emergency lockdown received."))
 				if(R.connected_ai)
 					to_chat(R.connected_ai, "<br><br>[SPAN_ALERT("ALERT - Cyborg lockdown detected: [R.name]")]<br>")
-				R.SetLockdown(!R.lockcharge)
+				R.SetLockdown(TRUE)
 			. = TRUE
 		if("killbot") // destroys one specific cyborg
 			if(!COOLDOWN_FINISHED(src, detonate_cooldown))

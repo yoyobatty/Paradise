@@ -35,6 +35,9 @@
 /obj/machinery/doppler_array/Destroy()
 	logged_explosions.Cut()
 	UnregisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION)
+	for(var/obj/machinery/anomaly_refinery/anom_refiner in linked_machines)
+		anom_refiner.linked_doppler = null
+	linked_machines.Cut()
 	return ..()
 
 /obj/machinery/doppler_array/item_interaction(mob/living/user, obj/item/used, list/modifiers)

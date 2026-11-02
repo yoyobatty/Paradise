@@ -146,7 +146,7 @@
 /obj/machinery/computer/mech_bay_power_console/proc/reconnect()
 	if(recharge_port)
 		return
-	recharge_port = locate(/obj/machinery/mech_bay_recharge_port) in range(1)
+	recharge_port = locate(/obj/machinery/mech_bay_recharge_port) in range(1, src)
 	if(!recharge_port)
 		for(var/D in GLOB.cardinal)
 			var/turf/A = get_step(src, D)

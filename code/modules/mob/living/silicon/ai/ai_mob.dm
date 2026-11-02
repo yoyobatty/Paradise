@@ -313,6 +313,11 @@ GLOBAL_LIST_INIT(ai_verbs_default, list(
 	QDEL_NULL(aiRadio)
 	QDEL_NULL(builtInCamera)
 	tracked_mob = null
+	if(program_picker)
+		program_picker.assigned_ai = null
+		QDEL_NULL(program_picker)
+	for(var/mob/living/silicon/robot/R as anything in connected_robots)
+		R.set_connected_ai(null)
 	return ..()
 
 /mob/living/silicon/ai/get_radio()
@@ -437,6 +442,17 @@ GLOBAL_LIST_INIT(ai_verbs_default, list(
 	button_icon_state = "ai_last_shell"
 	var/mob/living/silicon/robot/last_used_shell
 
+/datum/action/innate/deploy_last_shell/proc/set_shell(mob/living/silicon/robot/new_shell)
+	if(last_used_shell)
+		UnregisterSignal(last_used_shell, COMSIG_PARENT_QDELETING)
+	last_used_shell = QDELETED(new_shell) ? null : new_shell
+	if(last_used_shell)
+		RegisterSignal(last_used_shell, COMSIG_PARENT_QDELETING, PROC_REF(on_shell_deleted))
+
+/datum/action/innate/deploy_last_shell/proc/on_shell_deleted()
+	SIGNAL_HANDLER
+	set_shell(null)
+
 /datum/action/innate/deploy_last_shell/Trigger()
 	if(!owner)
 		return
@@ -525,8 +541,12 @@ GLOBAL_LIST_INIT(ai_verbs_default, list(
 	..()
 
 /obj/machinery/ai_powersupply/process()
-	if(!powered_ai || powered_ai.stat & DEAD)
+	if(QDELETED(powered_ai))
 		qdel(src)
+		return
+	// A dead AI can be restored, and it never gets another power supply, so this waits for it.
+	if(powered_ai.stat & DEAD)
+		change_power_mode(NO_POWER_USE)
 		return
 	// Regenerate nanites for abilities only when powered.
 	powered_ai.program_picker.nanites = min(powered_ai.program_picker.max_nanites, powered_ai.program_picker.nanites + (powered_ai.nanite_regen + 0.5 * powered_ai.program_picker.bandwidth))
@@ -562,7 +582,7 @@ GLOBAL_LIST_INIT(ai_verbs_default, list(
 	// First, find the RND server
 	var/network_manager_uid = null
 	for(var/obj/machinery/computer/rnd_network_controller/RNC in GLOB.rnd_network_managers)
-		if(RNC.network_name == "station_rnd")
+		if(is_station_level(RNC.z))
 			network_manager_uid = RNC.UID()
 			break
 	var/obj/machinery/computer/rnd_network_controller/RNC = locateUID(network_manager_uid)
@@ -1644,9 +1664,8 @@ GLOBAL_LIST_INIT(ai_verbs_default, list(
 /mob/living/silicon/ai/proc/remove_malf_abilities()
 	QDEL_NULL(modules_action)
 	for(var/datum/ai_module/AM in current_modules)
-		for(var/datum/action/A in actions)
-			if(istype(A, initial(AM.power_type)))
-				qdel(A)
+		RemoveSpell(initial(AM.power_type))
+	current_modules.Cut()
 	// De-malf all the connected robots too!
 	for(var/mob/living/silicon/robot/R in connected_robots)
 		R.remove_robot_mindslave()

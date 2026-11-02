@@ -57,5 +57,5 @@
 					stack_wood = new /obj/item/stack/sheet/wood/cyborg(src.module)
 					stack_wood.amount = 1
 				stack = stack_wood
-		stack.amount++
+		stack.add(1)
 		decompiler.stored_comms[type]--

@@ -390,6 +390,9 @@ GLOBAL_LIST_EMPTY(ai_nodes)
 			var/obj/machinery/ai_node/selected_node = locateUID(params["uid"])
 			if(!selected_node)
 				return FALSE
+			if(!selected_node.assigned_ai)
+				to_chat(usr, SPAN_WARNING("[selected_node] is offline."))
+				return FALSE
 			selected_node.change_ai(new_ai)
 			return TRUE
 

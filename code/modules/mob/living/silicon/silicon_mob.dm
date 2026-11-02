@@ -671,7 +671,7 @@
 /mob/living/silicon/plushify(plushie_override, curse_time)
 	// So this doesn't override borg plushify.
 	if(!isrobot(src))
-		. = ..(/obj/item/toy/plushie/borgplushie, curse_time)
+		return ..(/obj/item/toy/plushie/borgplushie, curse_time)
 	
 	return ..(plushie_override, curse_time)
 

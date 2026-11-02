@@ -253,7 +253,7 @@
 	// is the current step the dummy emote object?
 	var/list/steps = construct.steps
 	if(steps[construct.index]["key"] == /obj/effect/dummy/mecha_emote_step)
-		construct.action(new /obj/effect/dummy/mecha_emote_step(msg), M)
+		construct.action(new /obj/effect/dummy/mecha_emote_step(null, msg), M)
 
 /obj/item/mecha_parts/part/reticence_torso
 	name = "\improper Reticence torso"

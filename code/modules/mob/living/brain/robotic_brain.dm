@@ -24,6 +24,10 @@
 	imprinted_master = null
 	return ..()
 
+/obj/item/mmi/robotic_brain/proc/on_master_deleted()
+	SIGNAL_HANDLER
+	imprinted_master = null
+
 /obj/item/mmi/robotic_brain/activate_self(mob/user)
 	if(..())
 		return
@@ -33,6 +37,7 @@
 	if(requires_master && !imprinted_master)
 		to_chat(user, SPAN_NOTICE("You press your thumb on [src] and imprint your user information."))
 		imprinted_master = user
+		RegisterSignal(user, COMSIG_PARENT_QDELETING, PROC_REF(on_master_deleted))
 		return
 	if(brainmob && !brainmob.key && !searching && can_be_reinhabited)
 		//Start the process of searching for a new user.

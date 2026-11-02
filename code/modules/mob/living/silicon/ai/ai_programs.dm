@@ -128,6 +128,8 @@
 	switch(action)
 		if("select")
 			var/datum/ai_program/program = locateUID(params["uid"])
+			if(!(program in possible_programs))
+				return FALSE
 			if(!program.installed) // Handle installing any program here.
 				if(program.cost > memory)
 					to_chat(A, SPAN_WARNING("You cannot afford this program."))
@@ -486,6 +488,10 @@
 		T.obj_integrity = min(T.max_integrity, T.obj_integrity + (T.max_integrity * (0.2 + min(0.3, (0.1 * spell_level)))))
 	if(isrobot(target))
 		var/mob/living/silicon/robot/T = target
+		var/damage_healed = 20 + (min(30, (10 * spell_level)))
+		T.heal_overall_damage(damage_healed, damage_healed)
+	if(isbot(target))
+		var/mob/living/basic/bot/T = target
 		var/damage_healed = 20 + (min(30, (10 * spell_level)))
 		T.heal_overall_damage(damage_healed, damage_healed)
 	if(ismachineperson(target))
@@ -1022,6 +1028,8 @@
 		return
 	var/sign_id = tgui_input_list(usr, "Select a holosign!", "AI", sign_choices)
 	if(!sign_id)
+		AI.program_picker.refund_nanites(program.nanite_cost)
+		revert_cast()
 		return
 	var/sign_type
 	switch(sign_id)

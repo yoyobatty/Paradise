@@ -782,6 +782,7 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 
 /mob/living/silicon/robot/proc/reset_module()
 	notify_ai(NEW_MODULE)
+	has_advanced_reagent_vision = initial(has_advanced_reagent_vision)
 	client?.screen -= hud_used.module_store_icon
 	uneq_all()
 	SStgui.close_user_uis(src)
@@ -1021,6 +1022,8 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 		being_charged = TRUE
 		to_chat(src, SPAN_NOTICE("[user] begins to manually charge your internal cell."))
 		while(do_after(user, 0.5 SECONDS, target = src))
+			if(!cell)
+				break
 			var/cell_difference = cell.maxcharge - cell.charge
 			if(donor.charge >= 500 && cell_difference >= 500)
 				cell.charge += 500
@@ -1288,7 +1291,8 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 	laws = new /datum/ai_laws/crewsimov
 	var/datum/atom_hud/data/human/malf_ai/A = GLOB.huds[DATA_HUD_MALF_AI]
 
-	A.remove_hud_from(user, "emag")
+	A.remove_hud_from(src, "emag")
+	mind?.remove_antag_datum(/datum/antagonist/mindslave/emagged_robot)
 
 /mob/living/silicon/robot/emag_act(mob/user)
 	if(!ishuman(user) && !issilicon(user))
@@ -1509,6 +1513,7 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 		robot_suit.head.flash2 = null
 		robot_suit.head = null
 		robot_suit.update_icon(UPDATE_OVERLAYS)
+		robot_suit = null
 	else
 		new /obj/item/robot_parts/robot_suit(T)
 		new /obj/item/robot_parts/l_leg(T)
@@ -1642,7 +1647,7 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 		// Shells get notifications already, so we don't want to duplicate the message for them.
 		if(!shell)
 			notify_ai(NEW_BORG)
-		if(AI.mind.special_role == ROLE_TRAITOR && AI.malf_picker)
+		if(AI.mind?.special_role == ROLE_TRAITOR && AI.malf_picker)
 			make_malf_robot(AI)
 		if(module)
 			module.rebuild_modules() //This way, if a borg gets linked to a malf AI that has upgrades, they get their upgrades.
@@ -1930,15 +1935,16 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 	update_headlamp(1, 150)
 
 /mob/living/silicon/robot/rejuvenate()
-	..()
 	var/brute = 1000
 	var/burn = 1000
 	var/list/datum/robot_component/borked_parts = get_damaged_components(TRUE, TRUE, TRUE, TRUE)
 	for(var/datum/robot_component/borked_part in borked_parts)
 		brute = borked_part.brute_damage
 		burn = borked_part.electronics_damage
-		borked_part.heal_damage(brute,burn)
+		// heal_damage() does nothing to a part that isn't installed.
 		borked_part.install(new borked_part.external_type)
+		borked_part.heal_damage(brute,burn)
+	..()
 
 /mob/living/silicon/robot/proc/check_sprite(spritename)
 	. = FALSE
@@ -2182,10 +2188,14 @@ GLOBAL_LIST_EMPTY(available_ai_shells)
 	if(!deployed || !mind || !mainframe)
 		return
 	mainframe.redeploy_action.Grant(mainframe)
-	mainframe.redeploy_action.last_used_shell = src
+	mainframe.redeploy_action.set_shell(src)
 	mind.transfer_to(mainframe)
 	deployed = FALSE
 	mainframe.deployed_shell = null
+	// The link is only for this deployment, or the AI dying later would kill every shell it ever used.
+	for(var/datum/soullink/sharedbody/link in mainframe.ownedSoullinks)
+		if(link.soulsharer == src)
+			qdel(link)
 	undeployment_action.Remove(src)
 	if(radio) // Return radio to normal.
 		radio.recalculateChannels()

@@ -92,6 +92,11 @@
 	alert_silicons()
 	cooldown = world.time + AIUPLOAD_EMAG_COOLDOWN
 
+/obj/machinery/computer/aiupload/proc/on_target_deleted(datum/source)
+	SIGNAL_HANDLER
+	if(source == current)
+		current = null
+
 /// pushes an alert to the AI and its borgs about the law changes
 /obj/machinery/computer/aiupload/proc/alert_silicons()
 	current.show_laws()
@@ -113,6 +118,7 @@
 	if(!current)
 		to_chat(user, SPAN_WARNING("No active AIs detected."))
 		return
+	RegisterSignal(current, COMSIG_PARENT_QDELETING, PROC_REF(on_target_deleted), override = TRUE)
 	to_chat(user, SPAN_NOTICE("[current.name] selected for law changes."))
 
 /obj/machinery/computer/aiupload/attack_ghost(user)
@@ -128,6 +134,11 @@
 	icon_keyboard = "med_key"
 	circuit = /obj/item/circuitboard/borgupload
 	var/mob/living/silicon/robot/current = null
+
+/obj/machinery/computer/borgupload/proc/on_target_deleted(datum/source)
+	SIGNAL_HANDLER
+	if(source == current)
+		current = null
 
 /obj/machinery/computer/borgupload/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	var/obj/item/ai_module/module = used
@@ -157,6 +168,7 @@
 	if(!current)
 		to_chat(user, SPAN_WARNING("No free cyborgs detected."))
 		return
+	RegisterSignal(current, COMSIG_PARENT_QDELETING, PROC_REF(on_target_deleted), override = TRUE)
 	to_chat(user, SPAN_NOTICE("[current.name] selected for law changes."))
 
 /obj/machinery/computer/borgupload/attack_ghost(user)
