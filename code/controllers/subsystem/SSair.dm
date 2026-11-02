@@ -389,7 +389,7 @@ SUBSYSTEM_DEF(air)
 		currentrun.len--
 		if(istype(M, /obj/machinery/atmospherics/supermatter_crystal))
 			supermatters += M
-		else if(isnull(M) || (M.process_atmos(seconds) == PROCESS_KILL))
+		else if(QDELETED(M) || (M.process_atmos(seconds) == PROCESS_KILL))
 			atmos_machinery -= M
 		if(MC_TICK_CHECK)
 			for(var/SM in supermatters)

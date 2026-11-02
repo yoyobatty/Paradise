@@ -28,7 +28,7 @@
 		add_underlay(T, node, dir)
 
 /obj/machinery/atmospherics/unary/portables_connector/process_atmos()
-	if(!connected_device)
+	if(!connected_device || !parent)
 		return 0
 	parent.update = 1
 

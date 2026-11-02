@@ -1598,6 +1598,9 @@
 //When the disposalsoutlet is forcefully moved. Due to meteorshot or the recall item spell for instance
 /obj/structure/disposaloutlet/Moved(atom/OldLoc, Dir)
 	. = ..()
+	// Being deleted moves it to nullspace too, and that isn't it being ripped out.
+	if(!isturf(OldLoc) || !isturf(loc))
+		return
 	var/turf/T = OldLoc
 	if(T.intact)
 		var/turf/simulated/floor/F = T

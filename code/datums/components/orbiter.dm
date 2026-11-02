@@ -164,6 +164,9 @@
 		if(!QDELETED(parent))
 			SEND_SIGNAL(parent, COMSIG_ATOM_ORBIT_STOP, orbiter)
 		SEND_SIGNAL(orbiter, COMSIG_ATOM_ORBITER_STOP, parent)
+		// Something listening to those signals can end up deleting this component, which ends the orbit for us.
+		if(isnull(orbiter_list))
+			return
 
 		orbiter.transform = get_cached_transform(orbiter)
 		orbiter.layer = get_orbiter_layer(orbiter)

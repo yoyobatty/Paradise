@@ -113,7 +113,8 @@ RESTRICT_TYPE(/datum/ai_controller)
 
 /// Sets the current movement target, with an optional param to override the movement behavior
 /datum/ai_controller/proc/set_movement_target(source, atom/target, datum/ai_movement/new_movement)
-	if(current_movement_target)
+	// The pawn's moved signal is already used for update_grid, and a pawn can't lose track of itself.
+	if(current_movement_target && current_movement_target != pawn)
 		UnregisterSignal(current_movement_target, list(COMSIG_MOVABLE_MOVED, COMSIG_PARENT_PREQDELETED))
 	if(!isnull(target) && !isatom(target))
 		stack_trace("[pawn]'s current movement target is [target.type], not an atom")
@@ -121,7 +122,7 @@ RESTRICT_TYPE(/datum/ai_controller)
 		return
 	movement_target_source = source
 	current_movement_target = target
-	if(!isnull(current_movement_target))
+	if(!isnull(current_movement_target) && current_movement_target != pawn)
 		RegisterSignal(current_movement_target, COMSIG_MOVABLE_MOVED, PROC_REF(on_movement_target_move))
 		RegisterSignal(current_movement_target, COMSIG_PARENT_PREQDELETED, PROC_REF(on_movement_target_delete))
 	if(new_movement)

@@ -851,7 +851,7 @@
  * * cooldown - The amount of time that should be waited before any other audio emote can fire.
  */
 /mob/proc/start_audio_emote_cooldown(intentional, cooldown = AUDIO_EMOTE_COOLDOWN)
-	if(!can_use_audio_emote(intentional))
+	if(QDELETED(src) || !can_use_audio_emote(intentional))
 		return FALSE
 
 	var/cooldown_source = intentional ? audio_emote_cd_status : audio_emote_unintentional_cd_status

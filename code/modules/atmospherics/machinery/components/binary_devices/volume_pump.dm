@@ -86,8 +86,8 @@ Thus, the two variables affect pump operation are set in New():
 	air2.merge(removed)
 
 
-	parent1.update = 1
-	parent2.update = 1
+	parent1?.update = 1
+	parent2?.update = 1
 
 	return 1
 
