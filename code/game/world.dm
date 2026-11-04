@@ -131,8 +131,8 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 			sleep(0)
 			if(GLOB.configuration.system.shutdown_shell_command)
 				shell(GLOB.configuration.system.shutdown_shell_command)
-			del(world)
 			TgsEndProcess() // We want to shutdown on reboot. That means kill our TGS process "gracefully", instead of the watchdog crying
+			del(world) // Only reached without TGS, TGS ends the process above
 			return
 		else
 			TgsReboot() // Tell TGS we did a reboot
@@ -180,8 +180,8 @@ GLOBAL_LIST_EMPTY(world_topic_handlers)
 		if(GLOB.configuration.system.shutdown_shell_command)
 			shell(GLOB.configuration.system.shutdown_shell_command)
 		rustlibs_log_close_all() // Past this point, no logging procs can be used, at risk of data loss.
-		del(world)
 		TgsEndProcess() // We want to shutdown on reboot. That means kill our TGS process "gracefully", instead of the watchdog crying
+		del(world) // Only reached without TGS, TGS ends the process above
 		return
 	else
 		TgsReboot() // We did a normal reboot. Tell TGS we did a normal reboot.

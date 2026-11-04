@@ -206,9 +206,6 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	if(delay)
 		sleep(delay)
 
-	if(tgs_prime)
-		world.TgsInitializationComplete()
-
 	if(init_sss)
 		init_subtypes(/datum/controller/subsystem, subsystems)
 
@@ -272,6 +269,9 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	// Set world options.
 	world.tick_lag = GLOB.configuration.mc.ticklag
 	var/initialized_tod = REALTIMEOFDAY
+
+	if(tgs_prime)
+		world.TgsInitializationComplete()
 
 	if(sleep_offline_after_initializations)
 		world.sleep_offline = TRUE
