@@ -62,7 +62,7 @@ function task-dev-server {
 function task-lint {
   yarn run tsc
   Write-Output "tgui: type check passed"
-  yarn run eslint packages @Args
+  yarn run eslint "packages/**/*.js" @Args
   Write-Output "tgui: eslint check passed"
 }
 

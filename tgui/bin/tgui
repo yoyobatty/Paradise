@@ -62,7 +62,7 @@ task-lint() {
   cd "${base_dir}"
   yarn run tsc
   echo "tgui: type check passed"
-  yarn run eslint packages "${@}"
+  yarn run eslint "packages/**/*.js" "${@}"
   echo "tgui: eslint check passed"
 }
 
