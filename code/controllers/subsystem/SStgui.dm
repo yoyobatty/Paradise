@@ -156,9 +156,8 @@ SUBSYSTEM_DEF(tgui)
 	// Couldn't find a UI.
 	if(isnull(ui))
 		return
-	var/data = src_object.ui_data(user) // Get data from the src_object.
 	if(force_open) // UI is already open; update it.
-		ui.send_full_update(data, TRUE)
+		ui.send_full_update(src_object.ui_data(user), TRUE)
 		return ui // We found the UI, return it
 	ui.process_status()
 	// UI ended up with the closed status
