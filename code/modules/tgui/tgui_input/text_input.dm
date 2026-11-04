@@ -36,10 +36,17 @@
 			else
 				return stripped_input(user, message, title, default, max_length)
 		else
+			var/entry
 			if(multiline)
-				return input(user, message, title, default) as message|null
+				entry = input(user, message, title, default) as message|null
 			else
-				return input(user, message, title, default) as text|null
+				entry = input(user, message, title, default) as text|null
+			if(isnull(entry))
+				return
+			// Same limit as the TGUI window
+			if(max_length)
+				entry = copytext_char(entry, 1, max_length + 1)
+			return trim(entry)
 
 	var/datum/tgui_input_text/text_input = new(user, message, title, default, max_length, multiline, encode, timeout, ui_state)
 
