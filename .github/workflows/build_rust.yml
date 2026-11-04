@@ -78,6 +78,7 @@ jobs:
 
           # Run the build
           tools/ci/build_all_rustlibs.sh
+          pwsh tools/ci/rustlibs_source_hash.ps1 > tools/ci/rustlibs_source_hash.txt
 
           # And commit
           git commit -a -m "Build Rust library" --allow-empty
