@@ -8,7 +8,7 @@
  * * [/obj/proc/ui_login_data] - Call in your ui_data() proc to pass login info.
  *
  * How to use (DM side):
- * 1. Call [/obj/proc/ui_login_act] at the start of your ui_act() proc
+ * 1. Call [/obj/proc/ui_login_act] at the start of your ui_act() proc. While logged out it blocks every action but the login ones.
  * 2. Call [/obj/proc/ui_login_data] in your ui_data() proc while passing the data list
  * 3. In your object, call [/obj/proc/ui_login_get] to get the current login state.
  * 4. Optional: call [/obj/proc/ui_login_attackby] in your attackby__legacy__attackchain() to make the login process easier.
@@ -40,6 +40,10 @@ GLOBAL_LIST(ui_logins)
 			return ui_login_login(text2num(params["login_type"]))
 		if("login_logout")
 			return ui_login_logout()
+		else
+			// The window only shows the login screen while logged out, so nothing else should get through
+			if(!ui_login_get().logged_in)
+				return TRUE
 
 /**
   * Appends login state data.
@@ -144,6 +148,8 @@ GLOBAL_LIST(ui_logins)
 		state.name = "*CONFIDENTIAL*"
 		state.rank = "CentComm Secure Connection"
 		state.access = get_all_accesses() + get_all_centcom_access()
+	else
+		return
 
 	state.logged_in = TRUE
 	ui_login_on_login(state = state)
@@ -178,8 +184,10 @@ GLOBAL_LIST(ui_logins)
 	RETURN_TYPE(/datum/ui_login)
 	. = LAZYACCESS(GLOB.ui_logins, UID())
 	if(!.)
-		LAZYINITLIST(GLOB.ui_logins)
-		. = GLOB.ui_logins[UID()] = new /datum/ui_login
+		var/datum/ui_login/state = new
+		state.RegisterSignal(src, COMSIG_PARENT_QDELETING, TYPE_PROC_REF(/datum/ui_login, on_owner_deleted))
+		LAZYSET(GLOB.ui_logins, UID(), state)
+		. = state
 
 /**
   * Called on successful login.
@@ -214,3 +222,13 @@ GLOBAL_LIST(ui_logins)
 	src.name = name
 	src.rank = rank
 	src.access = access
+
+/datum/ui_login/Destroy(force, ...)
+	id = null
+	access = null
+	return ..()
+
+/datum/ui_login/proc/on_owner_deleted(datum/source)
+	SIGNAL_HANDLER
+	LAZYREMOVE(GLOB.ui_logins, source.UID())
+	qdel(src)

@@ -114,9 +114,9 @@
 
 	add_fingerprint(ui.user)
 
-	if(ui_act_modal(action, params, ui))
-		return
 	if(ui_login_act(action, params))
+		return
+	if(ui_act_modal(action, params, ui))
 		return
 
 	var/mob/living/user = ui.user

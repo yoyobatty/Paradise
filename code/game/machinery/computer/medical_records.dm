@@ -217,9 +217,9 @@
 		active2 = null
 
 	. = TRUE
-	if(ui_act_modal(action, params))
-		return
 	if(ui_login_act(action, params))
+		return
+	if(ui_act_modal(action, params))
 		return
 
 	switch(action)

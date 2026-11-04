@@ -25,8 +25,14 @@ GLOBAL_LIST(ui_modals)
 		if("modal_open") // Params: id, arguments
 			return UI_MODAL_OPEN
 		if("modal_answer") // Params: id, answer, arguments
-			params["answer"] = ui_modal_preprocess_answer(source, params["answer"])
-			if(ui_modal_answer(source, params["id"], params["answer"])) // If there's a current modal with a delegate that returned TRUE, no need to continue
+			// Only the modal that's open can be answered, and only with an answer it allows
+			var/datum/ui_modal/current = LAZYACCESS(GLOB.ui_modals, source.UID())
+			if(!current || current.id != params["id"])
+				return
+			params["answer"] = current.preprocess_answer(params["answer"])
+			if(!current.is_valid_answer(params["answer"]))
+				return
+			if(current.on_answer(params["answer"])) // If there's a delegate that returned TRUE, no need to continue
 				. = UI_MODAL_DELEGATE
 			else
 				. = UI_MODAL_ANSWER
@@ -59,16 +65,12 @@ GLOBAL_LIST(ui_modals)
 /datum/proc/ui_modal_clear(datum/source = src)
 	ASSERT(istype(source))
 
-	LAZYINITLIST(GLOB.ui_modals)
-	var/datum/ui_modal/previous = GLOB.ui_modals[source.UID()]
+	var/datum/ui_modal/previous = LAZYACCESS(GLOB.ui_modals, source.UID())
 	if(!previous)
 		return FALSE
 
-	for(var/i in 1 to length(GLOB.ui_modals))
-		var/key = GLOB.ui_modals[i]
-		if(previous == GLOB.ui_modals[key])
-			GLOB.ui_modals.Cut(i, i + 1)
-			break
+	LAZYREMOVE(GLOB.ui_modals, source.UID())
+	qdel(previous)
 
 	SStgui.update_uis(source)
 	return TRUE
@@ -201,48 +203,15 @@ GLOBAL_LIST(ui_modals)
 	if(previous && !replace_previous)
 		return FALSE
 
+	qdel(previous)
 	modal.owning_source = source
+	// The modal holds a reference to its source, so it has to go when the source does
+	modal.RegisterSignal(source, COMSIG_PARENT_QDELETING, TYPE_PROC_REF(/datum/ui_modal, on_source_deleted))
 
-	// Previous one should get GC'd
 	LAZYSET(GLOB.ui_modals, source.UID(), modal)
 	if(instant_update)
 		SStgui.update_uis(source)
 	return TRUE
-
-/**
-  * Calls the source's currently assigned modal's (if there is one) on_answer() proc. Private.
-  *
-  * Arguments:
-  * * source - The source datum
-  * * id - The ID of the modal
-  * * answer - The provided answer
-  */
-/datum/proc/ui_modal_answer(datum/source = src, id, answer = "")
-	ASSERT(istype(source))
-
-	var/datum/ui_modal/current = LAZYACCESS(GLOB.ui_modals, source.UID())
-	if(!current)
-		return FALSE
-
-	return current.on_answer(answer)
-
-/**
-  * Passes an answer from JS through the modal's proc.
-  *
-  * Used namely for cutting the text short if it's longer
-  * than an input modal's max_length.
-  * Arguments:
-  * * source - The source datum
-  * * answer - The provided answer
-  */
-/datum/proc/ui_modal_preprocess_answer(datum/source = src, answer = "")
-	ASSERT(istype(source))
-
-	var/datum/ui_modal/current = LAZYACCESS(GLOB.ui_modals, source.UID())
-	if(!current)
-		return answer
-
-	return current.preprocess_answer(answer)
 
 /**
   * Modal datum (contains base information for a modal)
@@ -260,6 +229,24 @@ GLOBAL_LIST(ui_modals)
 	src.text = text
 	src.delegate = delegate
 	src.arguments = arguments
+
+/datum/ui_modal/Destroy(force, ...)
+	owning_source = null
+	return ..()
+
+/datum/ui_modal/proc/on_source_deleted(datum/source)
+	SIGNAL_HANDLER
+	LAZYREMOVE(GLOB.ui_modals, source.UID())
+	qdel(src)
+
+/**
+  * Called after preprocess_answer() to check the answer is one this modal allows
+  *
+  * Arguments:
+  * * answer - The preprocessed answer
+  */
+/datum/ui_modal/proc/is_valid_answer(answer)
+	return TRUE
 
 /**
   * Called when it's time to pre-process the answer before using it
@@ -335,10 +322,8 @@ GLOBAL_LIST(ui_modals)
 	..(id, text, delegate, arguments, value, UI_MODAL_INPUT_MAX_LENGTH) // Max length doesn't really matter in dropdowns, but whatever
 	src.choices = choices
 
-/datum/ui_modal/input/choice/on_answer(answer)
-	if(answer in choices) // Make sure the answer is actually in our choices!
-		return ..(answer, arguments)
-	return FALSE
+/datum/ui_modal/input/choice/is_valid_answer(answer)
+	return answer in choices // Make sure the answer is actually in our choices!
 
 /datum/ui_modal/input/choice/to_data()
 	. = ..()
@@ -360,10 +345,8 @@ GLOBAL_LIST(ui_modals)
 /datum/ui_modal/input/bento/preprocess_answer(answer)
 	return text2num(answer) || 0
 
-/datum/ui_modal/input/bento/on_answer(answer)
-	if(answer >= 1 && answer <= length(choices)) // Make sure the answer index is actually in our indexes!
-		return ..(answer, arguments)
-	return FALSE
+/datum/ui_modal/input/bento/is_valid_answer(answer)
+	return answer >= 1 && answer <= length(choices) // Make sure the answer index is actually in our indexes!
 
 /datum/ui_modal/input/bento/to_data()
 	. = ..()

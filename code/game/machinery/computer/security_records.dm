@@ -157,9 +157,9 @@
 		return
 
 	. = TRUE
-	if(ui_act_modal(action, params))
-		return
 	if(ui_login_act(action, params))
+		return
+	if(ui_act_modal(action, params))
 		return
 
 	var/logged_in = ui_login_get().logged_in
