@@ -15,6 +15,10 @@ if(!result || result.ckey != __ckey){\
 	var/list/mob/selected_ckeys_mobs = list()
 	var/list/selected_log_types = ALL_LOGS	// The log types being searched for
 	var/list/log_records = list()			// Found and sorted records
+	/// Only show records with this text in them
+	var/text_filter = ""
+	/// Search every player's logs instead of the selected mobs and ckeys
+	var/everyone = FALSE
 
 /datum/log_viewer/proc/clear_all()
 	selected_mobs.Cut()
@@ -24,12 +28,14 @@ if(!result || result.ckey != __ckey){\
 	time_from = initial(time_from)
 	time_to = initial(time_to)
 	log_records.Cut()
+	text_filter = ""
+	everyone = FALSE
 	return
 
 /datum/log_viewer/proc/search(user)
 	log_records.Cut() // Empty the old results
 	var/list/invalid_mobs = list()
-	var/list/ckeys = selected_ckeys.Copy()
+	var/list/ckeys = everyone ? GLOB.logging.get_ckeys_logged() : selected_ckeys.Copy()
 	for(var/i in selected_mobs)
 		var/mob/M = i
 		if(!M || QDELETED(M) || !M.last_known_ckey)
@@ -54,6 +60,14 @@ if(!result || result.ckey != __ckey){\
 		to_chat(user, SPAN_WARNING("The search criteria contained invalid mobs. They have been removed from the criteria."))
 		for(var/i in invalid_mobs)
 			selected_mobs -= i // Cleanup
+
+	// Keep the records with the text in who, what, the target or where, ignoring the links in them
+	if(text_filter)
+		var/list/kept = list()
+		for(var/datum/log_record/L as anything in log_records)
+			if(findtext(strip_html_tags("[L.who] [L.who_usr] [L.what] [L.target] [L.where]", 2000), text_filter))
+				kept += L
+		log_records = kept
 
 	log_records = sortTim(log_records, GLOBAL_PROC_REF(compare_log_record))
 
@@ -135,6 +149,18 @@ if(!result || result.ckey != __ckey){\
 	dat += "<div style='min-height:100px'>"
 	dat += "<span>Time Search Range:</span> <a href='byond://?src=[UID()];start_time=1'>[gameTimestamp(wtime = time_from)]</a>"
 	dat += " To: <a href='byond://?src=[UID()];end_time=1'>[gameTimestamp(wtime = time_to)]</a>"
+	dat += " <a href='byond://?src=[UID()];last_ten_minutes=1'>Last 10 minutes</a>"
+	dat += "<BR>"
+
+	dat += "<span>Text:</span>"
+	dat += "<a href='byond://?src=[UID()];set_text=1'>[text_filter ? html_encode(text_filter) : "Any"]</a>"
+	if(text_filter)
+		dat += "<a href='byond://?src=[UID()];clear_text=1'>Clear</a>"
+	dat += "<BR>"
+
+	dat += "<span>Players:</span>"
+	dat += "<a href='byond://?src=[UID()];set_everyone=1'>[everyone ? "<b>Everyone</b>" : "Everyone"]</a>"
+	dat += "<a href='byond://?src=[UID()];set_everyone=0'>[everyone ? "The ones below" : "<b>The ones below</b>"]</a>"
 	dat += "<BR>"
 
 	dat += "<span>Mobs being used:</span>"
@@ -196,6 +222,25 @@ if(!result || result.ckey != __ckey){\
 	popup.open()
 
 /datum/log_viewer/Topic(href, href_list)
+	if(!check_rights(R_ADMIN))
+		return
+	// These change the search and then run it again like the Search button, record limits and all
+	if(href_list["last_ten_minutes"])
+		time_from = max(0, world.time - 10 MINUTES)
+		time_to = max(initial(time_to), world.time + 1 MINUTES)
+		return Topic(href, list("search" = "1"))
+	if(href_list["set_text"])
+		var/input = tgui_input_text(usr, "Only show records with this text in them", "Text", text_filter)
+		if(isnull(input))
+			return
+		text_filter = trim(input)
+		return Topic(href, list("search" = "1"))
+	if(href_list["clear_text"])
+		text_filter = ""
+		return Topic(href, list("search" = "1"))
+	if(href_list["set_everyone"])
+		everyone = text2num(href_list["set_everyone"]) ? TRUE : FALSE
+		return Topic(href, list("search" = "1"))
 	if(href_list["start_time"])
 		var/input = input(usr, "hh:mm:ss", "Start time", "00:00:00") as text|null
 		if(!input)

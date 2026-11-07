@@ -46,6 +46,7 @@
 #define VV_HK_EXPLODE "explode"
 #define VV_HK_EMP "emp"
 #define VV_HK_DEBUG_AI_CONTROLLER "debug_ai_controller"
+#define VV_HK_FIND_ON_TILE "find_on_tile"
 
 // /obj
 #define VV_HK_DELALL "delall"
