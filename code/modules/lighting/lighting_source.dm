@@ -181,7 +181,7 @@
 
 	var/light_reach = CEILING(light_range, 1)
 	var/oldlum = source_turf.luminosity
-	source_turf.luminosity = light_reach
+	source_turf.luminosity = light_reach + 1 // luminosity N only lights N - 1 tiles out, and view() needs the whole square lit
 	var/list/seen = view(light_reach, source_turf)
 	source_turf.luminosity = oldlum
 
