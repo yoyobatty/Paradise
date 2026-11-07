@@ -735,9 +735,9 @@ SUBSYSTEM_DEF(air)
 	T.bound_air = B
 	B.bound_turf = T
 	if(isnull(milla_tile))
-		milla_tile = new/list(MILLA_TILE_SIZE)
-		get_tile_atmos(T, milla_tile)
-	B.copy_from_milla(milla_tile)
+		get_tile_atmos_into(T, B)
+	else
+		B.copy_from_milla(milla_tile)
 	B.lastread = src.milla_tick
 	B.readonly = null
 	B.dirty = FALSE
@@ -869,9 +869,7 @@ SUBSYSTEM_DEF(air)
 	// This is one of two intended places to call this otherwise-unsafe proc.
 	var/datum/gas_mixture/bound_to_turf/air = T.private_unsafe_get_air()
 	if(air.lastread < SSair.milla_tick)
-		var/list/milla_tile = new/list(MILLA_TILE_SIZE)
-		get_tile_atmos(T, milla_tile)
-		air.copy_from_milla(milla_tile)
+		get_tile_atmos_into(T, air)
 		air.lastread = SSair.milla_tick
 		air.readonly = null
 		air.dirty = FALSE
@@ -919,9 +917,7 @@ SUBSYSTEM_DEF(air)
 	// This is one of two intended places to call this otherwise-unsafe proc.
 	var/datum/gas_mixture/bound_to_turf/air = T.private_unsafe_get_air()
 	if(air.lastread < SSair.milla_tick)
-		var/list/milla_tile = new/list(MILLA_TILE_SIZE)
-		get_tile_atmos(T, milla_tile)
-		air.copy_from_milla(milla_tile)
+		get_tile_atmos_into(T, air)
 		air.lastread = SSair.milla_tick
 		air.readonly = null
 		air.dirty = FALSE

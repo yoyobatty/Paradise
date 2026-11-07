@@ -388,20 +388,67 @@ pub(crate) fn internal_set_tile(
 fn milla_get_tile(turf: ByondValue, list: ByondValue) -> eyre::Result<ByondValue> {
     logging::setup_panic_handler();
     let (x, y, z) = byond_xyz(&turf)?.coordinates();
-    let vec: Vec<ByondValue>;
-    if let Ok(tile) = internal_get_tile(x as i32 - 1, y as i32 - 1, z as i32 - 1) {
-        vec = (&tile).into();
-    } else {
-        // MILLA has died and is unrecoverable.
-        // Uh... uh... report everything as breathable air, I guess?
-        let mut air = Tile::new();
-        air.gases.set_oxygen(20.0);
-        air.gases.set_nitrogen(80.0);
-        air.thermal_energy = air.heat_capacity() * T20C;
-        vec = (&air).into();
-    }
+    let vec: Vec<ByondValue> =
+        (&tile_or_breathable(x as i32 - 1, y as i32 - 1, z as i32 - 1)).into();
     list.write_list(vec.as_slice())?;
     Ok(ByondValue::null())
+}
+
+/// BYOND API for reading a tile's atmos straight into a gas mixture. Sets the same vars, to the same values, as
+/// /datum/gas_mixture/proc/copy_from_milla() does from milla_get_tile()'s list, without the list.
+#[byondapi::bind]
+fn milla_get_tile_into(turf: ByondValue, mixture: ByondValue) -> eyre::Result<ByondValue> {
+    logging::setup_panic_handler();
+    let (x, y, z) = byond_xyz(&turf)?.coordinates();
+    let tile = tile_or_breathable(x as i32 - 1, y as i32 - 1, z as i32 - 1);
+    let mut mixture = mixture;
+    for (name, value) in [
+        (byond_string!("private_oxygen"), tile.gases.oxygen()),
+        (
+            byond_string!("private_carbon_dioxide"),
+            tile.gases.carbon_dioxide(),
+        ),
+        (byond_string!("private_nitrogen"), tile.gases.nitrogen()),
+        (byond_string!("private_toxins"), tile.gases.toxins()),
+        (
+            byond_string!("private_sleeping_agent"),
+            tile.gases.sleeping_agent(),
+        ),
+        (byond_string!("private_agent_b"), tile.gases.agent_b()),
+        (byond_string!("private_hydrogen"), tile.gases.hydrogen()),
+        (
+            byond_string!("private_water_vapor"),
+            tile.gases.water_vapor(),
+        ),
+        (
+            byond_string!("innate_heat_capacity"),
+            tile.innate_heat_capacity,
+        ),
+        (byond_string!("private_temperature"), tile.temperature()),
+        (
+            byond_string!("private_hotspot_temperature"),
+            tile.hotspot_temperature,
+        ),
+        (byond_string!("private_hotspot_volume"), tile.hotspot_volume),
+        (byond_string!("private_fuel_burnt"), tile.fuel_burnt),
+    ] {
+        mixture.write_var_id(name, &ByondValue::from(value))?;
+    }
+    Ok(ByondValue::null())
+}
+
+/// The tile at these coordinates (from 0, not BYOND's 1), or breathable air if MILLA has died.
+fn tile_or_breathable(x: i32, y: i32, z: i32) -> Tile {
+    if let Ok(tile) = internal_get_tile(x, y, z) {
+        return tile;
+    }
+    // MILLA has died and is unrecoverable.
+    // Uh... uh... report everything as breathable air, I guess?
+    let mut air = Tile::new();
+    air.gases.set_oxygen(20.0);
+    air.gases.set_nitrogen(80.0);
+    air.thermal_energy = air.heat_capacity() * T20C;
+    air
 }
 
 /// Rust version of fetching the atmos details of a tile.

@@ -740,9 +740,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	// This is one of two intended places to call this otherwise-unsafe proc.
 	var/datum/gas_mixture/bound_to_turf/air = private_unsafe_get_air()
 	if(air.lastread < SSair.milla_tick)
-		var/list/milla_tile = new/list(MILLA_TILE_SIZE)
-		get_tile_atmos(src, milla_tile)
-		air.copy_from_milla(milla_tile)
+		get_tile_atmos_into(src, air)
 		air.lastread = SSair.milla_tick
 		air.readonly = null
 		air.dirty = FALSE

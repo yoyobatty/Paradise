@@ -81,6 +81,10 @@
 /proc/get_tile_atmos(turf/T, list/L)
 	return RUSTLIB_CALL(milla_get_tile, T, L)
 
+/// Reads a tile's atmos straight into a gas mixture, like get_tile_atmos() and copy_from_milla() together
+/proc/get_tile_atmos_into(turf/T, datum/gas_mixture/air)
+	return RUSTLIB_CALL(milla_get_tile_into, T, air)
+
 /proc/spawn_milla_tick_thread()
 	return RUSTLIB_CALL(milla_spawn_tick_thread)
 
