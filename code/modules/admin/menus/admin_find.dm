@@ -275,17 +275,4 @@ USER_VERB(admin_find, R_ADMIN, "Find", "Find things by name, type, ref or player
 			search(user)
 	return TRUE
 
-/atom/vv_get_dropdown()
-	. = ..()
-	if(get_turf(src))
-		VV_DROPDOWN_OPTION(VV_HK_FIND_ON_TILE, "Find everything on this tile")
-
-/atom/vv_do_topic(list/href_list)
-	. = ..()
-	// Find only needs R_ADMIN, not the R_VAREDIT the other options need
-	if(href_list[VV_HK_FIND_ON_TILE] && check_rights(R_ADMIN))
-		var/turf/T = get_turf(src)
-		if(T)
-			usr.client.open_admin_find(T)
-
 #undef FIND_SHOWN

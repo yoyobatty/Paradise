@@ -13,6 +13,7 @@
 	var/turf/curturf = get_turf(src)
 	if(curturf)
 		. += "<option value='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[curturf.x];Y=[curturf.y];Z=[curturf.z]'>Jump to turf</option>"
+		VV_DROPDOWN_OPTION(VV_HK_FIND_ON_TILE, "Find everything on this tile")
 	VV_DROPDOWN_OPTION(VV_HK_ADDREAGENT, "Add reagent")
 	VV_DROPDOWN_OPTION(VV_HK_EDITREAGENTS, "Edit reagents")
 	VV_DROPDOWN_OPTION(VV_HK_EXPLODE, "Trigger explosion")
@@ -31,6 +32,12 @@
 
 /atom/vv_do_topic(list/href_list)
 	. = ..()
+
+	// Find only needs R_ADMIN, not the R_VAREDIT the rest of these need
+	if(href_list[VV_HK_FIND_ON_TILE] && check_rights(R_ADMIN))
+		var/turf/T = get_turf(src)
+		if(T)
+			usr.client.open_admin_find(T)
 
 	if(!.)
 		return
