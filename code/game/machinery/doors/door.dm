@@ -717,6 +717,8 @@
 		fillers += filler
 		last_filler = filler
 
+	set_lighting_view_only()
+
 /obj/machinery/door/proc/set_fillers_density(density)
 	if(!length(fillers))
 		return

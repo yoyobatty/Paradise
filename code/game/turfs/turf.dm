@@ -328,6 +328,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	var/old_blueprint_data = blueprint_data
 	var/old_obscured = obscured
 	var/old_directional_opacity = directional_opacity
+	var/old_lighting_view_only = lighting_view_only
 
 	// After BeforeChange(), so /turf/space/BeforeChange() still sees its starlight and takes itself off GLOB.starlight
 	BeforeChange()
@@ -360,6 +361,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	if(SSlighting.initialized)
 		W.lighting_object = old_lighting_object
 		directional_opacity = old_directional_opacity
+		lighting_view_only = old_lighting_view_only
 		recalculate_directional_opacity()
 
 		// Keep the old lighting object, but space doesn't get one and everything else lit needs one

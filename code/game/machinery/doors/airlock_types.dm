@@ -966,6 +966,8 @@
 		fillers += filler
 		last_filler = filler
 
+	set_lighting_view_only()
+
 /obj/machinery/door/airlock/multi_tile/Moved(atom/old_loc, movement_dir, forced, list/old_locs, momentum_change)
 	. = ..()
 	update_bounds()

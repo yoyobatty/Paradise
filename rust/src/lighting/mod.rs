@@ -6,9 +6,11 @@
 //! BYOND reference.
 
 pub(crate) mod engine;
+mod view;
 
 use byondapi::prelude::*;
 use engine::{Engine, Update};
+use view::View;
 use eyre::eyre;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Mutex;
@@ -25,6 +27,7 @@ struct State {
     per_level: u32,
     seen: Vec<u32>,
     out: Vec<ByondValue>,
+    view: View,
 }
 
 impl State {
@@ -135,6 +138,7 @@ fn lighting_setup(
             per_level,
             seen: Vec::new(),
             out: Vec::new(),
+            view: View::default(),
         });
         Ok(ENGINE_VERSION)
     })
@@ -179,8 +183,10 @@ fn lighting_sheet(id: ByondValue, dim: ByondValue, values: ByondValue) -> eyre::
     })
 }
 
-/// What update_corners() works out once it has looked around: the light's id, pixel_turf's x and y, the z-level it
-/// looked on, its power and colour, its falloff table, 1 if only what it can see changed, and what view() handed back.
+/// What update_corners() works out: the light's id, pixel_turf's x and y, the z-level, its power and colour, its falloff
+/// table, 1 if only what it can see changed, source_turf's x and y and how far the light reaches, and what view() handed
+/// back, or null for the engine to work out what the light can see itself. Returns 2 if it can't, and DM should look
+/// with view() instead.
 #[byondapi::bind]
 fn lighting_update(
     id: ByondValue,
@@ -193,6 +199,9 @@ fn lighting_update(
     blue: ByondValue,
     sheet: ByondValue,
     vis_only: ByondValue,
+    view_x: ByondValue,
+    view_y: ByondValue,
+    reach: ByondValue,
     seen: ByondValue,
 ) -> eyre::Result<ByondValue> {
     with_state("update", |state| {
@@ -209,14 +218,23 @@ fn lighting_update(
         if update.id == 0 || update.z == 0 {
             return Err("no id or z-level".into());
         }
-        let values = read(&seen)?;
         let mut turfs = std::mem::take(&mut state.seen);
         turfs.clear();
-        let first = (update.z as u32 - 1) * state.per_level;
-        for v in values.iter() {
-            if let Some(t) = turf_id(v) {
-                if t >= first && t - first < state.per_level {
-                    turfs.push(t - first);
+        if seen.is_null() {
+            let (maxx, maxy) = (state.engine.maxx, state.engine.maxy);
+            let level = state.engine.level(update.z);
+            if !state.view.look(&level.flags, maxx, maxy, int(&view_x), int(&view_y), int(&reach), &mut turfs) {
+                state.seen = turfs;
+                return Ok(2.0);
+            }
+        } else {
+            let values = read(&seen)?;
+            let first = (update.z as u32 - 1) * state.per_level;
+            for v in values.iter() {
+                if let Some(t) = turf_id(v) {
+                    if t >= first && t - first < state.per_level {
+                        turfs.push(t - first);
+                    }
                 }
             }
         }

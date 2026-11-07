@@ -180,13 +180,14 @@
 		return //nothing's changed
 
 	var/light_reach = CEILING(light_range, 1)
-	var/oldlum = source_turf.luminosity
-	source_turf.luminosity = light_reach + 1 // luminosity N only lights N - 1 tiles out, and view() needs the whole square lit
-	var/list/seen = view(light_reach, source_turf)
-	source_turf.luminosity = oldlum
-
-	// The lighting engine works out what we give every corner we see. On a visibility update, the corners we already light keep what they have.
-	SSlighting.engine_update(src, seen, needs_update == LIGHTING_VIS_UPDATE)
+	// The lighting engine works out what we can see, and what we give every corner we see. On a visibility update, the corners we already light keep what they have.
+	if(!SSlighting.engine_update(src, light_reach, null, needs_update == LIGHTING_VIS_UPDATE))
+		// The engine can't see past turfs that block light from only some directions, so look with view() instead
+		var/oldlum = source_turf.luminosity
+		source_turf.luminosity = light_reach + 1 // luminosity N only lights N - 1 tiles out, and view() needs the whole square lit
+		var/list/seen = view(light_reach, source_turf)
+		source_turf.luminosity = oldlum
+		SSlighting.engine_update(src, light_reach, seen, needs_update == LIGHTING_VIS_UPDATE)
 
 	applied_lum_r = lum_r
 	applied_lum_g = lum_g

@@ -106,6 +106,8 @@
 // What the lighting engine keeps about a turf: see /turf/proc/lighting_engine_flags()
 #define LIGHTING_ENGINE_OPAQUE (1<<0)
 #define LIGHTING_ENGINE_OBJECT (1<<1)
+#define LIGHTING_ENGINE_PARTLY_OPAQUE (1<<2)
+#define LIGHTING_ENGINE_VIEW_ONLY (1<<3)
 
 #define FLASH_LIGHT_DURATION 2
 #define FLASH_LIGHT_POWER 3

@@ -1,9 +1,10 @@
 // The lighting engine (rust/src/lighting) keeps the lighting corners: what each light gives each corner, and what each
-// lighting object should draw. DM decides when a light needs working out, finds what it can see with view(), works out
-// the falloff (falloff_table()) and draws the lighting objects; the engine does the sums in between.
+// lighting object should draw. It also works out what each light can see, the way view() would. DM decides when a light
+// needs working out, works out the falloff (falloff_table()) and draws the lighting objects.
 //
-// The engine knows turfs by their place in the world, and keeps two things about each one, which it's told whenever
-// they change: whether it blocks light from every direction (IS_OPAQUE_TURF), and whether it has a lighting object.
+// The engine knows turfs by their place in the world, and keeps a few things about each one, which it's told whenever
+// they change: whether it blocks light from every direction (IS_OPAQUE_TURF) or only some, whether it has a lighting
+// object, and whether lights near it have to look with view() (lighting_view_only).
 
 #if LIGHTING_SOFT_THRESHOLD != 0
 #error The lighting engine draws corners for a LIGHTING_SOFT_THRESHOLD of 0
@@ -23,6 +24,8 @@
 	/// The world's size when the engine was set up: it numbers turfs by it
 	var/engine_maxx = 0
 	var/engine_maxy = 0
+	/// The z-levels there were when the engine was given every turf's flags. Lights on newer ones look with view().
+	var/engine_maxz = 0
 
 /datum/light_source
 	/// What the lighting engine knows us by, or 0
@@ -52,10 +55,11 @@
 /datum/controller/subsystem/lighting/proc/engine_hand_over_turfs()
 	var/list/flags = list()
 	for(var/turf/T in world)
-		if(T.lighting_object || IS_OPAQUE_TURF(T))
+		if(T.lighting_object || T.directional_opacity || T.lighting_view_only)
 			flags.Add(T, T.lighting_engine_flags())
 	rustlibs_lighting_flags(flags)
 	engine_turfs_ready = TRUE
+	engine_maxz = world.maxz
 
 /// The engine starts again and every light relights: the map loader made the world bigger, which numbers turfs anew,
 /// or the subsystem was made afresh
@@ -118,9 +122,15 @@
 	falloff_tables[key] = .
 
 /// A light source has looked around: the engine works out what it gives every corner it sees
-/datum/controller/subsystem/lighting/proc/engine_update(datum/light_source/L, list/seen, vis_only)
+/// Works out what the light gives every corner it can see. Without `seen`, the engine works out what it can see too, and
+/// this returns FALSE if it couldn't, for the light to look with view() instead.
+/datum/controller/subsystem/lighting/proc/engine_update(datum/light_source/L, light_reach, list/seen, vis_only)
 	var/turf/pixel_turf = L.pixel_turf
-	rustlibs_lighting_update(L.engine_id || engine_id_for(L), pixel_turf.x, pixel_turf.y, L.source_turf.z, L.light_power, L.lum_r, L.lum_g, L.lum_b, falloff_table(L.light_range), vis_only ? 1 : 0, seen)
+	var/turf/source_turf = L.source_turf
+	if(!seen && source_turf.z > engine_maxz)
+		return FALSE
+	var/result = rustlibs_lighting_update(L.engine_id || engine_id_for(L), pixel_turf.x, pixel_turf.y, source_turf.z, L.light_power, L.lum_r, L.lum_g, L.lum_b, falloff_table(L.light_range), vis_only ? 1 : 0, source_turf.x, source_turf.y, light_reach, seen)
+	return result != 2
 
 /// The lights on the turf's corners look around again
 /datum/controller/subsystem/lighting/proc/engine_reconsider(turf/T)
@@ -172,8 +182,31 @@
 	. = 0
 	if(IS_OPAQUE_TURF(src))
 		. |= LIGHTING_ENGINE_OPAQUE
+	else if(directional_opacity)
+		. |= LIGHTING_ENGINE_PARTLY_OPAQUE
+	if(lighting_view_only)
+		. |= LIGHTING_ENGINE_VIEW_ONLY
 	if(lighting_object)
 		. |= LIGHTING_ENGINE_OBJECT
+
+/turf
+	/// Something on this turf blocks sight without directional_opacity counting it (a multi-tile door), so lights near it look with view()
+	var/lighting_view_only = FALSE
+
+/turf/proc/set_lighting_view_only()
+	if(lighting_view_only)
+		return
+	lighting_view_only = TRUE
+	lighting_engine_push()
+
+/// The door and its fillers block sight on turfs that don't count them, so lights near them have to look with view()
+/obj/machinery/door/proc/set_lighting_view_only()
+	for(var/turf/T in locs)
+		T.set_lighting_view_only()
+	for(var/obj/airlock_filler_object/filler as anything in fillers)
+		var/turf/T = filler.loc
+		if(isturf(T))
+			T.set_lighting_view_only()
 
 /// Tells the lighting engine this turf's flags may have changed
 /turf/proc/lighting_engine_push()

@@ -66,8 +66,10 @@
 		else // If fulltile and opaque, then the whole tile blocks view, no need to continue checking.
 			directional_opacity = ALL_CARDINALS
 			break
-	if(. != directional_opacity && (. == ALL_CARDINALS || directional_opacity == ALL_CARDINALS))
-		lighting_engine_push()
+	if(. == directional_opacity)
+		return
+	lighting_engine_push()
+	if(. == ALL_CARDINALS || directional_opacity == ALL_CARDINALS)
 		reconsider_lights() // The lighting system only cares whether the tile is fully concealed from all directions or not.
 
 /turf/proc/change_area(area/old_area, area/new_area)

@@ -1,5 +1,5 @@
 //! The lighting engine: keeps the lighting corners, what each light gives each corner, and what each lighting object
-//! should draw. DM decides when a light needs working out, finds what it can see with view(), works out the falloff
+//! should draw. DM decides when a light needs working out, works out the falloff
 //! (as tables per light range, see SSlighting's falloff_table()) and draws the lighting objects. The sums here are
 //! the ones the DM lighting code did, in the same 32 bit float operations in the same order.
 //!
@@ -11,6 +11,10 @@
 pub const OPAQUE: u8 = 1;
 /// The turf has a lighting object to draw on
 pub const OBJECT: u8 = 2;
+/// The turf blocks light from some directions but not all
+pub const PARTLY_OPAQUE: u8 = 4;
+/// Something on the turf blocks sight without the turf's directional_opacity counting it (a multi-tile door)
+pub const VIEW_ONLY: u8 = 8;
 
 #[derive(Clone, Default)]
 pub struct Corner {

@@ -301,8 +301,8 @@
 /proc/rustlibs_lighting_sheet(id, dim, list/values)
 	return RUSTLIB_CALL(lighting_sheet, id, dim, values)
 
-/proc/rustlibs_lighting_update(id, x, y, z, power, red, green, blue, sheet, vis_only, list/seen)
-	return RUSTLIB_CALL(lighting_update, id, x, y, z, power, red, green, blue, sheet, vis_only, seen)
+/proc/rustlibs_lighting_update(id, x, y, z, power, red, green, blue, sheet, vis_only, view_x, view_y, reach, list/seen)
+	return RUSTLIB_CALL(lighting_update, id, x, y, z, power, red, green, blue, sheet, vis_only, view_x, view_y, reach, seen)
 
 /proc/rustlibs_lighting_remove(id)
 	return RUSTLIB_CALL(lighting_remove, id)

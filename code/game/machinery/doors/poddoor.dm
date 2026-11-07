@@ -207,6 +207,8 @@
 		fillers += filler
 		last_filler = filler
 
+	set_lighting_view_only()
+
  // Whoever wrote the old code for multi-tile spesspod doors needs to burn in hell. - Unknown
  // Wise words. - Bxil
 /obj/machinery/door/poddoor/multi_tile
