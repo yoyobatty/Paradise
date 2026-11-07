@@ -129,7 +129,9 @@
 	message_admins("[usr ? key_name_admin(usr) : "Bot"] has removed a note made by [adminckey] from [ckey]:<br>[safe_text]")
 	show_note(ckey)
 
-/proc/edit_note(note_id)
+/// Edits a note's text. Pass new_note to set it without asking, like the Bans window does
+/proc/edit_note(note_id, new_note)
+	var/asked = isnull(new_note)
 	if(!check_rights(R_ADMIN|R_MOD))
 		return
 	if(!SSdbcore.IsConnected())
@@ -154,7 +156,8 @@
 		if(automated)
 			to_chat(usr, SPAN_NOTICE("That note is generated automatically. You can't edit it."))
 			return
-		var/new_note = input("Input new note", "New Note", "[old_note]") as message|null
+		if(asked)
+			new_note = input("Input new note", "New Note", "[old_note]") as message|null
 		if(!new_note)
 			return
 
@@ -172,7 +175,8 @@
 			return
 		log_admin("[usr ? key_name(usr) : "Bot"] has edited [target_ckey]'s note made by [adminckey] from \"[old_note]\" to \"[safe_text]\"")
 		message_admins("[usr ? key_name_admin(usr) : "Bot"] has edited [target_ckey]'s note made by [adminckey] from \"[old_note]\" to \"[safe_text]\"")
-		show_note(target_ckey)
+		if(asked)
+			show_note(target_ckey)
 		qdel(query_update_note)
 
 /proc/show_note(target_ckey, index, linkless = 0)
@@ -267,7 +271,8 @@
 		output += ruler
 	usr << browse(output.Join(""), "window=show_notes;size=900x500")
 
-/proc/toggle_note_publicity(note_id)
+/// Makes a note public or private. confirmed skips the "are you sure", for when the Bans window already asked
+/proc/toggle_note_publicity(note_id, confirmed = FALSE)
 	if(!usr)
 		return
 	if(!check_rights(R_ADMIN|R_MOD))
@@ -298,12 +303,13 @@
 			to_chat(usr, SPAN_NOTICE("That note is generated automatically. You can't edit it."))
 			return
 
-		if(public)
-			if(alert(usr, "Are you sure you want to make this note private?", "Private Note?", "Yes", "No") != "Yes")
-				return
-		else
-			if(alert(usr, "Are you sure you want to make this note public?", "Public Note?", "Yes", "No") != "Yes")
-				return
+		if(!confirmed)
+			if(public)
+				if(alert(usr, "Are you sure you want to make this note private?", "Private Note?", "Yes", "No") != "Yes")
+					return
+			else
+				if(alert(usr, "Are you sure you want to make this note public?", "Public Note?", "Yes", "No") != "Yes")
+					return
 
 		public = !public
 		var/datum/db_query/query_update_note = SSdbcore.NewQuery("UPDATE notes SET public=:new_public WHERE id=:note_id", list(
@@ -315,5 +321,6 @@
 			return
 		log_admin("[key_name(usr)] has made [target_ckey]'s note [public ? "public" : "private"], contents are \"[text]\".")
 		message_admins("[key_name_admin(usr)] has edited [target_ckey]'s note [public ? "public" : "private"], contents are \"[text]\".")
-		show_note(target_ckey)
+		if(!confirmed)
+			show_note(target_ckey)
 		qdel(query_update_note)

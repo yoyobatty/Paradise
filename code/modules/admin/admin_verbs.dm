@@ -252,8 +252,8 @@ USER_VERB(check_antagonists_tgui, R_ADMIN, "TGUI - Antagonists", "Open the TGUI 
 	log_admin("[key_name(client)] checked antagonists")
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Check Antags2") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
-USER_VERB(ban_panel, R_BAN, "Ban Panel", "Opens the ban panel.", VERB_CATEGORY_ADMIN)
-	client.holder.DB_ban_panel()
+USER_VERB(ban_panel, R_BAN, "Ban Panel", "Opens the Bans window, for making, finding and lifting bans.", VERB_CATEGORY_ADMIN)
+	client.open_ban_window()
 	SSblackbox.record_feedback("tally", "admin_verb", 1, "Ban Panel") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
 USER_VERB(game_panel, R_ADMIN, "Game Panel", "Opens the game panel.", VERB_CATEGORY_ADMIN)

@@ -535,6 +535,11 @@
 			to_chat(usr, SPAN_WARNING("SSjobs has not been setup!"))
 			return
 
+		// Role bans are made in the Bans window now
+		if(check_rights(R_BAN, FALSE))
+			usr.client.open_ban_window("new", M.last_known_ckey, TRUE)
+			return
+
 		var/dat = ""
 		var/header = "<head><title>Job-Ban Panel: [M.name]</title></head>"
 		var/body
@@ -1006,6 +1011,11 @@
 		if(!ismob(M))
 			return
 		var/ban_ckey_param = href_list["dbbanaddckey"]
+
+		// Bans are made in the Bans window now
+		if(M.last_known_ckey || ban_ckey_param)
+			usr.client.open_ban_window("new", ban_ckey_param || M.last_known_ckey)
+			return
 
 		switch(alert("Temporary Ban of [M.last_known_ckey] / [ban_ckey_param]?", null,"Yes","No", "Cancel"))
 			if("Yes")

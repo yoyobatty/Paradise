@@ -1,4 +1,5 @@
-/client/proc/watchlist_add(target_ckey, browse = 0)
+/// Adds a player to the watchlist. Pass reason to skip asking for one
+/client/proc/watchlist_add(target_ckey, browse = 0, reason)
 	if(!check_rights(R_ADMIN))
 		return
 	if(!target_ckey)
@@ -33,7 +34,8 @@
 	if(already_watched)
 		to_chat(usr, SPAN_REDTEXT("[target_ckey] is already on the watchlist."))
 		return
-	var/reason = input(usr,"Please state the reason","Reason") as message|null
+	if(!reason)
+		reason = input(usr,"Please state the reason","Reason") as message|null
 	if(!reason)
 		return
 	var/adminckey = usr.ckey
@@ -78,7 +80,8 @@
 	if(browse)
 		watchlist_show()
 
-/client/proc/watchlist_edit(target_ckey, browse = 0)
+/// Changes a watchlist reason. Pass new_reason to skip asking for one
+/client/proc/watchlist_edit(target_ckey, browse = 0, new_reason)
 	if(!check_rights(R_ADMIN))
 		return
 	var/datum/db_query/query_watchreason = SSdbcore.NewQuery("SELECT reason FROM watch WHERE ckey=:target_ckey", list(
@@ -89,8 +92,10 @@
 		return
 	if(query_watchreason.NextRow())
 		var/watch_reason = query_watchreason.item[1]
-		var/new_reason = input("Input the new reason", "New Reason", "[watch_reason]") as message|null
+		if(!new_reason)
+			new_reason = input("Input the new reason", "New Reason", "[watch_reason]") as message|null
 		if(!new_reason || new_reason == watch_reason)
+			qdel(query_watchreason)
 			return
 		var/sql_ckey = usr.ckey
 		var/edit_text = "Edited by [sql_ckey] on [SQLtime()] from \"[watch_reason]\" to \"[new_reason]\""

@@ -192,6 +192,7 @@
 			C.jbh.reload_jobbans(C)
 	else
 		flag_account_for_role_sync(ckey, DATABASE_TASK_MARK_BANNED)
+	return TRUE
 
 /datum/admins/proc/DB_ban_unban(ckey, bantype, job = "")
 
@@ -283,7 +284,8 @@
 	else
 		flag_account_for_role_sync(ckey, DATABASE_TASK_MARK_UNBANNED)
 
-/datum/admins/proc/DB_ban_edit(banid = null, param = null)
+/// Edits a ban's reason or duration, lifts it, or makes it public. Pass value to set the reason or duration without asking
+/datum/admins/proc/DB_ban_edit(banid = null, param = null, value = null)
 
 	if(!check_rights(R_BAN))	return
 
@@ -315,7 +317,6 @@
 		return
 
 	qdel(query)
-	var/value
 
 	switch(param)
 		if("reason")
