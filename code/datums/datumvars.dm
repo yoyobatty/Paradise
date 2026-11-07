@@ -466,7 +466,8 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		if(islist(owner))
 			var/list/debug_list = owner
 			var/index = name
-			if(value)
+			// An assoc value of 0 or "" still counts as a value
+			if(!isnull(value))
 				name = debug_list[name] // name is really the index until this line
 			else
 				value = debug_list[name]
