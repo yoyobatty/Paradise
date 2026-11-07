@@ -140,6 +140,8 @@
 /obj/item/whiteship_port_generator/ui_data(mob/user)
 	var/list/data = list()
 	var/obj/docking_port/mobile/M = SSshuttle.getShuttle(shuttleId)
+	data["shuttle_id"] = shuttleId
+	data["shuttle_name"] = M ? M.name : "Unknown"
 	data["status"] = M ? M.getStatusText() : null
 	if(M)
 		data["shuttle"] = TRUE	//this should just be boolean, right?
@@ -152,7 +154,8 @@
 				continue
 			docking_ports[++docking_ports.len] = list("name" = S.name, "id" = S.id)
 		data["docking_ports_len"] = length(docking_ports)
-	return data
+	// The shuttle console window takes a list of shuttles, this only has the one
+	return list("shuttles" = list(data))
 
 /// Pretty much a straight copy-paste of [/obj/machinery/computer/shuttle/proc/ui_act].
 /// Yes it could be refactored but tearing all of the "make the shuttle move" code out of

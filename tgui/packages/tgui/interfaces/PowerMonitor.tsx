@@ -42,7 +42,7 @@ type APC = {
 };
 
 type PowerMonitorMainData = {
-  powermonitor: string;
+  powermonitor: BooleanLike;
   select_monitor: BooleanLike;
 };
 
@@ -97,7 +97,7 @@ type DataHistory = {
 };
 
 type DataViewData = {
-  powermonitor: string;
+  powermonitor: BooleanLike;
   history: DataHistory;
   apcs: APC[];
   select_monitor: BooleanLike;

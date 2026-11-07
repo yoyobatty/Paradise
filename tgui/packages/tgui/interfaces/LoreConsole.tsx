@@ -51,10 +51,12 @@ export const LoreConsole = (props) => {
             </Section>
           </Stack.Item>
         )}
-        <Stack.Item>
-          <h1>{entry.title && entry.title}</h1>
-          <div className="LoreConsole__entryText" dangerouslySetInnerHTML={processedText(entry.body)} />
-        </Stack.Item>
+        {!!entry && (
+          <Stack.Item>
+            <h1>{entry.title && entry.title}</h1>
+            <div className="LoreConsole__entryText" dangerouslySetInnerHTML={processedText(entry.body)} />
+          </Stack.Item>
+        )}
       </Stack>
     </Window>
   );

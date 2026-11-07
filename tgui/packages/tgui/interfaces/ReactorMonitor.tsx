@@ -1,12 +1,13 @@
-import { Button, Knob, LabeledList, ProgressBar, Section, Stack } from 'tgui-core/components';
+import { Button, Knob, LabeledList, NoticeBox, ProgressBar, Section, Stack } from 'tgui-core/components';
 import { toFixed } from 'tgui-core/math';
+import { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
 import { getGasColor, getGasLabel } from '../constants';
 import { Window } from '../layouts';
 
 interface FissionReactorData {
-  active: number;
+  active: BooleanLike;
   supermatters?: Array<{
     supermatter_id: string;
     area_name: string;
@@ -30,6 +31,15 @@ interface FissionReactorData {
 export const ReactorMonitor = (props) => {
   const logScale = (value: number): number => Math.log2(16 + Math.max(0, value)) - 4;
   const { act, data } = useBackend<FissionReactorData>();
+  if (!data.active) {
+    return (
+      <Window width={550} height={500}>
+        <Window.Content>
+          <NoticeBox>No reactor connected.</NoticeBox>
+        </Window.Content>
+      </Window>
+    );
+  }
   const {
     venting,
     NGCR_integrity,

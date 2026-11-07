@@ -109,6 +109,9 @@
 /datum/milla_safe/disposal_suck_air
 
 /datum/milla_safe/disposal_suck_air/on_run(obj/machinery/disposal/disposal)
+	// Can be deleted before the air tick gets to it
+	if(QDELETED(disposal))
+		return
 	var/turf/T = get_turf(disposal)
 	var/datum/gas_mixture/env = get_turf_air(T)
 

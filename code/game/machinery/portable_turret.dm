@@ -1137,6 +1137,9 @@
 	check_synth	= TRUE
 	ailock = TRUE
 
+/obj/machinery/porta_turret/ruin/setup()
+	return
+
 /obj/machinery/porta_turret/ruin/xray
 	projectile = /obj/projectile/beam/xray
 	eprojectile = /obj/projectile/beam/xray

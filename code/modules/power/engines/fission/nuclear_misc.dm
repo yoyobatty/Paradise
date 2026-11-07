@@ -107,12 +107,14 @@
 
 /obj/machinery/computer/fission_monitor/ui_data(mob/user)
 	var/list/data = list()
+	data["active"] = FALSE
 	// If we somehow dont have an engine anymore, handle it here.
 	if(!active)
-		return
+		return data
 	if(active.stat & BROKEN)
 		active = null
-		return
+		return data
+	data["active"] = TRUE
 
 	var/datum/gas_mixture/air = active.air_contents
 	var/power_kilowatts = round((active.final_power / 1000), 1)

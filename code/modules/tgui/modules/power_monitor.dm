@@ -27,7 +27,7 @@
 	if(QDELETED(powermonitor))
 		powermonitor = null
 
-	data["powermonitor"] = powermonitor
+	data["powermonitor"] = !!powermonitor
 	if(select_monitor)
 		data["select_monitor"] = TRUE
 		data["powermonitors"] = GLOB.powermonitor_repository.powermonitor_data()
