@@ -489,6 +489,7 @@
 #include "code\datums\user_verb.dm"
 #include "code\datums\verb_callbacks.dm"
 #include "code\datums\vv_core_topics.dm"
+#include "code\datums\vv_windows.dm"
 #include "code\datums\actions\action.dm"
 #include "code\datums\actions\clumsy.dm"
 #include "code\datums\actions\cooldown_action.dm"

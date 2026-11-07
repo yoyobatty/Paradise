@@ -134,7 +134,8 @@
 USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Variables", datum/thing in world)
 	client.debug_variables(thing)
 
-/client/proc/debug_variables(datum/D in world)
+/// Shows D in View Variables. window_id is the VV window to show it in, and push adds it to that window's history for Back
+/client/proc/debug_variables(datum/D in world, window_id, push = TRUE)
 	var/static/cookieoffset = rand(1, 9999) //to force cookies to reset after the round.
 
 	if(!D)
@@ -147,6 +148,12 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 	var/isclient = isclient(D)
 	if(!islist && !isclient && !istype(D))
 		return
+
+	var/datum/vv_window/vv_window = vv_window_for(D, window_id)
+	// Only new windows get a size, so a window the admin resized keeps its size
+	var/new_window = !winexists(src, vv_window.id)
+	if(push && vv_window.current_ref() != vv_window_ref(D))
+		vv_window.push(D)
 
 	var/title = ""
 	var/icon/sprite
@@ -250,6 +257,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 	</head>
 	<body onload='selectTextField(); updateSearch()' onkeydown='return checkreload()' onkeyup='updateSearch()'>
 		<script type="text/javascript">
+			[vv_window_script(vv_window.id)]
 			function checkreload() {
 				if(event.keyCode == 116){	//F5 (to refresh properly)
 					document.getElementById("refresh_link").click();
@@ -368,7 +376,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 				if(list.options\[list.selectedIndex\].value == ""){
 					return;
 				}
-				location.href=list.options\[list.selectedIndex\].value;
+				location.href=vv_link(list.options\[list.selectedIndex\].value, false);
 			}
 			function getCookie(cname) {
 				var name = cname + "=";
@@ -400,10 +408,12 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 							<b><font size='1'>[formatted_type]</font></b>
 							[marked]
 							[varedited_line]
+							[vv_where(D)]
 						</div>
 					</td>
 					<td width='50%'>
 						<div align='center'>
+							[vv_nav_links(vv_window)]<br>
 							<a id='refresh_link' href='byond://?_src_=vars;[islist ? "listrefresh=\ref[D]" : "datumrefresh=[D.UID()]"]'>Refresh</a>
 							<form>
 								<select name="file" size="1"
@@ -455,7 +465,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		log_admin("[key_name(usr)] opened VV for [D] ([D.UID()])")
 
 	var/size_string = window_scaling ? "size=[475 * window_scaling]x[650 * window_scaling]" : "size=[475]x[650]"
-	usr << browse(html, "window=variables[refid];[size_string]")
+	usr << browse(html, "window=[vv_window.id][new_window ? ";[size_string]" : ""]")
 
 #define VV_HTML_ENCODE(thing) ( sanitize ? html_encode(thing) : thing )
 /// Lists inside lists stop expanding this deep, so a list that holds itself can't hang the window
@@ -473,7 +483,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 				value = debug_list[name]
 			header = "<li class='vars visible'>(<a href='byond://?_src_=vars;listedit=\ref[owner];index=[index]'>E</a>) (<a href='byond://?_src_=vars;listchange=\ref[owner];index=[index]'>C</a>) (<a href='byond://?_src_=vars;listremove=\ref[owner];index=[index]'>-</a>) "
 		else
-			header = "<li class='vars visible'>(<a href='byond://?_src_=vars;datumedit=[owner.UID()];varnameedit=[name]'>E</a>) (<a href='byond://?_src_=vars;datumchange=[owner.UID()];varnamechange=[name]'>C</a>) (<a href='byond://?_src_=vars;datummass=[owner.UID()];varnamemass=[name]'>M</a>) "
+			header = "<li class='vars visible' id='vvar_[name]'>(<a href='byond://?_src_=vars;datumedit=[owner.UID()];varnameedit=[name]'>E</a>) (<a href='byond://?_src_=vars;datumchange=[owner.UID()];varnamechange=[name]'>C</a>) (<a href='byond://?_src_=vars;datummass=[owner.UID()];varnamemass=[name]'>M</a>) "
 	else
 		header = "<li>"
 
@@ -570,6 +580,12 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 
 /client/proc/view_var_Topic(href, href_list, hsrc)
 	//This should all be moved over to datum/admins/Topic() or something ~Carn
+	// Back and Forward only show pages, so anyone who can open View Variables can use them
+	if(href_list["vvback"] || href_list["vvforward"])
+		if(check_rights(R_ADMIN|R_MOD|R_VIEWRUNTIMES, FALSE))
+			vv_step(href_list["vvwin"], href_list["vvback"] ? -1 : 1)
+		return
+
 	if(!check_rights(R_ADMIN|R_MOD, FALSE))
 		// Clients with R_VIEWRUNTIMES can still open and refresh windows, but nothing else
 		if(href_list[VV_HK_PROC_CALL] && check_rights(R_PROCCALL, FALSE))
@@ -579,6 +595,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		return
 
 	if(view_var_Topic_list(href, href_list, hsrc))  // done because you can't use UIDs with lists and I don't want to snowflake into the below check to supress warnings
+		vv_reshow_list(href_list)
 		return
 
 	// Correct and warn about any VV topic links that aren't using UIDs
@@ -598,7 +615,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		stack_trace("Found \\ref-based '[paramname]' param in VV topic for [datuminfo], should be UID: [href]")
 
 	if(href_list["Vars"])
-		debug_variables(locateUID(href_list["Vars"]))
+		debug_variables(locateUID(href_list["Vars"]), vv_link_window(href_list))
 
 	var/target = GET_VV_TARGET
 	vv_core_topics(target, href_list, href)
@@ -606,31 +623,43 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		var/datum/D = target
 		D.vv_do_topic(href_list)
 
+	// Show the new value in the edited var's row
+	if(href_list["datumedit"])
+		vv_refresh_var(locateUID(href_list["datumedit"]), href_list["varnameedit"])
+	else if(href_list["datumchange"])
+		vv_refresh_var(locateUID(href_list["datumchange"]), href_list["varnamechange"])
+	else if(href_list["datummass"])
+		vv_refresh_var(locateUID(href_list["datummass"]), href_list["varnamemass"])
+
 	// Refresh the VV if something asked us to
 	if(href_list["datumrefresh"])
 		var/datum/DAT = locateUID(href_list["datumrefresh"])
 		if(!istype(DAT, /datum) && !isclient(DAT))
 			return
-		src.debug_variables(DAT)
+		src.debug_variables(DAT, href_list["vvwin"], FALSE)
+
+/// The VV window a clicked reference should open in: the one it was clicked in, unless it was shift-clicked for a new one
+/proc/vv_link_window(list/href_list)
+	return href_list["vvnew"] ? null : href_list["vvwin"]
 
 /// The only VV links that work for clients with just R_VIEWRUNTIMES
 /client/proc/view_var_Topic_view_only(href_list)
 	if(href_list["Vars"])
-		debug_variables(locateUID(href_list["Vars"]))
+		debug_variables(locateUID(href_list["Vars"]), vv_link_window(href_list))
 	else if(href_list["datumrefresh"])
-		debug_variables(locateUID(href_list["datumrefresh"]))
+		debug_variables(locateUID(href_list["datumrefresh"]), href_list["vvwin"], FALSE)
 	else if(href_list["VarsList"])
-		debug_variables(locate(href_list["VarsList"]))
+		debug_variables(locate(href_list["VarsList"]), vv_link_window(href_list))
 	else if(href_list["listrefresh"])
-		debug_variables(locate(href_list["listrefresh"]))
+		debug_variables(locate(href_list["listrefresh"]), href_list["vvwin"], FALSE)
 
 /client/proc/view_var_Topic_list(href, href_list, hsrc)
 	if(href_list["VarsList"])
-		debug_variables(locate(href_list["VarsList"]))
+		debug_variables(locate(href_list["VarsList"]), vv_link_window(href_list))
 		return TRUE
 
 	if(href_list["listrefresh"])
-		debug_variables(locate(href_list["listrefresh"]))
+		debug_variables(locate(href_list["listrefresh"]), href_list["vvwin"], FALSE)
 		return TRUE
 
 	// Everything below edits the list
