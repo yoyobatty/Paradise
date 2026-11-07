@@ -159,6 +159,7 @@
 				};
 				editor.onkeyup = function (e) { e.stopPropagation(); };
 				li.appendChild(editor);
+				if (editor.scrollIntoView) editor.scrollIntoView({ block: 'nearest' });
 				if (field.focus) { field.focus(); if (field.select) field.select(); }
 			}
 			// A click on a plain value opens the editor in its row
