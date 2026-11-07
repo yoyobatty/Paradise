@@ -17,5 +17,8 @@ linux_scripts:
   PreCompile.sh: tools/tgs_scripts/PreCompile.sh
   WatchdogLaunch.sh: tools/tgs_scripts/WatchdogLaunch.sh
   InstallDeps.sh: tools/tgs_scripts/InstallDeps.sh
+# Scripts windows needs
+windows_scripts:
+  PreCompile.bat: tools/tgs_scripts/PreCompile.bat
 # The security level the game should be run at
 security: Trusted
