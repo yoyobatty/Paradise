@@ -49,6 +49,7 @@ jobs:
           python -m tools.ci.check_legacy_attack_chain
           python -m tools.ci.check_simplemob_additions
           python -m tools.maplint.source --github
+          pwsh tools/ci/rustlibs_source_hash.ps1 -Check
 
       - name: Run DreamChecker
         shell: bash
