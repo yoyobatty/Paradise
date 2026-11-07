@@ -286,6 +286,42 @@
 /proc/rustlibs_sql_check_query(datum/db_query/query)
 	return RUSTLIB_CALL(sql_check_query, query)
 
+// MARK: Lighting engine
+// See code/modules/lighting/lighting_engine.dm
+
+/proc/rustlibs_lighting_setup(maxx, maxy, round, list/turfs, list/coordinates)
+	return RUSTLIB_CALL(lighting_setup, maxx, maxy, round, turfs, coordinates)
+
+/proc/rustlibs_lighting_flags(list/flags)
+	return RUSTLIB_CALL(lighting_flags, flags)
+
+/proc/rustlibs_lighting_flag(turf/T, flags)
+	return RUSTLIB_CALL(lighting_flag, T, flags)
+
+/proc/rustlibs_lighting_sheet(id, dim, list/values)
+	return RUSTLIB_CALL(lighting_sheet, id, dim, values)
+
+/proc/rustlibs_lighting_update(id, x, y, z, power, red, green, blue, sheet, vis_only, list/seen)
+	return RUSTLIB_CALL(lighting_update, id, x, y, z, power, red, green, blue, sheet, vis_only, seen)
+
+/proc/rustlibs_lighting_remove(id)
+	return RUSTLIB_CALL(lighting_remove, id)
+
+/proc/rustlibs_lighting_forget(id)
+	return RUSTLIB_CALL(lighting_forget, id)
+
+/proc/rustlibs_lighting_affecting(turf/T, list/out)
+	return RUSTLIB_CALL(lighting_affecting, T, out)
+
+/proc/rustlibs_lighting_flush(max, list/out)
+	return RUSTLIB_CALL(lighting_flush, max, out)
+
+/proc/rustlibs_lighting_object(turf/T, list/out)
+	return RUSTLIB_CALL(lighting_object, T, out)
+
+/proc/rustlibs_lighting_lumcount(turf/T)
+	return RUSTLIB_CALL(lighting_lumcount, T)
+
 #undef RUSTLIB_CALL
 
 // Indexes for Tiles and InterestingTiles

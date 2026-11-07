@@ -28,9 +28,6 @@
 	var/tmp/applied_lum_g
 	var/tmp/applied_lum_b
 
-	/// List used to store how much we're affecting corners.
-	var/list/datum/lighting_corner/effect_str
-
 	/// Whether we have applied our light yet or not.
 	var/applied = FALSE
 
@@ -65,6 +62,7 @@
 
 /datum/light_source/Destroy(force)
 	remove_lum()
+	SSlighting.engine_forget(src)
 	if(source_atom)
 		source_atom.delete_lights()
 		LAZYREMOVE(source_atom.light_sources, src)
@@ -112,76 +110,11 @@
 /datum/light_source/proc/vis_update()
 	EFFECT_UPDATE(LIGHTING_VIS_UPDATE)
 
-// Macros that apply light to corners.
-// They are macros in the interest of speed, yet not having to copy paste them.
-// If you're wondering what's with the backslashes, the backslashes cause BYOND to not automatically end the line.
-// As such this all gets counted as a single line.
-// The braces and semicolons are there to be able to do this on a single line.
-
-/// Copies the vars ADD_CORNER_LUM() needs into locals, since reading a local is faster than reading src's vars for every corner. For procs that only remove light.
-#define SETUP_CORNERS_REMOVAL_CACHE \
-	var/_applied_lum_r = applied_lum_r; \
-	var/_applied_lum_g = applied_lum_g; \
-	var/_applied_lum_b = applied_lum_b; \
-	var/list/_corners_queue = SSlighting.corners_queue;
-
-/// Copies the vars LUM_FALLOFF() and ADD_CORNER_LUM() need into locals. Has to come before either of them is used.
-#define SETUP_CORNERS_CACHE \
-	SETUP_CORNERS_REMOVAL_CACHE \
-	var/_pixel_x = pixel_turf.x; \
-	var/_pixel_y = pixel_turf.y; \
-	var/_range_divisor = max(1, light_range); \
-	var/_light_power = light_power; \
-	var/_lum_r = lum_r; \
-	var/_lum_g = lum_g; \
-	var/_lum_b = lum_b;
-
-/// This is the define used to calculate falloff.
-#define LUM_FALLOFF(C) (1 - CLAMP01(sqrt((C.x - _pixel_x) ** 2 + (C.y - _pixel_y) ** 2 + LIGHTING_HEIGHT) / _range_divisor))
-
-/// Adds the given amount of light to a corner, and queues the corner for an update if it changed.
-#define ADD_CORNER_LUM(C, DELTA_R, DELTA_G, DELTA_B) \
-	if(DELTA_R || DELTA_G || DELTA_B) { \
-		C.lum_r += DELTA_R; \
-		C.lum_g += DELTA_G; \
-		C.lum_b += DELTA_B; \
-		if(!C.needs_update) { \
-			C.needs_update = TRUE; \
-			_corners_queue += C; \
-		} \
-	}
-
-/// Adds a corner to the `corners` list, unless it's already been added this update.
-#define GATHER_CORNER(C) \
-	if(C.update_stamp != stamp) { \
-		C.update_stamp = stamp; \
-		corners += C; \
-	}
-
 /// Removes our light from every corner we're lighting.
 /datum/light_source/proc/remove_lum()
 	applied = FALSE
-	SETUP_CORNERS_REMOVAL_CACHE
-	for(var/datum/lighting_corner/corner as anything in effect_str)
-		var/strength = effect_str[corner]
-		var/delta_r = -strength * _applied_lum_r
-		var/delta_g = -strength * _applied_lum_g
-		var/delta_b = -strength * _applied_lum_b
-		ADD_CORNER_LUM(corner, delta_r, delta_g, delta_b)
-		LAZYREMOVE(corner.affecting, src)
-
-	effect_str = null
-
-/datum/light_source/proc/recalc_corner(datum/lighting_corner/corner)
-	SETUP_CORNERS_CACHE
-	LAZYINITLIST(effect_str)
-	var/old_strength = effect_str[corner] || 0
-	var/strength = LUM_FALLOFF(corner) * _light_power
-	effect_str[corner] = strength
-	var/delta_r = (strength * _lum_r) - (old_strength * _applied_lum_r)
-	var/delta_g = (strength * _lum_g) - (old_strength * _applied_lum_g)
-	var/delta_b = (strength * _lum_b) - (old_strength * _applied_lum_b)
-	ADD_CORNER_LUM(corner, delta_r, delta_g, delta_b)
+	if(engine_id)
+		rustlibs_lighting_remove(engine_id)
 
 /datum/light_source/proc/update_corners()
 	var/update = FALSE
@@ -246,72 +179,17 @@
 	else if(needs_update == LIGHTING_CHECK_UPDATE)
 		return //nothing's changed
 
-	// A corner is shared by up to four turfs, so the same corner comes up more than once.
-	// Stamping each corner the first time we see it is a lot cheaper than filtering duplicates with an associative list.
-	var/stamp = SSlighting.get_update_stamp()
-	var/list/datum/lighting_corner/corners = list()
 	var/light_reach = CEILING(light_range, 1)
 	var/oldlum = source_turf.luminosity
 	source_turf.luminosity = light_reach
-	for(var/turf/T in view(light_reach, source_turf))
-		if(IS_OPAQUE_TURF(T))
-			continue
-		if(!T.lighting_corners_initialised)
-			T.generate_missing_corners()
-		GATHER_CORNER(T.lighting_corner_NE)
-		GATHER_CORNER(T.lighting_corner_SE)
-		GATHER_CORNER(T.lighting_corner_SW)
-		GATHER_CORNER(T.lighting_corner_NW)
+	var/list/seen = view(light_reach, source_turf)
 	source_turf.luminosity = oldlum
 
-	SETUP_CORNERS_CACHE
-	LAZYINITLIST(effect_str)
-	var/list/datum/lighting_corner/effect = effect_str
-	var/vis_update = (needs_update == LIGHTING_VIS_UPDATE)
-	var/list/datum/lighting_corner/gone_corners
-	for(var/datum/lighting_corner/corner as anything in corners)
-		var/old_strength = effect[corner]
-		if(isnull(old_strength))
-			old_strength = 0
-		else if(vis_update) // Visibility update, the corners we already light don't need recalculating
-			continue
-		var/strength = LUM_FALLOFF(corner) * _light_power
-		if(!strength)
-			if(old_strength)
-				LAZYADD(gone_corners, corner)
-			continue
-		if(!old_strength)
-			LAZYADD(corner.affecting, src)
-		effect[corner] = strength
-		var/delta_r = (strength * _lum_r) - (old_strength * _applied_lum_r)
-		var/delta_g = (strength * _lum_g) - (old_strength * _applied_lum_g)
-		var/delta_b = (strength * _lum_b) - (old_strength * _applied_lum_b)
-		ADD_CORNER_LUM(corner, delta_r, delta_g, delta_b)
-
-	// Anything we lit last update that didn't get stamped this time is out of view now
-	for(var/datum/lighting_corner/corner as anything in effect)
-		if(corner.update_stamp != stamp)
-			LAZYADD(gone_corners, corner)
-
-	for(var/datum/lighting_corner/corner as anything in gone_corners)
-		var/strength = effect[corner]
-		var/delta_r = -strength * _applied_lum_r
-		var/delta_g = -strength * _applied_lum_g
-		var/delta_b = -strength * _applied_lum_b
-		ADD_CORNER_LUM(corner, delta_r, delta_g, delta_b)
-		LAZYREMOVE(corner.affecting, src)
-	if(gone_corners)
-		effect -= gone_corners
+	// The lighting engine works out what we give every corner we see. On a visibility update, the corners we already light keep what they have.
+	SSlighting.engine_update(src, seen, needs_update == LIGHTING_VIS_UPDATE)
 
 	applied_lum_r = lum_r
 	applied_lum_g = lum_g
 	applied_lum_b = lum_b
 
-	UNSETEMPTY(effect_str)
-
 #undef EFFECT_UPDATE
-#undef SETUP_CORNERS_REMOVAL_CACHE
-#undef SETUP_CORNERS_CACHE
-#undef LUM_FALLOFF
-#undef ADD_CORNER_LUM
-#undef GATHER_CORNER

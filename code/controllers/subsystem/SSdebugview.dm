@@ -24,7 +24,7 @@ SUBSYSTEM_DEF(debugview)
 		counts += length(L)
 	entries += "\[GC] Cost: [round(SSgarbage.cost, 1)]ms | Q: [counts.Join(",")] H: [SSgarbage.delslasttick] | S: [SSgarbage.gcedlasttick]"
 	entries += "\[Input] Cost: [round(SSinput.cost, 1)]ms"
-	entries += "\[Lighting] Cost: [round(SSlighting.cost, 1)]ms | SQ: [length(SSlighting.sources_queue)] | CQ: [length(SSlighting.corners_queue)] | OQ: [length(SSlighting.objects_queue)]"
+	entries += "\[Lighting] Cost: [round(SSlighting.cost, 1)]ms | SQ: [length(SSlighting.sources_queue)] | OQ: [length(SSlighting.objects_queue)]"
 	entries += "\[Machines] Cost: [round(SSmachines.cost, 1)]ms | M: [length(SSmachines.processing)] | P: [length(SSmachines.powernets)]"
 	entries += "\[Mobs] Cost: [round(SSmobs.cost, 1)]ms | P: [length(GLOB.mob_living_list)]"
 	entries += "\[Objects] Cost: [round(SSobj.cost, 1)]ms | P: [length(SSobj.processing)]"

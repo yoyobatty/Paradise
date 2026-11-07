@@ -69,15 +69,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 	/// If you're curious why these are TMP vars, I don't know! TMP only affects savefiles so this does nothing :) - GDN
 
-	/// Is the lighting on this turf inited
-	var/tmp/lighting_corners_initialised = FALSE
 	/// The lighting Object affecting us
 	var/tmp/datum/lighting_object/lighting_object
-	/// Lighting Corner datums.
-	var/tmp/datum/lighting_corner/lighting_corner_NE
-	var/tmp/datum/lighting_corner/lighting_corner_SE
-	var/tmp/datum/lighting_corner/lighting_corner_SW
-	var/tmp/datum/lighting_corner/lighting_corner_NW
 
 	/// Which directions does this turf block the vision of, taking into account both the turf's opacity and the movable opacity_sources.
 	var/directional_opacity = NONE
@@ -148,6 +141,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 	if(opacity)
 		directional_opacity = ALL_CARDINALS
+	if(SSlighting.engine_turfs_ready) // made after the lighting engine started, by the map loader say: what it had about the old turf here is gone
+		lighting_engine_push()
 
 	initialize_milla()
 	if(is_station_level(z))
@@ -332,10 +327,6 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	var/old_lighting_object = lighting_object
 	var/old_blueprint_data = blueprint_data
 	var/old_obscured = obscured
-	var/old_lighting_corner_NE = lighting_corner_NE
-	var/old_lighting_corner_SE = lighting_corner_SE
-	var/old_lighting_corner_SW = lighting_corner_SW
-	var/old_lighting_corner_NW = lighting_corner_NW
 	var/old_directional_opacity = directional_opacity
 
 	// After BeforeChange(), so /turf/space/BeforeChange() still sees its starlight and takes itself off GLOB.starlight
@@ -366,11 +357,6 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	W.blueprint_data = old_blueprint_data
 	W.pressure_overlay = old_pressure_overlay
 
-	lighting_corner_NE = old_lighting_corner_NE
-	lighting_corner_SE = old_lighting_corner_SE
-	lighting_corner_SW = old_lighting_corner_SW
-	lighting_corner_NW = old_lighting_corner_NW
-
 	if(SSlighting.initialized)
 		W.lighting_object = old_lighting_object
 		directional_opacity = old_directional_opacity
@@ -389,6 +375,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 		for(var/turf/space/space_tile in RANGE_TURFS(1, src))
 			space_tile.update_starlight()
+
+		lighting_engine_push() // whether we block light and have a lighting object, as they are now
 
 	obscured = old_obscured
 

@@ -1,9 +1,6 @@
 // Causes any affecting light sources to be queued for a visibility update, for example a door got opened.
 /turf/proc/reconsider_lights()
-	lighting_corner_NE?.vis_update()
-	lighting_corner_SE?.vis_update()
-	lighting_corner_SW?.vis_update()
-	lighting_corner_NW?.vis_update()
+	SSlighting.engine_reconsider(src)
 
 /turf/proc/lighting_clear_overlay()
 	if(lighting_object)
@@ -21,20 +18,7 @@
 	if(!lighting_object)
 		return 1
 
-	var/totallums = 0
-	var/datum/lighting_corner/corner
-	corner = lighting_corner_NE
-	if(corner)
-		totallums += corner.lum_r + corner.lum_b + corner.lum_g
-	corner = lighting_corner_SE
-	if(corner)
-		totallums += corner.lum_r + corner.lum_b + corner.lum_g
-	corner = lighting_corner_SW
-	if(corner)
-		totallums += corner.lum_r + corner.lum_b + corner.lum_g
-	corner = lighting_corner_NW
-	if(corner)
-		totallums += corner.lum_r + corner.lum_b + corner.lum_g
+	var/totallums = rustlibs_lighting_lumcount(src) // the light on our four corners, red, green and blue
 
 	totallums /= 12 // 4 corners, each with 3 channels, get the average.
 
@@ -72,6 +56,7 @@
 	if(opacity)
 		directional_opacity = ALL_CARDINALS
 		if(. != directional_opacity)
+			lighting_engine_push()
 			reconsider_lights()
 		return
 	directional_opacity = NONE
@@ -82,6 +67,7 @@
 			directional_opacity = ALL_CARDINALS
 			break
 	if(. != directional_opacity && (. == ALL_CARDINALS || directional_opacity == ALL_CARDINALS))
+		lighting_engine_push()
 		reconsider_lights() // The lighting system only cares whether the tile is fully concealed from all directions or not.
 
 /turf/proc/change_area(area/old_area, area/new_area)
@@ -93,18 +79,3 @@
 				lighting_clear_overlay()
 	for(var/obj/machinery/machine in contents)
 		machine.reregister_machine()
-
-/turf/proc/generate_missing_corners()
-	if(!lighting_corner_NE)
-		lighting_corner_NE = new /datum/lighting_corner(src, NORTH | EAST)
-
-	if(!lighting_corner_SE)
-		lighting_corner_SE = new /datum/lighting_corner(src, SOUTH | EAST)
-
-	if(!lighting_corner_SW)
-		lighting_corner_SW = new /datum/lighting_corner(src, SOUTH | WEST)
-
-	if(!lighting_corner_NW)
-		lighting_corner_NW = new /datum/lighting_corner(src, NORTH | WEST)
-
-	lighting_corners_initialised = TRUE

@@ -101,7 +101,11 @@
 #define LIGHTING_CHECK_UPDATE 2
 #define LIGHTING_FORCE_UPDATE 3
 
-#define LIGHTING_MAX_UPDATE_STAMP 16777216 //! SSlighting.update_stamp wraps back to 1 before this. BYOND numbers lose integer precision past 2^24.
+/// What the lighting engine (rust/src/lighting) has to say it is for SSlighting to use it
+#define LIGHTING_ENGINE_VERSION 1
+// What the lighting engine keeps about a turf: see /turf/proc/lighting_engine_flags()
+#define LIGHTING_ENGINE_OPAQUE (1<<0)
+#define LIGHTING_ENGINE_OBJECT (1<<1)
 
 #define FLASH_LIGHT_DURATION 2
 #define FLASH_LIGHT_POWER 3

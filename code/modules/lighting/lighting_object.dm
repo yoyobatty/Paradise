@@ -21,6 +21,7 @@
 
 	affected_turf.lighting_object = src
 	affected_turf.luminosity = 0
+	affected_turf.lighting_engine_push()
 
 	for(var/turf/space/space_tile in RANGE_TURFS(1, affected_turf))
 		space_tile.update_starlight()
@@ -36,43 +37,18 @@
 		affected_turf.lighting_object = null
 		affected_turf.luminosity = 1
 		affected_turf.underlays -= current_underlay
+		affected_turf.lighting_engine_push()
 	affected_turf = null
 	return ..()
 
+/// Draws what the lighting engine has for our turf's corners
 /datum/lighting_object/proc/update()
-	// To the future coder who sees this and thinks
-	// "Why didn't he just use a loop?"
-	// Well my man, it's because the loop performed like shit.
-	// And there's no way to improve it because
-	// without a loop you can make the list all at once which is the fastest you're gonna get.
-	// Oh it's also shorter line wise.
-	// Including with these comments.
+	var/list/values = list()
+	rustlibs_lighting_object(affected_turf, values)
+	draw(values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13])
 
-	var/static/datum/lighting_corner/dummy/dummy_lighting_corner = new
-
-	var/datum/lighting_corner/red_corner = affected_turf.lighting_corner_SW || dummy_lighting_corner
-	var/datum/lighting_corner/green_corner = affected_turf.lighting_corner_SE || dummy_lighting_corner
-	var/datum/lighting_corner/blue_corner = affected_turf.lighting_corner_NW || dummy_lighting_corner
-	var/datum/lighting_corner/alpha_corner = affected_turf.lighting_corner_NE || dummy_lighting_corner
-
-	var/max = max(red_corner.largest_color_luminosity, green_corner.largest_color_luminosity, blue_corner.largest_color_luminosity, alpha_corner.largest_color_luminosity)
-
-	var/rr = red_corner.cache_r
-	var/rg = red_corner.cache_g
-	var/rb = red_corner.cache_b
-
-	var/gr = green_corner.cache_r
-	var/gg = green_corner.cache_g
-	var/gb = green_corner.cache_b
-
-	var/br = blue_corner.cache_r
-	var/bg = blue_corner.cache_g
-	var/bb = blue_corner.cache_b
-
-	var/ar = alpha_corner.cache_r
-	var/ag = alpha_corner.cache_g
-	var/ab = alpha_corner.cache_b
-
+/// Draws the four corners' colours (red = SW, green = SE, blue = NW, alpha = NE), max being the brightest of them
+/datum/lighting_object/proc/draw(rr, rg, rb, gr, gg, gb, br, bg, bb, ar, ag, ab, max)
 	#if LIGHTING_SOFT_THRESHOLD != 0
 	var/set_luminosity = max > LIGHTING_SOFT_THRESHOLD
 	#else

@@ -48,6 +48,8 @@
 
 	if(opacity)
 		directional_opacity = ALL_CARDINALS
+	if(SSlighting.engine_turfs_ready) // see /turf/Initialize()
+		lighting_engine_push()
 
 	return INITIALIZE_HINT_NORMAL
 
