@@ -258,6 +258,14 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 				}
 				return true;
 			}
+			// The browser reads colours back as rgb(), so the highlighted row is marked with an attribute
+			function isSelected(li) {
+				return li.getAttribute("data-selected") == "1";
+			}
+			function setSelected(li, selected) {
+				li.style.backgroundColor = selected ? "#ffee88" : "white";
+				li.setAttribute("data-selected", selected ? "1" : "0");
+			}
 			function updateSearch(){
 				var filter_text = document.getElementById('filter');
 				var filter = filter_text.value.toLowerCase();
@@ -268,7 +276,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 					{
 						try{
 							var li = lis\[i\];
-							if(li.style.backgroundColor == "#ffee88")
+							if(isSelected(li))
 							{
 								alist = lis\[i\].getElementsByTagName("a")
 								if(alist.length > 0){
@@ -286,13 +294,13 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 					{
 						try{
 							var li = lis\[i\];
-							if(li.className == "var visible" && li.style.backgroundColor == "#ffee88")
+							if(li.className == "var visible" && isSelected(li))
 							{
 								for(var j = i-1; j >= 0; --j) {
 									var li_new = lis\[j\];
 									if(li_new.className == "var visible") {
-										li.style.backgroundColor = "white";
-										li_new.style.backgroundColor = "#ffee88";
+										setSelected(li, false);
+										setSelected(li_new, true);
 										return
 									}
 								}
@@ -308,13 +316,13 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 					{
 						try{
 							var li = lis\[i\];
-							if(li.className == "var visible" && li.style.backgroundColor == "#ffee88")
+							if(li.className == "var visible" && isSelected(li))
 							{
 								for(var j = i+1; j < lis.length; ++j) {
 									var li_new = lis\[j\];
 									if(li_new.className == "var visible") {
-										li.style.backgroundColor = "white";
-										li_new.style.backgroundColor = "#ffee88";
+										setSelected(li, false);
+										setSelected(li_new, true);
 										return
 									}
 								}
@@ -332,13 +340,13 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 				{
 					try{
 						var li = lis\[i\];
-						li.style.backgroundColor = "white";
+						setSelected(li, false);
 						if(li.innerText.toLowerCase().indexOf(filter) == -1)
 						{
 							li.className = "var";
 						} else {
 							if(first) {
-								li.style.backgroundColor = "#ffee88";
+								setSelected(li, true);
 								first = false;
 							}
 							li.className = "var visible";
@@ -450,6 +458,8 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 	usr << browse(html, "window=variables[refid];[size_string]")
 
 #define VV_HTML_ENCODE(thing) ( sanitize ? html_encode(thing) : thing )
+/// Lists inside lists stop expanding this deep, so a list that holds itself can't hang the window
+#define VV_MAX_LIST_DEPTH 5
 /proc/debug_variable(name, value, level, datum/owner, sanitize = TRUE)
 	var/header
 	if(owner)
@@ -521,7 +531,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		var/list/L = value
 		var/list/items = list()
 
-		if(length(L) > 0 && !(name == "underlays" || name == "overlays" || name == "vars" || length(L) > (IS_NORMAL_LIST(L) ? 250 : 300)))
+		if(length(L) > 0 && level < VV_MAX_LIST_DEPTH && !(name == "underlays" || name == "overlays" || name == "vars" || length(L) > (IS_NORMAL_LIST(L) ? 250 : 300)))
 			for(var/i in 1 to length(L))
 				var/key = L[i]
 				var/val
@@ -756,3 +766,4 @@ USER_VERB(debug_global_variables, R_ADMIN|R_VIEWRUNTIMES, "Debug Global Variable
 	to_chat(client, SPAN_DEBUG("GLOB.[var_search] returned [result]."))
 
 #undef VV_HTML_ENCODE
+#undef VV_MAX_LIST_DEPTH
