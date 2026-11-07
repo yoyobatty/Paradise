@@ -1,5 +1,7 @@
 GLOBAL_LIST_EMPTY(game_test_chats)
 GLOBAL_LIST_EMPTY(game_test_tguis)
+/// Collects the windows opened by the TGUI window test, only while it's opening one
+GLOBAL_LIST(game_test_tgui_windows)
 
 /// For advanced cases, fail unconditionally but don't return (so a test can return multiple results)
 #define TEST_FAIL(reason) (Fail(reason || "No reason", __FILE__, __LINE__))

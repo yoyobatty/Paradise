@@ -74,6 +74,10 @@
  */
 /datum/tgui/proc/open()
 	if(!user.client)
+#ifdef GAME_TESTS
+		// Test players have no client, so the TGUI window test keeps the window to check it instead
+		GLOB.game_test_tgui_windows?.Add(src)
+#endif
 		return null
 	if(window)
 		return null
@@ -226,9 +230,9 @@
 			"locked" = FALSE,
 		),
 		"client" = list(
-			"ckey" = user.client.ckey,
-			"address" = user.client.address,
-			"computer_id" = user.client.computer_id,
+			"ckey" = user.client?.ckey,
+			"address" = user.client?.address,
+			"computer_id" = user.client?.computer_id,
 		),
 		"user" = list(
 			"name" = "[user]",

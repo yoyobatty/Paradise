@@ -212,3 +212,15 @@ jobs:
           mkdir -p data
           echo '/datum/map/test_tiny' > data/next_map.txt
           tools/ci/run_server.sh
+
+      - uses: actions/setup-node@v7.1.0
+        if: ${{ !cancelled() }}
+        with:
+          node-version: 24
+          cache: 'yarn'
+          cache-dependency-path: ./tgui/yarn.lock
+
+      # The game tests save every TGUI window they opened, this draws each one and fails if any crash
+      - name: Check TGUI Windows
+        if: ${{ !cancelled() && hashFiles('data/tgui_window_data.json') != '' }}
+        run: tgui/bin/tgui --window-check

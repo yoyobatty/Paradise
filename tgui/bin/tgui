@@ -71,6 +71,12 @@ task-test() {
   yarn run vitest
 }
 
+## Draws every window the game tests saved (data/tgui_window_data.json)
+task-window-check() {
+  cd "${base_dir}"
+  yarn run vitest run -c vitest.window-check.config.mts "${@}"
+}
+
 task-prettier() {
   cd "${base_dir}"
   npx prettier --check packages "${@}"
@@ -194,6 +200,14 @@ fi
 if [[ ${1} == '--analyze' ]]; then
   task-install
   task-rspack --mode=production --analyze
+  exit 0
+fi
+
+## Draw the windows saved by the game tests
+if [[ ${1} == '--window-check' ]]; then
+  shift 1
+  task-install
+  task-window-check "${@}"
   exit 0
 fi
 
