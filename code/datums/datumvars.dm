@@ -254,6 +254,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		<title>[title]</title>
 		<link rel="stylesheet" type="text/css" href="[SSassets.transport.get_asset_url("view_variables.css")]">
 		[window_scaling ? "<style>body {zoom: [100 / window_scaling]%;}</style>" : ""]
+		[isdatum(D) ? vv_editor_head(D, src) : ""]
 	</head>
 	<body onload='selectTextField(); updateSearch()' onkeydown='return checkreload()' onkeyup='updateSearch()'>
 		<script type="text/javascript">
@@ -273,6 +274,21 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 			function setSelected(li, selected) {
 				li.style.backgroundColor = selected ? "#ffee88" : "white";
 				li.setAttribute("data-selected", selected ? "1" : "0");
+			}
+			// Whether a row matches the search and the Changed and Edited boxes
+			function vv_keep(li, filter) {
+				if(filter && li.innerText.toLowerCase().indexOf(filter) == -1)
+					return false;
+				var only_changed = document.getElementById('only_changed');
+				if(only_changed && only_changed.checked && !li.getAttribute('data-changed'))
+					return false;
+				var only_edited = document.getElementById('only_edited');
+				if(only_edited && only_edited.checked && !li.getAttribute('data-edited'))
+					return false;
+				return true;
+			}
+			function vv_boxes() {
+				updateSearch();
 			}
 			function updateSearch(){
 				var filter_text = document.getElementById('filter');
@@ -349,7 +365,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 					try{
 						var li = lis\[i\];
 						setSelected(li, false);
-						if(li.innerText.toLowerCase().indexOf(filter) == -1)
+						if(!vv_keep(li, filter))
 						{
 							li.className = "var";
 						} else {
@@ -409,6 +425,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 							[marked]
 							[varedited_line]
 							[vv_where(D)]
+							[isdatum(D) ? vv_change_counts(D) : ""]
 						</div>
 					</td>
 					<td width='50%'>
@@ -430,13 +447,16 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 				</tr>
 			</table>
 		</div>
+		[vv_watch_html(vv_window)]
 		<hr>
 		<font size='1'>
 			<b>E</b> - Edit, tries to determine the variable type by itself.<br>
 			<b>C</b> - Change, asks you for the var type first.<br>
 			<b>M</b> - Mass modify: changes this variable for all objects of this type.<br>
+			[isdatum(D) ? "Or click a value to edit it there. Hover over a var to watch it.<br>" : ""]
 		</font>
 		<hr>
+		[isdatum(D) ? vv_internals(D) : ""]
 		<table width='100%'>
 			<tr>
 				<td width='20%'>
@@ -446,6 +466,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 				</td>
 				<td width='80%'>
 					<input type='text' id='filter' name='filter_text' value='' style='width:100%;'>
+					[isdatum(D) ? "<font size='1'><label><input type='checkbox' id='only_changed' onclick='vv_boxes()'>Changed</label> <label><input type='checkbox' id='only_edited' onclick='vv_boxes()'>Edited</label></font>" : ""]
 				</td>
 			</tr>
 		</table>
@@ -472,6 +493,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 #define VV_MAX_LIST_DEPTH 5
 /proc/debug_variable(name, value, level, datum/owner, sanitize = TRUE)
 	var/header
+	var/footer = ""
 	if(owner)
 		if(islist(owner))
 			var/list/debug_list = owner
@@ -483,7 +505,14 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 				value = debug_list[name]
 			header = "<li class='vars visible'>(<a href='byond://?_src_=vars;listedit=\ref[owner];index=[index]'>E</a>) (<a href='byond://?_src_=vars;listchange=\ref[owner];index=[index]'>C</a>) (<a href='byond://?_src_=vars;listremove=\ref[owner];index=[index]'>-</a>) "
 		else
-			header = "<li class='vars visible' id='vvar_[name]'>(<a href='byond://?_src_=vars;datumedit=[owner.UID()];varnameedit=[name]'>E</a>) (<a href='byond://?_src_=vars;datumchange=[owner.UID()];varnamechange=[name]'>C</a>) (<a href='byond://?_src_=vars;datummass=[owner.UID()];varnamemass=[name]'>M</a>) "
+			// Changed and edited marks, what the page's editor needs, and a watch link. Not for clients
+			var/list/marks = list("", "")
+			var/editor_attrs = ""
+			if(isdatum(owner))
+				marks = vv_var_marks(owner, name)
+				editor_attrs = vv_editor_attrs(name, value)
+				footer = " <span class='vva'><a href='byond://?_src_=vars;vvwatch=[owner.UID()];varname=[name]'>watch</a></span>"
+			header = "<li class='vars visible' id='vvar_[name]'[marks[1]][editor_attrs]>(<a href='byond://?_src_=vars;datumedit=[owner.UID()];varnameedit=[name]'>E</a>) (<a href='byond://?_src_=vars;datumchange=[owner.UID()];varnamechange=[name]'>C</a>) (<a href='byond://?_src_=vars;datummass=[owner.UID()];varnamemass=[name]'>M</a>) [marks[2]]"
 	else
 		header = "<li>"
 
@@ -501,7 +530,7 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 
 	var/item = _debug_variable_value(name, value, level, owner, sanitize)
 
-	return "[header][name_part] = [item]</li>"
+	return "[header][name_part] = [item][footer]</li>"
 
 /proc/_debug_variable_value(name, value, level, datum/owner, sanitize)
 
@@ -585,6 +614,11 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 		if(check_rights(R_ADMIN|R_MOD|R_VIEWRUNTIMES, FALSE))
 			vv_step(href_list["vvwin"], href_list["vvback"] ? -1 : 1)
 		return
+	// So does watching a var
+	if(href_list["vvwatch"])
+		if(check_rights(R_ADMIN|R_MOD|R_VIEWRUNTIMES, FALSE))
+			vv_toggle_watch(locateUID(href_list["vvwatch"]), href_list["varname"], href_list["vvwin"])
+		return
 
 	if(!check_rights(R_ADMIN|R_MOD, FALSE))
 		// Clients with R_VIEWRUNTIMES can still open and refresh windows, but nothing else
@@ -622,6 +656,10 @@ USER_CONTEXT_MENU(debug_variables, R_ADMIN|R_VIEWRUNTIMES, "\[Admin\] View Varia
 	if(isdatum(target))
 		var/datum/D = target
 		D.vv_do_topic(href_list)
+
+	// Undo, default and set from the page
+	if(href_list["vvundo"] || href_list["vvdefault"] || href_list["vvset"])
+		vv_page_edit(href_list)
 
 	// Show the new value in the edited var's row
 	if(href_list["datumedit"])

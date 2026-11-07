@@ -694,6 +694,8 @@ GLOBAL_PROTECT(VVmaint_only)
 	if(!O.vv_edit_var(variable, var_new))
 		to_chat(src, SPAN_WARNING("Your edit was rejected by the object."))
 		return
+	// Remember what it was, for View Variables' undo
+	vv_note_edit(O, variable, var_value, src)
 	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_VAR_EDIT, args)
 	log_world("### VarEdit by [src]: [O.type] [variable]=[html_encode("[var_new]")] (Type: [class])")
 	log_admin("[key_name(src)] modified [original_name]'s [variable] to [var_new] (Type: [class])")

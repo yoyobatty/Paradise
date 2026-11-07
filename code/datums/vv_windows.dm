@@ -16,6 +16,10 @@
 	var/list/history = list()
 	/// Where in the history the window is now
 	var/index = 0
+	/// The client the window belongs to
+	var/client/owner
+	/// The names of the vars being watched on the page shown now
+	var/list/watching
 
 /// The ref VV keeps for D. Lists have no UID
 /proc/vv_window_ref(datum/D)
@@ -38,6 +42,7 @@
 	return islist(L) ? L : null
 
 /datum/vv_window/proc/push(datum/D)
+	watching = null
 	// Going somewhere new drops whatever was ahead in the history
 	if(index < length(history))
 		history.Cut(index + 1)
@@ -63,6 +68,7 @@
 			return open
 	window = new
 	window.id = "vv[++vv_window_count]"
+	window.owner = src
 	vv_windows[window.id] = window
 	return window
 
@@ -76,6 +82,7 @@
 		var/datum/D = window.resolve(window.history[at])
 		if(D)
 			window.index = at
+			window.watching = null
 			debug_variables(D, window_id, FALSE)
 			return
 		// It was deleted, so take it out of the history
@@ -159,6 +166,26 @@
 	. = "<br><font size='1'>In: [out.Join(" &gt; ")][T ? " [ADMIN_JMP(T)]" : ""]</font>"
 	if(carrier)
 		. += "<br><font size='1'>Carried by: [ADMIN_VV(carrier, html_encode(carrier.name))][carrier.ckey ? " ([carrier.ckey])" : ""] [ADMIN_FLW(carrier, "FLW")]</font>"
+	. += vv_touched_by(A)
+
+/// Who has touched an atom, from its admin-only hidden prints, folded up under one line
+/proc/vv_touched_by(atom/A)
+	var/list/prints = A.fingerprintshidden
+	if(!length(prints))
+		return A.fingerprintslast ? "<br><font size='1'>Last touched by [html_encode(A.fingerprintslast)]</font>" : ""
+	var/list/keys = list()
+	for(var/line in prints)
+		var/key_at = findtext(line, "Key: ")
+		if(key_at)
+			keys[copytext(line, key_at + 5)] = TRUE
+	// The newest few, newest first
+	var/list/rows = list()
+	for(var/i in length(prints) to max(1, length(prints) - 5) step -1)
+		rows += html_encode(prints[i])
+	if(length(prints) > 6)
+		rows += "and [length(prints) - 6] older"
+	var/last = A.fingerprintslast ? ", last [html_encode(A.fingerprintslast)]" : ""
+	return "<br><details><summary><font size='1'>Touched by [length(keys)] player[length(keys) == 1 ? "" : "s"][last]</font></summary><font size='1'>[rows.Join("<br>")]</font></details>"
 
 /// Puts an edited var's row back with its new value, in every window of this client that's showing D
 /client/proc/vv_refresh_var(datum/D, var_name)
