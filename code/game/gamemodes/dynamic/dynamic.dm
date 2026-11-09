@@ -95,7 +95,11 @@ GLOBAL_LIST_EMPTY(dynamic_forced_rulesets)
 	if(!ruleset)
 		return
 	if(!force)
-		var/failure_reason = ruleset.ruleset_possible(ruleset_budget, rulesets, antag_budget)
+		// Every ruleset gets one antag for free later, so count those as already spent
+		var/budget_left = antag_budget
+		for(var/datum/ruleset/picked as anything in rulesets)
+			budget_left -= picked.antag_cost
+		var/failure_reason = ruleset.ruleset_possible(ruleset_budget, rulesets, budget_left)
 		if(failure_reason)
 			log_dynamic("Failed [ruleset.name] ruleset: [failure_reason].")
 			return
