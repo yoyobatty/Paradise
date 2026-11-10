@@ -1,6 +1,5 @@
 /datum/asset/spritesheet/decal_painter
 	name = "decal_painter"
-	var/obj/effect/turf_decal/current_typepath
 
 /datum/asset/spritesheet/decal_painter/create_spritesheets()
 	// The first sprite we insert is a blank 32x32 icon. This means that when we
@@ -9,23 +8,18 @@
 	// first image on the sheet.
 	Insert("blank", 'icons/turf/decals.dmi', "blank")
 	for(var/obj/effect/turf_decal/decal_type as anything in subtypesof(/obj/effect/turf_decal))
-		current_typepath = decal_type
 		var/decal_classname = replace_characters("[decal_type]", list("/" = "_"))
 		if(decal_type::icon_state == "")
 			continue
+		var/list/transforms = decal_type::color ? list(ICONFORGE_BLEND_COLOR(decal_type::color, ICON_MULTIPLY)) : null
 		for(var/direction in GLOB.alldirs)
 			Insert(
 				"[decal_classname]_[direction]",
 				decal_type::icon,
 				decal_type::icon_state,
 				direction,
+				transforms = transforms,
 			)
-
-/datum/asset/spritesheet/decal_painter/ModifyInserted(icon/pre_asset)
-	var/icon/parent = ..()
-	if(current_typepath && current_typepath::color)
-		parent.Blend(current_typepath::color, ICON_MULTIPLY)
-	return parent
 
 /datum/painter/decal
 	module_name = "decal painter"

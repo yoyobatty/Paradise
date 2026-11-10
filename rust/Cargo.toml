@@ -33,7 +33,6 @@ walkdir = "2.5.0"
 # regex
 regex = "1.10.5"
 ureq = "2.12"
-png = "0.17.16"
 chrono = "0.4.39"
 toml = "0.8.20"
 dbpnoise = "0.1.2"
@@ -49,6 +48,9 @@ totp-rs = { version = "5.7.2", features = ["qr", "gen_secret"] }
 zeroize = "1.9"
 ed25519-dalek = "3.0"
 base64 = "0.23"
+# builds spritesheets for UIs
+iconforge = { version = "1.0.3", default-features = false, features = ["spritesheet"] }
+indexmap = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
 # diffs between two strings/texts/files, used in tests

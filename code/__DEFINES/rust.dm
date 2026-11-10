@@ -191,9 +191,11 @@
 /proc/rustlibs_log_close_all()
 	return RUSTLIB_CALL(log_close_all)
 
-// MARK: DMI
-/proc/rustlibs_dmi_strip_metadata(fname)
-	return RUSTLIB_CALL(dmi_strip_metadata, fname)
+// MARK: Iconforge
+/// Builds a spritesheet's PNGs into file_path. sprites is a JSON object of sprite name -> the sprite, see /datum/asset/spritesheet/proc/Insert().
+/// Returns JSON: "sizes" (like "32x32"), "sprites" (name -> its "size_id" and "position") and "error".
+/proc/rustlibs_iconforge_generate(file_path, spritesheet_name, sprites)
+	return RUSTLIB_CALL(iconforge_generate, file_path, spritesheet_name, sprites)
 
 // MARK: JSON
 /proc/rustlibs_json_is_valid(text)
@@ -287,6 +289,11 @@
 	return RUSTLIB_CALL(sql_check_query, query)
 
 #undef RUSTLIB_CALL
+
+// Changes iconforge can make to a sprite, for /datum/asset/spritesheet/proc/Insert()
+#define ICONFORGE_BLEND_COLOR(color, blend_mode) list("type" = "BlendColor", "color" = color, "blend_mode" = blend_mode)
+#define ICONFORGE_SCALE(width, height) list("type" = "Scale", "width" = width, "height" = height)
+#define ICONFORGE_CROP(x1, y1, x2, y2) list("type" = "Crop", "x1" = x1, "y1" = y1, "x2" = x2, "y2" = y2)
 
 // Indexes for Tiles and InterestingTiles
 // Must match the order in milla/src/model.rs

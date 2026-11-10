@@ -104,19 +104,19 @@ GLOBAL_LIST_EMPTY(asset_datums)
 // spritesheet implementation - coalesces various icons into a single .png file
 // and uses CSS to select icons out of that file - saves on transferring some
 // 1400-odd individual PNG files
-#define SPR_SIZE 1
-#define SPR_IDX 2
-#define SPRSZ_COUNT 1
-#define SPRSZ_ICON 2
-#define SPRSZ_STRIPPED 3
+// The sheets are built by iconforge in Rust, which is far quicker than building /icons in DM.
+#define SPR_SIZE "size_id"
+#define SPR_IDX "position"
 
 /datum/asset/spritesheet
 	_abstract = /datum/asset/spritesheet
 	var/name
-	/// "32x32" -> list(10, icon/normal, icon/stripped)
+	/// list("32x32", "16x16")
 	var/list/sizes = list()
-	/// "foo_bar" -> list("32x32", 5)
+	/// "foo_bar" -> list("size_id" = "32x32", "position" = 5)
 	var/list/sprites = list()
+	/// "foo_bar" -> the sprite as iconforge reads it, from Insert()
+	var/list/entries = list()
 
 /datum/asset/spritesheet/register()
 	SHOULD_NOT_OVERRIDE(TRUE)
@@ -128,16 +128,27 @@ GLOBAL_LIST_EMPTY(asset_datums)
 	realize_spritesheets()
 
 /datum/asset/spritesheet/proc/realize_spritesheets()
-	ensure_stripped()
+	if(!length(entries))
+		CRASH("spritesheet [type] has no sprites")
+	var/output = rustlibs_iconforge_generate("data/spritesheets/", name, json_encode(entries))
+	if(!findtext(output, "{", 1, 2))
+		CRASH("Failed to build spritesheet [name]: [output]")
+	var/list/data = json_decode(output)
+	sizes = data["sizes"]
+	sprites = data["sprites"]
 	for(var/size_id in sizes)
-		var/size = sizes[size_id]
-		SSassets.transport.register_asset("[name]_[size_id].png", size[SPRSZ_STRIPPED])
+		var/png_name = "[name]_[size_id].png"
+		var/file_directory = "data/spritesheets/[png_name]"
+		SSassets.transport.register_asset(png_name, fcopy_rsc(file_directory))
+		fdel(file_directory)
 	var/css_name = "spritesheet_[name].css"
 	var/file_directory = "data/spritesheets/[css_name]"
 	fdel(file_directory)
 	text2file(generate_css(), file_directory)
 	SSassets.transport.register_asset(css_name, fcopy_rsc(file_directory))
 	fdel(file_directory)
+	if(length(data["error"]))
+		stack_trace("Errors building spritesheet [name]: [data["error"]]")
 
 /datum/asset/spritesheet/send(client/client)
 	if(!name)
@@ -155,43 +166,19 @@ GLOBAL_LIST_EMPTY(asset_datums)
 	for(var/size_id in sizes)
 		.["[name]_[size_id].png"] = SSassets.transport.get_asset_url("[name]_[size_id].png")
 
-/datum/asset/spritesheet/proc/ensure_stripped(sizes_to_strip = sizes)
-	for(var/size_id in sizes_to_strip)
-		var/size = sizes[size_id]
-		if(size[SPRSZ_STRIPPED])
-			continue
-
-		// save flattened version
-		var/png_name = "[name]_[size_id].png"
-		var/file_directory = "data/spritesheets/[png_name]"
-		fcopy(size[SPRSZ_ICON], file_directory)
-		var/error = rustlibs_dmi_strip_metadata(file_directory)
-		if(length(error))
-			stack_trace("Failed to strip [png_name]: [error]")
-		size[SPRSZ_STRIPPED] = icon(file_directory)
-		fdel(file_directory)
-
 /datum/asset/spritesheet/proc/generate_css()
 	var/list/out = list()
 
 	for(var/size_id in sizes)
-		var/size = sizes[size_id]
-		var/icon/tiny = size[SPRSZ_ICON]
-		out += ".[name][size_id]{display:inline-block;width:[tiny.Width()]px;height:[tiny.Height()]px;background:url('[SSassets.transport.get_asset_url("[name]_[size_id].png")]') no-repeat;}"
+		var/list/size = splittext(size_id, "x")
+		out += ".[name][size_id]{display:inline-block;width:[size[1]]px;height:[size[2]]px;background:url('[SSassets.transport.get_asset_url("[name]_[size_id].png")]') no-repeat;}"
 
+	// iconforge puts all the sprites of one size in a single row
 	for(var/sprite_id in sprites)
 		var/sprite = sprites[sprite_id]
 		var/size_id = sprite[SPR_SIZE]
-		var/idx = sprite[SPR_IDX]
-		var/size = sizes[size_id]
-
-		var/icon/tiny = size[SPRSZ_ICON]
-		var/icon/big = size[SPRSZ_STRIPPED]
-		var/per_line = big.Width() / tiny.Width()
-		var/x = (idx % per_line) * tiny.Width()
-		var/y = round(idx / per_line) * tiny.Height()
-
-		out += ".[name][size_id].[sprite_id]{background-position:-[x]px -[y]px;}"
+		var/width = text2num(splittext(size_id, "x")[1])
+		out += ".[name][size_id].[sprite_id]{background-position:-[sprite[SPR_IDX] * width]px 0px;}"
 
 	return out.Join("\n")
 
@@ -203,45 +190,24 @@ GLOBAL_LIST_EMPTY(asset_datums)
 	SHOULD_CALL_PARENT(FALSE)
 	CRASH("create_spritesheets() not implemented for [type]!")
 
-/datum/asset/spritesheet/proc/Insert(sprite_name, icon/I, icon_state="", dir=SOUTH, frame=1, moving=FALSE)
-	I = icon(I, icon_state=icon_state, dir=dir, frame=frame, moving=moving)
-	if(!I || length(icon_states(I)) != 1)  // that direction or state doesn't exist
-		return
-	// any sprite modifications we want to do (aka, coloring a greyscaled asset)
-	I = ModifyInserted(I)
-	var/size_id = "[I.Width()]x[I.Height()]"
-	var/size = sizes[size_id]
-
-	if(sprites[sprite_name])
-		CRASH("duplicate sprite \"[sprite_name]\" in sheet [name] ([type])")
-
-	if(size)
-		var/position = size[SPRSZ_COUNT]++
-		// Icons are essentially representations of files + modifications
-		// Because of this, byond keeps them in a cache. It does this in a really dumb way tho
-		// It's essentially a FIFO queue. So after we do icon() some amount of times, our old icons go out of cache
-		// When this happens it becomes impossible to modify them, trying to do so will instead throw a
-		// "bad icon" error.
-		// What we're doing here is ensuring our icon is in the cache by refreshing it, so we can modify it w/o runtimes.
-		var/icon/sheet = size[SPRSZ_ICON]
-		var/icon/sheet_copy = icon(sheet)
-		size[SPRSZ_STRIPPED] = null
-		sheet_copy.Insert(I, icon_state=sprite_name)
-		size[SPRSZ_ICON] = sheet_copy
-
-		sprites[sprite_name] = list(size_id, position)
-	else
-		sizes[size_id] = size = list(1, I, null)
-		sprites[sprite_name] = list(size_id, 0)
-
 /**
- * A simple proc handing the Icon for you to modify before it gets turned into an asset.
+ * Adds a sprite to the sheet. Sprites whose state, dir or frame isn't in the file are left out.
  *
  * Arguments:
- * * I: icon being turned into an asset
+ * * sprite_name: the sprite's CSS class name
+ * * I: the icon file
+ * * transforms: changes made to the sprite, in order, from ICONFORGE_SCALE() and the like
  */
-/datum/asset/spritesheet/proc/ModifyInserted(icon/pre_asset)
-	return pre_asset
+/datum/asset/spritesheet/proc/Insert(sprite_name, icon/I, icon_state = "", dir = SOUTH, frame = 1, list/transforms)
+	if(entries[sprite_name])
+		CRASH("duplicate sprite \"[sprite_name]\" in sheet [name] ([type])")
+	entries[sprite_name] = list(
+		"icon_file" = "[I]",
+		"icon_state" = icon_state,
+		"dir" = dir,
+		"frame" = frame,
+		"transform" = transforms || list(),
+	)
 
 /datum/asset/spritesheet/proc/InsertAll(prefix, icon/I, list/directions)
 	if(length(prefix))
@@ -290,9 +256,6 @@ GLOBAL_LIST_EMPTY(asset_datums)
 
 #undef SPR_SIZE
 #undef SPR_IDX
-#undef SPRSZ_COUNT
-#undef SPRSZ_ICON
-#undef SPRSZ_STRIPPED
 
 
 /datum/asset/spritesheet/simple
