@@ -197,6 +197,9 @@
 	for(var/mob/living/carbon/human/player as anything in possible_antags)
 		if(antag_amount <= 0)
 			break
+		// Someone we just made may have picked them as a target
+		if(!is_valid_candidate(player))
+			continue
 		// This check needs to be here so that we can signal the implied ruleset. Yes, this is jank.
 		if(EXCLUSIVE_OR(player.dna.species.name in banned_species, banned_species_only))
 			SEND_SIGNAL(src, COMSIG_RULESET_FAILED_SPECIES)
@@ -270,6 +273,15 @@
 	if(ruleset_budget > 1)
 		return ..()
 	return RULESET_FAILURE_SECONDARY_RULESET
+
+/datum/ruleset/changeling/is_valid_candidate(mob/living/carbon/human/player)
+	. = ..()
+	if(!.)
+		return
+	// Changelings can't be debrained, so leave anyone who's a debrain target alone
+	for(var/datum/objective/debrain/debrain in GLOB.all_objectives)
+		if(debrain.target == player.mind && debrain.holder && !QDELETED(debrain))
+			return FALSE
 
 /datum/ruleset/acolyte
 	name = "Acolyte"
