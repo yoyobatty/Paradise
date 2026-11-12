@@ -32,9 +32,8 @@
 			meter.transfer_fingerprints_to(PM)
 			qdel(meter)
 
-	// if we're somehow by ourself
-	if(parent && !QDELETED(parent) && length(parent.members) == 1 && parent.members[1] == src)
-		qdel(parent)
+	if(parent && !QDELETED(parent))
+		parent.remove_pipe(src)
 	parent = null
 
 	return ..()
