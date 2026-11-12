@@ -63,7 +63,7 @@
 		return null
 	return list(parent.air) + parent.other_airs
 
-/obj/machinery/atmospherics/pipe/build_network(remove_deferral = FALSE)
+/obj/machinery/atmospherics/pipe/build_network()
 	if(!parent)
 		parent = new /datum/pipeline()
 		parent.build_pipeline(src)

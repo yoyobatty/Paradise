@@ -70,7 +70,7 @@
 	update_icon()
 	update_underlays()
 
-/obj/machinery/atmospherics/binary/build_network(remove_deferral = FALSE)
+/obj/machinery/atmospherics/binary/build_network()
 	if(!parent1)
 		parent1 = new /datum/pipeline()
 		parent1.build_pipeline(src)

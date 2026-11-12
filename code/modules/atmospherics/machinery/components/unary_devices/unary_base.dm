@@ -81,7 +81,7 @@
 			var/mob/living/current_crawler = crawler
 			current_crawler.update_pipe_vision(src)
 
-/obj/machinery/atmospherics/unary/build_network(remove_deferral = FALSE)
+/obj/machinery/atmospherics/unary/build_network()
 	if(!parent)
 		parent = new /datum/pipeline()
 		parent.build_pipeline(src)
