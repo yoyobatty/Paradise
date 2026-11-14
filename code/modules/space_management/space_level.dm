@@ -30,6 +30,8 @@
 	var/resuming_init = FALSE
 	/// TRUE while this level is built after startup. Turf changes skip lighting, and it gets lit all at once when done, the same as at startup.
 	var/lighting_deferred = FALSE
+	/// TRUE if this level is filled after startup. It's empty space until then, which is what MILLA starts with, so SSair leaves it for the builder to set up.
+	var/filled_after_startup = FALSE
 
 	/// This is a list of ruins on the space_level. Used to prevent certain ruins from spawning on the same level as other ruins.
 	var/list/our_ruin_list = list()

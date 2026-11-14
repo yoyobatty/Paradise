@@ -176,7 +176,11 @@ SUBSYSTEM_DEF(air)
 	in_milla_safe_code = TRUE
 
 	setup_overlays() // Assign icons and such for gas-turf-overlays
-	setup_turfs()
+	for(var/z in 1 to world.maxz)
+		var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
+		if(level?.filled_after_startup)
+			continue
+		setup_turfs(locate(1, 1, z), locate(world.maxx, world.maxy, z))
 	setup_atmos_machinery(SSmachines.get_by_type(/obj/machinery/atmospherics))
 	setup_pipenets(SSmachines.get_by_type(/obj/machinery/atmospherics))
 	for(var/obj/machinery/atmospherics/A in machinery_to_construct)

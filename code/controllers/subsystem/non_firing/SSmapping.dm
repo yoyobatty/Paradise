@@ -219,6 +219,10 @@ SUBSYSTEM_DEF(mapping)
 #ifdef GAME_TESTS
 	// Tests run right after startup, so they need everything there
 	fill_zlevels()
+#else
+	for(var/z in levels_by_trait(ORE_LEVEL) | levels_by_trait(SPAWN_RUINS))
+		var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
+		level.filled_after_startup = TRUE
 #endif
 
 /datum/controller/subsystem/mapping/LateInitialize()
@@ -271,6 +275,8 @@ SUBSYSTEM_DEF(mapping)
 		for(var/z in filled_levels)
 			var/datum/milla_safe/setup_level_air/milla = new()
 			milla.invoke_async(z)
+			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
+			level.filled_after_startup = FALSE
 			CHECK_TICK
 		for(var/z in filled_levels)
 			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))

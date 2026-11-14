@@ -70,7 +70,8 @@
 				break // Don't bother adding ourselves to other reagent ids, it is redundant.
 	if(my_atom)
 		RegisterSignal(my_atom, COMSIG_ATOM_RAD_ACT, PROC_REF(radiation_react))
-		ADD_TRAIT(my_atom, TRAIT_ABSORB_RADS, "reagents_holder_[UID()]")
+		// The holder itself is the source. A text source needs a UID, and making those is slow at startup.
+		ADD_TRAIT(my_atom, TRAIT_ABSORB_RADS, src)
 
 /**
  * Removes reagents from the holder until the passed amount is matched.
@@ -1042,7 +1043,7 @@
 	addiction_list = null
 	if(my_atom)
 		UnregisterSignal(my_atom, COMSIG_ATOM_RAD_ACT)
-		REMOVE_TRAIT(my_atom, TRAIT_ABSORB_RADS, "reagents_holder_[UID()]")
+		REMOVE_TRAIT(my_atom, TRAIT_ABSORB_RADS, src)
 		if(my_atom.reagents == src)
 			my_atom.reagents = null
 	my_atom = null
