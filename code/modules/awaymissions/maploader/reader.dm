@@ -207,10 +207,12 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
 	var/list/members_attributes // will contain lists filled with corresponding variables, if any (in our example : list(icon_state = "rock") and list())
 	var/list/cached = modelCache[model]
 	var/index
+	var/simple
 
 	if(cached)
 		members = cached[1]
 		members_attributes = cached[2]
+		simple = cached[3]
 	else
 		/////////////////////////////////////////////////////////
 		// Constructing members and corresponding variables lists
@@ -257,12 +259,26 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
 			CHECK_TICK
 		while(dpos != 0)
 
-		modelCache[model] = list(members, members_attributes)
+		// Just a turf and an area with no vars set, like most floors and walls. These get a shortcut below.
+		simple = length(members) == 2 && ispath(members[1], /turf) && ispath(members[2], /area) && !length(members_attributes[1]) && !length(members_attributes[2])
+		modelCache[model] = list(members, members_attributes, simple)
 
 
 	////////////////
 	// Instanciation
 	////////////////
+
+	if(simple)
+		// The same as below, minus the parts that only matter for set vars and other atoms
+		var/turf/simple_turf = locate(xcrd, ycrd, zcrd)
+		if(!simple_turf)
+			return
+		if(members[2] != /area/template_noop)
+			var/area/simple_area = LM.area_path_to_real_area(members[2])
+			simple_area.contents.Add(simple_turf)
+		if(members[1] != /turf/template_noop)
+			simple_turf.ChangeTurf(members[1], defer_change = TRUE, keep_icon = FALSE, copy_existing_baseturf = FALSE)
+		return
 
 	// The next part of the code assumes there's ALWAYS an /area AND a /turf on a given tile
 
