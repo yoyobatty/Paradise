@@ -306,13 +306,18 @@ SUBSYSTEM_DEF(mapping)
 	phase = start_watch()
 
 	if(initialized)
-		// One pass over each level: SSatoms left the empty space nobody built on for us, and every turf that needs a lighting object gets one,
-		// like create_all_lighting_objects() at startup. Lighting is paused, so each object is still only drawn once, after all the lights are in.
+		// SSatoms left the empty space nobody built on for us
 		var/list/mapload_arg = list(TRUE)
 		for(var/z in filled_levels)
 			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
 				if(!T.initialized)
 					SSatoms.InitAtom(T, mapload_arg)
+			CHECK_TICK
+		// Lights first, then the lighting objects, like create_all_lighting_objects() at startup. Lighting is paused, so each object is drawn
+		// once after all the lights are in, and the ones no light reaches draw dark straight away.
+		SSlighting.process_queues_now()
+		for(var/z in filled_levels)
+			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
 				var/area/A = T.loc
 				if(!T.lighting_object && IS_DYNAMIC_LIGHTING(T) && IS_DYNAMIC_LIGHTING(A))
 					new /datum/lighting_object(T)

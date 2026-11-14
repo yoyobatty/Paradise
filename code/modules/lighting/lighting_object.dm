@@ -24,8 +24,23 @@
 	for(var/turf/space/space_tile in RANGE_TURFS(1, affected_turf))
 		space_tile.update_starlight()
 
+	// No light has reached a turf with no corners, so it's dark. Draw that now instead of queueing an update to work it out.
+	// If a light reaches it later, its new corners queue us like any other change.
+	if(!affected_turf.lighting_corner_NE && !affected_turf.lighting_corner_SE && !affected_turf.lighting_corner_SW && !affected_turf.lighting_corner_NW)
+		draw_dark()
+		return
+
 	needs_update = TRUE
 	SSlighting.objects_queue += src
+
+/// What update() draws when there's no light at all
+/datum/lighting_object/proc/draw_dark()
+	var/static/mutable_appearance/dark_underlay = mutable_appearance(LIGHTING_ICON, "lighting_dark", -LIGHTING_LAYER, LIGHTING_PLANE, 255, RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM)
+	if(applied_underlay)
+		affected_turf.underlays -= applied_underlay
+	affected_turf.underlays += dark_underlay
+	applied_underlay = dark_underlay.appearance
+	affected_turf.luminosity = FALSE
 
 /datum/lighting_object/Destroy(force)
 	if(!force)
