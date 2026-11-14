@@ -1,6 +1,10 @@
 #define MAX_DENT_DECALS 15
 
 /turf/simulated/wall
+	debris_icon_state = DEBRIS_SPARKS
+	debris_velocity = -20
+	debris_amount = 10
+	debris_scale = 1
 	name = "wall"
 	desc = "A huge chunk of metal used to separate rooms."
 	icon = 'icons/turf/walls/32x40wall.dmi'
@@ -60,7 +64,6 @@
 			underlay_appearance.icon_state = fixed_underlay["icon_state"]
 		fixed_underlay = string_assoc_list(fixed_underlay)
 		underlays += underlay_appearance
-	AddComponent(/datum/component/debris, DEBRIS_SPARKS, -20, 10, 1)
 
 /turf/simulated/wall/BeforeChange()
 	for(var/obj/effect/overlay/wall_rot/WR in src)

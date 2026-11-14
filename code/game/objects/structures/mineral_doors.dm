@@ -1,5 +1,8 @@
 //NOT using the existing /obj/machinery/door type, since that has some complications on its own, mainly based on its machineryness
 /obj/structure/mineral_door
+	debris_icon_state = DEBRIS_SPARKS
+	debris_velocity = -20
+	debris_amount = 10
 	name = "metal door"
 	desc = "An old-fashioned door built from two slabs of steel. Somehow completely airtight, and doesn't require any electricity to work."
 	density = TRUE
@@ -37,7 +40,6 @@
 	. = ..()
 	initial_state = icon_state
 	recalculate_atmos_connectivity()
-	AddComponent(/datum/component/debris, DEBRIS_SPARKS, -20, 10)
 
 /obj/structure/mineral_door/Destroy()
 	density = FALSE
@@ -281,6 +283,7 @@
 	max_integrity = 1000
 
 /obj/structure/mineral_door/wood
+	debris_icon_state = DEBRIS_WOOD
 	name = "wood door"
 	desc = "An old-fashioned door built from two slabs of wood. Somehow completely airtight, and doesn't require any electricity to work."
 	icon_state = "wood"
@@ -290,10 +293,6 @@
 	resistance_flags = FLAMMABLE
 	rad_insulation_beta = RAD_VERY_LIGHT_INSULATION
 	max_integrity = 200
-
-/obj/structure/mineral_door/wood/Initialize(mapload)
-	. = ..()
-	AddComponent(/datum/component/debris, DEBRIS_WOOD, -20, 10)
 
 #define MAX_FOAM_LEVEL 5
 // Adds foam to the airlock, which will block it from being opened

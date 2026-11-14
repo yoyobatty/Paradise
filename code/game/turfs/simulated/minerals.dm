@@ -2,6 +2,10 @@
 
 /// wall piece
 /turf/simulated/mineral
+	debris_icon_state = DEBRIS_ROCK
+	debris_velocity = -20
+	debris_amount = 10
+	debris_scale = 1
 	name = "rock"
 	icon = 'icons/turf/walls/32x40smoothrocks.dmi'
 	icon_state = "smoothrocks-0"
@@ -42,8 +46,6 @@
 
 	if(preset_ore_type)
 		set_ore(preset_ore_type)
-
-	AddComponent(/datum/component/debris, DEBRIS_ROCK, -20, 10, 1)
 
 /turf/simulated/mineral/proc/set_ore(ore_type)
 	if(!ore_type)

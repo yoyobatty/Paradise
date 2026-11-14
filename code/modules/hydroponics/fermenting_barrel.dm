@@ -1,4 +1,7 @@
 /obj/structure/fermenting_barrel
+	debris_icon_state = DEBRIS_WOOD
+	debris_velocity = -20
+	debris_amount = 10
 	name = "wooden barrel"
 	desc = "A large wooden barrel. You can ferment fruits and such inside it, or just use it to hold liquid."
 	icon = 'icons/obj/objects.dmi'
@@ -12,7 +15,6 @@
 
 /obj/structure/fermenting_barrel/Initialize(mapload)
 	create_reagents(300) //Bluespace beakers, but without the portability or efficiency in circuits.
-	AddComponent(/datum/component/debris, DEBRIS_WOOD, -20, 10)
 	. = ..()
 
 /obj/structure/fermenting_barrel/examine(mob/user)

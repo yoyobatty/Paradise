@@ -13,6 +13,9 @@
 //Barricades/cover
 
 /obj/structure/barricade
+	debris_icon_state = DEBRIS_WOOD
+	debris_velocity = -20
+	debris_amount = 10
 	name = "chest high wall"
 	desc = "Looks like this would make good cover."
 	anchored = TRUE
@@ -29,10 +32,6 @@
 	var/directional_blockage = FALSE
 	//The list of directions to block a projectile from
 	var/list/directional_list = list()
-
-/obj/structure/barricade/Initialize(mapload)
-	. = ..()
-	AddComponent(/datum/component/debris, DEBRIS_WOOD, -20, 10)
 
 /obj/structure/barricade/deconstruct(disassembled = TRUE)
 	. = ..()

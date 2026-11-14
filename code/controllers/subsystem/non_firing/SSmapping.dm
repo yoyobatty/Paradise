@@ -306,18 +306,14 @@ SUBSYSTEM_DEF(mapping)
 	phase = start_watch()
 
 	if(initialized)
-		// SSatoms left the empty space nobody built on for us
-		var/list/mapload_arg = list(TRUE)
-		for(var/z in filled_levels)
-			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
-				if(!T.initialized)
-					SSatoms.InitAtom(T, mapload_arg)
-			CHECK_TICK
 		// Lights first, then the lighting objects, like create_all_lighting_objects() at startup. Lighting is paused, so each object is drawn
 		// once after all the lights are in, and the ones no light reaches draw dark straight away.
 		SSlighting.process_queues_now()
+		var/list/mapload_arg = list(TRUE)
 		for(var/z in filled_levels)
 			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
+				if(!T.initialized) // SSatoms left the empty space nobody built on for us
+					SSatoms.InitAtom(T, mapload_arg)
 				var/area/A = T.loc
 				if(!T.lighting_object && IS_DYNAMIC_LIGHTING(T) && IS_DYNAMIC_LIGHTING(A))
 					new /datum/lighting_object(T)

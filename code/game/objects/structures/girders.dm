@@ -1,4 +1,7 @@
 /obj/structure/girder
+	debris_icon_state = DEBRIS_SPARKS
+	debris_velocity = -20
+	debris_amount = 10
 	name = "girder"
 	desc = "The basis of any wall, and therefore any space station or ship."
 	icon_state = "girder"
@@ -17,7 +20,6 @@
 
 /obj/structure/girder/Initialize(mapload)
 	. = ..()
-	AddComponent(/datum/component/debris, DEBRIS_SPARKS, -20, 10)
 
 /obj/structure/girder/examine(mob/user)
 	. = ..()

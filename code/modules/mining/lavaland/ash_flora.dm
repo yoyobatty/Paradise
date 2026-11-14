@@ -159,6 +159,9 @@
 // (I know these aren't plants)
 
 /obj/structure/flora/ash/rock
+	debris_icon_state = DEBRIS_ROCK
+	debris_velocity = -20
+	debris_amount = 10
 	name = "large rock"
 	desc = "A volcanic rock. Pioneers used to ride these babies for miles."
 	icon_state = "basalt1"
@@ -172,10 +175,6 @@
 	harvest_message_med = "You finish mining the rock."
 	harvest_message_high = "You finish mining the rock."
 	delete_on_harvest = TRUE
-
-/obj/structure/flora/ash/rock/Initialize(mapload)
-	. = ..()
-	AddComponent(/datum/component/debris, DEBRIS_ROCK, -20, 10)
 
 /obj/structure/flora/ash/rock/style_2
 	icon_state = "basalt2"

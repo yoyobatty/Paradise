@@ -383,6 +383,8 @@
 
 /atom/proc/bullet_act(obj/projectile/P, def_zone)
 	SEND_SIGNAL(src, COMSIG_ATOM_BULLET_ACT, P, def_zone)
+	if(debris_icon_state)
+		INVOKE_ASYNC(src, PROC_REF(kick_up_debris), P)
 	. = P.on_hit(src, 0, def_zone)
 
 /atom/proc/in_contents_of(container)//can take class or object instance as argument
