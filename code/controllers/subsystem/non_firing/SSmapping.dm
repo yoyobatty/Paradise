@@ -242,8 +242,12 @@ SUBSYSTEM_DEF(mapping)
 /datum/controller/subsystem/mapping/proc/fill_zlevels()
 	building_zlevels = TRUE
 	var/watch = start_watch()
-	// Lighting is done in one go at the end, in the right order, so each lighting object only draws once
 	if(initialized)
+		// Each time the build stops for the tick, the rest of that tick is lost, so it runs a few ticks' worth at a time instead.
+		// The lobby still ticks several times a second.
+		Master.build_ticklimit = 400
+		Master.current_ticklimit = Master.build_ticklimit
+		// Lighting is done in one go at the end, in the right order, so each lighting object only draws once
 		SSlighting.can_fire = FALSE
 	if(GLOB.configuration.ruins.enable_ruins)
 		preloadRuinTemplates()
@@ -337,6 +341,7 @@ SUBSYSTEM_DEF(mapping)
 		update_ghost_teleport_locs(all_areas)
 
 	building_zlevels = FALSE
+	Master.build_ticklimit = 0
 	log_startup_progress("Built lavaland and ruins in [stop_watch(watch)]s.")
 
 /datum/controller/subsystem/mapping/proc/seed_space_salvage(space_z_levels)
