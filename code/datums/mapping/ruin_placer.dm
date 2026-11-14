@@ -14,7 +14,7 @@
 /datum/ruin_placement/proc/reduce_padding()
 	padding = max(floor(padding / 2) - 1, -1)
 
-/datum/ruin_placement/proc/try_to_place(zlist_or_zlevel, area_whitelist)
+/datum/ruin_placement/proc/try_to_place(zlist_or_zlevel, datum/ruin_placer/placer)
 	var/list/z_levels = islist(zlist_or_zlevel) ? zlist_or_zlevel : list(zlist_or_zlevel)
 	shuffle_inplace(z_levels)
 
@@ -69,13 +69,7 @@
 				if(!ruin.fits_in_map_bounds(central_turf, centered = TRUE))
 					valid = FALSE
 
-				for(var/turf/check in block(bottom_left.x_pos, bottom_left.y_pos, z_level, top_right.x_pos, top_right.y_pos, z_level))
-					var/area/new_area = get_area(check)
-					if(!(istype(new_area, area_whitelist)) || check.flags & NO_RUINS)
-						valid = FALSE
-						break
-
-				if(!valid)
+				if(!valid || placer.is_blocked(z_level, bottom_left.x_pos, bottom_left.y_pos, top_right.x_pos, top_right.y_pos))
 					continue
 
 				var/loaded = ruin.load(central_turf, centered = TRUE)
@@ -83,6 +77,8 @@
 					stack_trace("ruin [ruin.suffix] failed to load at [COORD(central_turf)] after valid bounds check")
 				for(var/turf/T in ruin.get_affected_turfs(central_turf, centered = TRUE)) // Just flag the actual ruin turfs!
 					T.flags |= NO_RUINS
+				// The loader can touch one turf past the ruin's edge
+				placer.count_blocked_rows(z_level, bottom_left.y_pos + padding - 1, top_right.y_pos - padding + 1)
 				new /obj/effect/landmark/ruin(central_turf, ruin)
 				ruin.loaded++
 				current_level.our_ruin_list += ruin.id
@@ -111,6 +107,39 @@
 	var/area_whitelist
 	var/list/templates
 	var/base_padding
+	/// "[z]" = one list per row of that z-level. Each row holds a running count of the turfs ruins can't go on, from the left edge.
+	/// So any stretch of a row is checked with one subtraction instead of looking at every turf. Only kept while placing.
+	var/list/blocked_rows
+
+/// Counts again which turfs ruins can't go on, in rows bottom_y to top_y of a z-level
+/datum/ruin_placer/proc/count_blocked_rows(z_level, bottom_y = 1, top_y = world.maxy)
+	var/list/rows = blocked_rows["[z_level]"]
+	if(!rows)
+		rows = new /list(world.maxy)
+		blocked_rows["[z_level]"] = rows
+	for(var/y in max(bottom_y, 1) to min(top_y, world.maxy))
+		var/list/row = new /list(world.maxx + 1) // row[x + 1] is the count up to and including x, row[1] is 0
+		var/count = 0
+		row[1] = 0
+		for(var/turf/T as anything in block(1, y, z_level, world.maxx, y, z_level))
+			if(!istype(T.loc, area_whitelist) || (T.flags & NO_RUINS))
+				count++
+			row[T.x + 1] = count
+		rows[y] = row
+
+/// Returns TRUE if any turf in the rectangle can't have a ruin on it. Parts off the map aren't checked.
+/datum/ruin_placer/proc/is_blocked(z_level, x1, y1, x2, y2)
+	var/list/rows = blocked_rows["[z_level]"]
+	if(!rows)
+		count_blocked_rows(z_level)
+		rows = blocked_rows["[z_level]"]
+	var/left = clamp(min(x1, x2), 1, world.maxx)
+	var/right = clamp(max(x1, x2), 1, world.maxx)
+	for(var/y in clamp(min(y1, y2), 1, world.maxy) to clamp(max(y1, y2), 1, world.maxy))
+		var/list/row = rows[y]
+		if(row[right + 1] != row[left])
+			return TRUE
+	return FALSE
 
 /datum/ruin_placer/proc/place_ruins(z_levels)
 	if(!z_levels || !length(z_levels))
@@ -124,6 +153,7 @@
 			return
 
 	var/list/ruins = templates.Copy()
+	blocked_rows = list()
 
 	var/list/forced_ruins = list() // ruins we are required to place
 	var/list/ruins_available = list() // ruins we will attempt to place based on budget
@@ -144,7 +174,7 @@
 	while(length(forced_ruins))
 		var/datum/map_template/ruin/ruin = forced_ruins[length(forced_ruins)]
 		var/datum/ruin_placement/placement = new(ruin, base_padding_ = base_padding)
-		var/placement_success = placement.try_to_place(z_levels, area_whitelist)
+		var/placement_success = placement.try_to_place(z_levels, src)
 		if(placement_success)
 			// this may push us into the negative but always_place means always_place
 			ruin_budget -= ruin.get_cost()
@@ -157,7 +187,7 @@
 	while(ruin_budget > 0 && length(ruins_available))
 		var/datum/map_template/ruin/current_pick = pickweight(ruins_available)
 		var/datum/ruin_placement/placement = new(current_pick, base_padding_ = base_padding)
-		var/placement_success = placement.try_to_place(z_levels, area_whitelist)
+		var/placement_success = placement.try_to_place(z_levels, src)
 
 		if(placement_success)
 			ruin_budget -= current_pick.get_cost()
@@ -183,6 +213,7 @@
 
 		CHECK_TICK
 
+	blocked_rows = null
 	log_world("Ruin loader finished with [ruin_budget] left to spend.")
 
 #undef DEFAULT_PADDING
