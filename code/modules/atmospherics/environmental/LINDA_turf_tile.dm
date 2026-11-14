@@ -1,7 +1,23 @@
 /turf/simulated/Initialize(mapload)
 	. = ..()
 	if(!blocks_air)
-		blind_set_air(get_initial_air())
+		var/datum/milla_safe/turf_set_initial_air/milla = new()
+		milla.invoke_async(src)
+
+/// Gives a turf the air it starts with
+/datum/milla_safe/turf_set_initial_air
+
+/datum/milla_safe/turf_set_initial_air/on_run(turf/simulated/T)
+	if(isnull(T))
+		return
+	if(!isnull(T.bound_air))
+		// Something already read this turf's air, so its copy needs the new air too
+		get_turf_air(T).copy_from(T.get_initial_air())
+		return
+	// Nothing has read it yet, so skip making a gas mixture and write it straight to MILLA
+	set_tile_atmos(T, oxygen = T.oxygen, carbon_dioxide = T.carbon_dioxide, nitrogen = T.nitrogen, toxins = T.toxins, sleeping_agent = T.sleeping_agent, agent_b = T.agent_b, hydrogen = T.hydrogen, water_vapor = T.water_vapor, temperature = T.temperature)
+	// This writes straight to MILLA, so anything fetched from it before now may be out of date.
+	SSair.watched_tiles = null
 
 /turf/simulated/proc/get_initial_air()
 	var/datum/gas_mixture/air = new()
@@ -52,12 +68,11 @@
 		sharer.temperature += heat/sharer.heat_capacity
 
 /turf/simulated/proc/update_visuals(use_initial_air = FALSE)
-	var/datum/gas_mixture/air
+	var/new_overlay_type
 	if(use_initial_air)
-		air = get_initial_air()
+		new_overlay_type = initial_tile_graphic()
 	else
-		air = get_readonly_air()
-	var/new_overlay_type = tile_graphic(air)
+		new_overlay_type = tile_graphic(get_readonly_air())
 	if(new_overlay_type == atmos_overlay_type)
 		return
 	var/atmos_overlay = get_atmos_overlay_by_name(atmos_overlay_type)
@@ -78,6 +93,20 @@
 			return GLOB.slmaster
 		if("water_vapor")
 			return GLOB.wvmaster
+	return null
+
+/// Same as tile_graphic(get_initial_air()), read straight from our vars so we don't make a gas mixture for every turf at startup
+/turf/simulated/proc/initial_tile_graphic()
+	if(blocks_air)
+		return
+	if(toxins > MOLES_PLASMA_VISIBLE)
+		return "plasma"
+
+	if(sleeping_agent > 1)
+		return "sleeping_agent"
+
+	if(water_vapor > MOLES_WATER_VAPOR_VISIBLE)
+		return "water_vapor"
 	return null
 
 /turf/simulated/proc/tile_graphic(datum/gas_mixture/air)
@@ -189,6 +218,12 @@
 	var/list/connectivity = private_unsafe_recalculate_atmos_connectivity()
 	var/list/air = list(oxygen, carbon_dioxide, nitrogen, toxins, sleeping_agent, agent_b, hydrogen, water_vapor, temperature)
 	milla_data = connectivity[1] + list(atmos_mode, SSmapping.environments[atmos_environment]) +  air + connectivity[2]
+
+/turf/space/Initialize_Atmos(milla_tick)
+	if(blocks_air || length(contents))
+		return ..()
+	// Nothing here to block air, so skip working out which sides are airtight. Same result, and most turfs are this.
+	milla_data = list(FALSE, FALSE, FALSE, FALSE, atmos_mode, SSmapping.environments[atmos_environment], oxygen, carbon_dioxide, nitrogen, toxins, sleeping_agent, agent_b, hydrogen, water_vapor, temperature, OPEN_HEAT_TRANSFER_COEFFICIENT, OPEN_HEAT_TRANSFER_COEFFICIENT, OPEN_HEAT_TRANSFER_COEFFICIENT, OPEN_HEAT_TRANSFER_COEFFICIENT)
 
 /turf/simulated/Initialize_Atmos(milla_tick)
 	..()
