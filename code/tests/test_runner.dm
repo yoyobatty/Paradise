@@ -166,3 +166,6 @@
 	del(world)	//shut it down
 
 #undef MAX_MAP_TEST_FAILURE_COUNT
+
+/proc/ci_annotation_compile_check()
+	return undefined_ci_annotation_var
