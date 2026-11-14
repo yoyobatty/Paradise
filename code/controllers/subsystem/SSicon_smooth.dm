@@ -36,7 +36,8 @@ SUBSYSTEM_DEF(icon_smooth)
 	smooth_queue = list()
 	for(var/V in queue)
 		var/atom/A = V
-		if(!A || A.z <= 2)
+		// smooth_icon() clears SMOOTH_QUEUED, so anything without it was already smoothed above
+		if(!A || A.z <= 2 || !(A.smoothing_flags & SMOOTH_QUEUED))
 			continue
 		A.smooth_icon()
 		CHECK_TICK
