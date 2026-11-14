@@ -160,7 +160,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	if(opacity)
 		directional_opacity = ALL_CARDINALS
 
-	initialize_milla()
+	if(!level_being_built()) // The build loads the whole level's air when it's done, which covers everything this sets
+		initialize_milla()
 	if(is_station_level(z))
 		GLOB.station_turfs += src
 
