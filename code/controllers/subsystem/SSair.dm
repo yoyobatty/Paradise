@@ -850,6 +850,13 @@ SUBSYSTEM_DEF(air)
 
 /// Call this to make the subclass run when it's safe to do so. Args will be passed to on_run.
 /datum/milla_safe/proc/invoke_async(...)
+	if(SSair.milla_idle)
+		// Safe right now, so run it here. Saves copying the args and a few calls, which adds up when every turf does this at startup.
+		var/was_safe = SSair.in_milla_safe_code
+		SSair.in_milla_safe_code = TRUE
+		on_run(arglist(args))
+		SSair.in_milla_safe_code = was_safe
+		return
 	run_args = args.Copy()
 	SSair.synchronize(src)
 
