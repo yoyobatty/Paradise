@@ -137,8 +137,10 @@ SUBSYSTEM_DEF(mapping)
 #endif
 
 	// Makes a blank space level for the sake of randomness
+#ifdef GAME_TESTS
+	GLOB.space_manager.add_new_zlevel("Empty Area", linkage = CROSSLINKED, traits = empty_z_traits)
+#else
 	var/empty_z = GLOB.space_manager.add_new_zlevel("Empty Area", linkage = CROSSLINKED, traits = empty_z_traits)
-#ifndef GAME_TESTS
 	// Nothing goes here, so its space can wait for the lobby too
 	var/datum/space_level/empty_level = GLOB.space_manager.get_zlev(empty_z)
 	empty_level.filled_after_startup = TRUE
