@@ -259,13 +259,8 @@ SUBSYSTEM_DEF(mapping)
 		if(initialized)
 			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
 			level.being_built = TRUE
-			// SSatoms left the empty space here for us. Anything that gets changed is initialized again anyway, so just queue them up.
-			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
-				if(!T.initialized)
-					GLOB.space_manager.postpone_init(z, T)
-			CHECK_TICK
-		log_startup_progress("PHASE queue space: [stop_watch(phase)]s")
-		phase = start_watch()
+			LISTASSERTLEN(GLOB.space_manager.levels_being_built, z, FALSE)
+			GLOB.space_manager.levels_being_built[z] = TRUE
 
 	load_lavaland_zlevels()
 	log_startup_progress("PHASE lavaland base: [stop_watch(phase)]s")
@@ -287,20 +282,37 @@ SUBSYSTEM_DEF(mapping)
 	phase = start_watch()
 
 	if(initialized)
+		// Turf changes here skipped telling MILLA which sides are airtight, since the air setup below does every turf.
+		// Firedoors read that when they initialize, so the turfs around them get it now, the same as at startup.
 		for(var/z in filled_levels)
 			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
-			level.being_built = FALSE
+			for(var/obj/machinery/door/firedoor/door in level.init_list)
+				var/turf/door_turf = get_turf(door)
+				if(!door_turf)
+					continue
+				door_turf.recalculate_atmos_connectivity()
+				for(var/direction in GLOB.cardinal)
+					var/turf/next_to_door = get_step(door_turf, direction)
+					next_to_door?.recalculate_atmos_connectivity()
 
 	for(var/z in filled_levels)
 		GLOB.space_manager.remove_dirt(z)
+		if(initialized)
+			// Everything's in and initialized. Changes from here on (like timers that went off) are normal ones, and the passes below catch up the rest.
+			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
+			level.being_built = FALSE
+			GLOB.space_manager.levels_being_built[z] = FALSE
 	log_startup_progress("PHASE init atoms: [stop_watch(phase)]s")
 	phase = start_watch()
 
 	if(initialized)
-		// Lights first, then the lighting objects (like create_all_lighting_objects() at startup), so each object is drawn once
-		SSlighting.process_queues_now()
+		// One pass over each level: SSatoms left the empty space nobody built on for us, and every turf that needs a lighting object gets one,
+		// like create_all_lighting_objects() at startup. Lighting is paused, so each object is still only drawn once, after all the lights are in.
+		var/list/mapload_arg = list(TRUE)
 		for(var/z in filled_levels)
 			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
+				if(!T.initialized)
+					SSatoms.InitAtom(T, mapload_arg)
 				var/area/A = T.loc
 				if(!T.lighting_object && IS_DYNAMIC_LIGHTING(T) && IS_DYNAMIC_LIGHTING(A))
 					new /datum/lighting_object(T)

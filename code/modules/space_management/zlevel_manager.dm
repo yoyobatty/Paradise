@@ -5,6 +5,8 @@ GLOBAL_DATUM_INIT(space_manager, /datum/zlev_manager, new())
 	var/list/z_list = list()
 	/// The same z-levels, indexed by number. Used for lookups turfs do a lot of, since z_list needs its key made each time.
 	var/list/levels_by_z = list()
+	/// TRUE for each z-level that's being built after startup, see /datum/space_level/var/being_built. Kept here so turfs can check it quickly.
+	var/list/levels_being_built = list()
 	var/list/levels_by_name = list()
 	var/list/heaps = list()
 

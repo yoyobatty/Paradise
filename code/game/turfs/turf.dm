@@ -425,8 +425,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 /// TRUE if our z-level is being built after startup, see /datum/space_level/var/being_built
 /turf/proc/level_being_built()
-	var/datum/space_level/level = GLOB.space_manager.level_at(z)
-	return level?.being_built
+	var/list/building = GLOB.space_manager.levels_being_built
+	return z <= length(building) && building[z]
 
 /turf/proc/BeforeChange()
 	SHOULD_CALL_PARENT(TRUE)
@@ -445,7 +445,9 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		levelupdate()
 	if(!being_built || isspaceturf(src))
 		initialize_milla()
-	recalculate_atmos_connectivity()
+	// Only firedoors read this before the build sets up the level's air, so the build does it for them, see SSmapping.fill_zlevels()
+	if(!being_built)
+		recalculate_atmos_connectivity()
 
 	// Firedoors and weeds set themselves up in Initialize(), so skip this while the map is still loading
 	if(SSatoms.initialized != INITIALIZATION_INSSATOMS && !being_built)

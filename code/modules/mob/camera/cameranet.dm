@@ -10,6 +10,8 @@ GLOBAL_DATUM_INIT(cameranet, /datum/cameranet, new())
 	var/list/cameras = list()
 	/// The chunks of the map, mapping the areas that the cameras can see.
 	var/list/chunks = list()
+	/// How many chunks each z-level has, so changes on z-levels with none can skip looking for them
+	var/list/chunk_count_by_z = list()
 	var/ready = FALSE
 
 /// Returns the chunk at (x, y, z) if it exists, otherwise returns null.
@@ -26,6 +28,8 @@ GLOBAL_DATUM_INIT(cameranet, /datum/cameranet, new())
 	var/key = "[x],[y],[z]"
 	if(!chunks[key])
 		chunks[key] = new /datum/camerachunk(null, x, y, z)
+		LISTASSERTLEN(chunk_count_by_z, z, 0)
+		chunk_count_by_z[z]++
 
 	return chunks[key]
 
@@ -119,6 +123,9 @@ GLOBAL_DATUM_INIT(cameranet, /datum/cameranet, new())
 
 	var/turf/T = get_turf(c)
 	if(!T)
+		return
+	// This only changes chunks that exist, so there's nothing to do on a z-level with none. Lots of turfs change on those while lavaland is built.
+	if(T.z > length(chunk_count_by_z) || !chunk_count_by_z[T.z])
 		return
 
 	// Check if the turf to add falls in the same chunk as the old_loc. If so, do nothing
