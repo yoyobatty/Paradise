@@ -117,6 +117,15 @@
 	if(!rows)
 		rows = new /list(world.maxy)
 		blocked_rows["[z_level]"] = rows
+		// A level that's being built and hasn't had anything put on it yet is all world.turf in world.area, so nothing on it is blocked
+		var/datum/space_level/level = GLOB.space_manager.level_at(z_level)
+		if(level?.being_built && !length(level.init_list) && ispath(world.area, area_whitelist))
+			var/list/clear_row = new /list(world.maxx + 1)
+			for(var/x in 1 to world.maxx + 1)
+				clear_row[x] = 0
+			for(var/y in 1 to world.maxy)
+				rows[y] = clear_row.Copy()
+			return
 	for(var/y in max(bottom_y, 1) to min(top_y, world.maxy))
 		var/list/row = new /list(world.maxx + 1) // row[x + 1] is the count up to and including x, row[1] is 0
 		var/count = 0

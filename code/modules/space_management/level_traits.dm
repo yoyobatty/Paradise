@@ -46,7 +46,8 @@ GLOBAL_LIST_INIT(default_map_traits, list(CC_TRANSITION_CONFIG))
 		return 0 // If you're nowhere, you have no traits
 	var/list/trait_list
 	if(GLOB.space_manager.initialized)
-		var/datum/space_level/S = GLOB.space_manager.get_zlev(z)
+		var/list/levels = GLOB.space_manager.levels_by_z
+		var/datum/space_level/S = (isnum(z) && z <= length(levels)) ? levels[z] : GLOB.space_manager.get_zlev(z)
 		trait_list = S.flags
 	else
 		trait_list = GLOB.default_map_traits[z]

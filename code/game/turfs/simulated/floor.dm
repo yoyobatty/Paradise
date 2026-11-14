@@ -136,7 +136,7 @@ GLOBAL_LIST_INIT(icons_to_ignore_at_floor_init, list("damaged1","damaged2","dama
 /turf/simulated/floor/update_overlays()
 	. = ..()
 	// Air setup does this for every turf once their air is in, so don't read air that isn't set up yet
-	if(SSair.initialized && !level_being_built())
+	if(SSair.initialized && !TURF_LEVEL_BEING_BUILT(src))
 		update_visuals()
 	if(current_overlay)
 		. += current_overlay

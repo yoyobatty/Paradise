@@ -13,3 +13,8 @@
 
 #define TRANSITION_TAG_SPACE "SPACE"
 #define TRANSITION_TAG_LAVALAND "LAVALAND"
+
+/// TRUE if the turf's z-level is being built after startup, see /datum/space_level/var/being_built. A define because turfs check it a lot while one is.
+#define TURF_LEVEL_BEING_BUILT(turf) ((turf).z <= length(GLOB.space_manager.levels_being_built) && GLOB.space_manager.levels_being_built[(turf).z])
+/// TRUE if the turf is in the band along a level's edges that can lead to other levels. Only those go in the transit lists.
+#define TURF_ON_TRANSITION_BORDER(level, turf) ((turf).x <= (level).transition_border_west || (turf).x >= (level).transition_border_east || (turf).y <= (level).transition_border_south || (turf).y >= (level).transition_border_north)

@@ -100,7 +100,7 @@ GLOBAL_DATUM_INIT(space_manager, /datum/zlev_manager, new())
 		our_z.dirt_count = 0
 
 /datum/zlev_manager/proc/postpone_init(z, thing)
-	var/datum/space_level/our_z = get_zlev(z)
+	var/datum/space_level/our_z = levels_by_z[z]
 	our_z.init_list.Add(thing)
 
 

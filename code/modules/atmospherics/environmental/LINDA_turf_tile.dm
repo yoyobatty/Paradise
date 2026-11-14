@@ -14,7 +14,7 @@
 		// Something already read this turf's air, so its copy needs the new air too
 		get_turf_air(T).copy_from(T.get_initial_air())
 		return
-	if(T.level_being_built())
+	if(TURF_LEVEL_BEING_BUILT(T))
 		return // The build sets up this level's air from scratch when it's done
 	// Nothing has read it yet, so skip making a gas mixture and write it straight to MILLA
 	set_tile_atmos(T, oxygen = T.oxygen, carbon_dioxide = T.carbon_dioxide, nitrogen = T.nitrogen, toxins = T.toxins, sleeping_agent = T.sleeping_agent, agent_b = T.agent_b, hydrogen = T.hydrogen, water_vapor = T.water_vapor, temperature = T.temperature)
