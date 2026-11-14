@@ -409,14 +409,23 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 	// Firedoors and weeds set themselves up in Initialize(), so skip this while the map is still loading
 	if(SSatoms.initialized != INITIALIZATION_INSSATOMS)
+		// Finding the open turfs around us reads MILLA, so only do it if there's a firedoor here or next to us
+		var/firedoor_nearby = locate(/obj/machinery/door/firedoor) in src
+		for(var/direction in GLOB.cardinal)
+			if(firedoor_nearby)
+				break
+			var/turf/next_to_us = get_step(src, direction)
+			if(next_to_us)
+				firedoor_nearby = locate(/obj/machinery/door/firedoor) in next_to_us
+
 		//update firedoor adjacency
-		var/list/turfs_to_check = get_adjacent_open_turfs(src) | src
-		for(var/turf/T in turfs_to_check)
-			for(var/obj/machinery/door/firedoor/FD in T)
-				FD.CalculateAffectingAreas()
+		if(firedoor_nearby)
+			for(var/turf/T in get_adjacent_open_turfs(src) | src)
+				for(var/obj/machinery/door/firedoor/FD in T)
+					FD.CalculateAffectingAreas()
 
 		// Check for weeds and either update, create or delete wall weeds
-		turfs_to_check = AdjacentTurfs(open_only = TRUE, cardinal_only = FALSE)
+		var/list/turfs_to_check = AdjacentTurfs(open_only = TRUE, cardinal_only = FALSE)
 		for(var/turf/T in turfs_to_check)
 			for(var/obj/structure/alien/weeds/W in T)
 				W.check_surroundings()
