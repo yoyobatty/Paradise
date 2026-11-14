@@ -7,16 +7,25 @@
 
 use dmmtools::dmm::Prefab;
 
-/// One atom in a tile definition: its path text, and its var text if it has a `{...}` block.
+/// Where a piece of the tile definition's text is, as DM `copytext()` positions: 1-based, end not included
+pub(crate) type TextRange = (usize, usize);
+
+/// One atom in a tile definition: where its path is, and its vars if it has a `{...}` block.
 pub(crate) struct SplitMember {
-    pub path: String,
+    pub path: TextRange,
     pub vars: Option<Vec<SplitVar>>,
 }
 
 /// One entry of a `{...}` block: `name = value`, or just `value`.
 pub(crate) struct SplitVar {
-    pub name: Option<String>,
-    pub value: String,
+    pub name: Option<TextRange>,
+    pub value: TextRange,
+}
+
+/// Where `part`, a slice of `whole`, is in it
+fn range_in(whole: &[u8], part: &[u8]) -> TextRange {
+    let start = part.as_ptr() as usize - whole.as_ptr() as usize + 1;
+    (start, start + part.len())
 }
 
 /// The text the DM loader reads for a tile definition, between `"key" = (` and the closing `)`, as `save_tgm()` writes it.
@@ -44,6 +53,7 @@ pub(crate) fn model_text(prefabs: &[Prefab]) -> String {
 /// What `/datum/dmm_suite/proc/parse_grid()` makes of a tile definition, before turning the text into paths and values.
 pub(crate) fn split_model(model: &str) -> Vec<SplitMember> {
     let model = model.as_bytes();
+    let whole = model;
     let mut members = vec![];
     let mut old_position = 1;
     loop {
@@ -56,12 +66,12 @@ pub(crate) fn split_model(model: &str) -> Vec<SplitMember> {
         let vars = if variables_start != 0 {
             // Removes the last character, the closing brace
             let var_text = copytext(full_def, variables_start + 1, full_def.len());
-            Some(readlist(var_text, b';'))
+            Some(readlist(whole, var_text, b';'))
         } else {
             None
         };
         members.push(SplitMember {
-            path: String::from_utf8_lossy(atom_text).into_owned(),
+            path: range_in(whole, atom_text),
             vars,
         });
 
@@ -73,7 +83,7 @@ pub(crate) fn split_model(model: &str) -> Vec<SplitMember> {
 }
 
 /// `/datum/dmm_suite/proc/readlist()`, up to where it parses each value
-fn readlist(text: &[u8], delimiter: u8) -> Vec<SplitVar> {
+fn readlist(whole: &[u8], text: &[u8], delimiter: u8) -> Vec<SplitVar> {
     let mut entries = vec![];
     let mut old_position = 1;
     loop {
@@ -90,17 +100,19 @@ fn readlist(text: &[u8], delimiter: u8) -> Vec<SplitVar> {
 
         if equal_position != 0 {
             entries.push(SplitVar {
-                name: Some(String::from_utf8_lossy(trim_text(left_value, true)).into_owned()),
-                value: String::from_utf8_lossy(trim_text(
-                    copytext(text, equal_position + 1, delimiter_position),
-                    false,
-                ))
-                .into_owned(),
+                name: Some(range_in(whole, trim_text(left_value, true))),
+                value: range_in(
+                    whole,
+                    trim_text(
+                        copytext(text, equal_position + 1, delimiter_position),
+                        false,
+                    ),
+                ),
             });
         } else {
             entries.push(SplitVar {
                 name: None,
-                value: String::from_utf8_lossy(trim_text(left_value, false)).into_owned(),
+                value: range_in(whole, trim_text(left_value, false)),
             });
         }
 
@@ -159,7 +171,9 @@ fn copytext(text: &[u8], start: usize, end: usize) -> &[u8] {
         end
     };
     if start >= end {
-        return &[];
+        // Still a slice of the text, so its position means something
+        let at = (start - 1).min(text.len());
+        return &text[at..at];
     }
     &text[start - 1..end - 1]
 }
@@ -211,13 +225,17 @@ mod tests {
     use super::*;
 
     fn split(model: &str) -> Vec<(String, Option<Vec<(Option<String>, String)>>)> {
+        let text = |r: TextRange| model[r.0 - 1..r.1 - 1].to_string();
         split_model(model)
             .into_iter()
             .map(|m| {
                 (
-                    m.path,
-                    m.vars
-                        .map(|v| v.into_iter().map(|e| (e.name, e.value)).collect()),
+                    text(m.path),
+                    m.vars.map(|v| {
+                        v.into_iter()
+                            .map(|e| (e.name.map(text), text(e.value)))
+                            .collect()
+                    }),
                 )
             })
             .collect()

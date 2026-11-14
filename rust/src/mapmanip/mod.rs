@@ -477,8 +477,10 @@ pub(crate) fn internal_mapmanip_read_dmm_file(path: ByondValue) -> eyre::Result<
 }
 
 /// Same as `mapmanip_read_dmm_file()`, but also splits every tile definition into its atoms and their vars, the way
-/// the DM map loader would. Returns `list(map text, list("key" = list(path, vars, path, vars, ...)))`, where `vars` is
-/// null for an atom with no `{...}` block, or a flat list of name (null for a plain value) and value text pairs.
+/// the DM map loader would. Returns `list(map text, list("key" = positions))`. The positions say where each piece is in
+/// that key's definition text, as DM `copytext()` positions, flattened: path start and end, then the number of vars
+/// (-1 if there's no `{...}` block), then for each var its name start and end (both 0 for a plain value) and its value
+/// start and end. They're numbers because keeping a BYOND string for every piece is slow.
 #[byondapi::bind]
 fn mapmanip_read_dmm_file_split(path: ByondValue) -> eyre::Result<ByondValue> {
     setup_panic_handler();
@@ -487,35 +489,31 @@ fn mapmanip_read_dmm_file_split(path: ByondValue) -> eyre::Result<ByondValue> {
         return Ok(ByondValue::null());
     };
 
-    // Lists are filled with write_list(), since push_list() adds a list's items like DM's += does, instead of the list itself
     let mut models = ByondValue::new_list()?;
+    let mut positions = vec![];
     for (&key, prefabs) in dmm.dictionary.iter() {
-        let mut members = vec![];
+        positions.clear();
         for member in dm_split::split_model(&dm_split::model_text(prefabs)) {
-            members.push(ByondValue::new_str(member.path)?);
+            positions.push(ByondValue::from(member.path.0 as f32));
+            positions.push(ByondValue::from(member.path.1 as f32));
             match member.vars {
-                None => members.push(ByondValue::null()),
+                None => positions.push(ByondValue::from(-1.0)),
                 Some(vars) => {
-                    let mut var_values = Vec::with_capacity(vars.len() * 2);
+                    positions.push(ByondValue::from(vars.len() as f32));
                     for var in vars {
-                        var_values.push(match var.name {
-                            Some(name) => ByondValue::new_str(name)?,
-                            None => ByondValue::null(),
-                        });
-                        var_values.push(ByondValue::new_str(var.value)?);
+                        let name = var.name.unwrap_or((0, 0));
+                        positions.push(ByondValue::from(name.0 as f32));
+                        positions.push(ByondValue::from(name.1 as f32));
+                        positions.push(ByondValue::from(var.value.0 as f32));
+                        positions.push(ByondValue::from(var.value.1 as f32));
                     }
-                    let var_list = ByondValue::new_list()?;
-                    var_list.write_list(&var_values)?;
-                    members.push(var_list);
                 }
             }
         }
-        let member_list = ByondValue::new_list()?;
-        member_list.write_list(&members)?;
-        models.write_list_index(
-            ByondValue::new_str(dmm.format_key(key).to_string())?,
-            member_list,
-        )?;
+        // write_list(), since push_list() would add a list's items like DM's += does, instead of the list itself
+        let key_positions = ByondValue::new_list()?;
+        key_positions.write_list(&positions)?;
+        models.write_list_index(ByondValue::new_str(dmm.format_key(key).to_string())?, key_positions)?;
     }
 
     let text = crate::mapmanip::core::map_to_string(&dmm).wrap_err(format!(

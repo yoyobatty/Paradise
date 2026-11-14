@@ -27,7 +27,7 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
  */
 /datum/dmm_suite/proc/load_map(dmm_file, x_offset = 0, y_offset = 0, z_offset = 0, shouldCropMap = FALSE, measureOnly = FALSE)
 	var/map_data
-	/// "key" = each tile definition already split into atoms and vars by the Rust code, so parse_grid() doesn't have to
+	/// "key" = where each atom and var is in that tile definition, found by the Rust code so parse_grid() doesn't have to
 	var/list/split_models
 	var/fname = "Lambda"
 	if(isfile(dmm_file))
@@ -235,24 +235,32 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
 		var/old_position = 1
 		var/dpos
 
-		// Rust already split this the same way the loop below does, so just turn the text into paths and values
-		for(var/i in 1 to length(split_model) step 2)
-			var/atom_text = split_model[i]
+		// Rust already split this the same way the loop below does, and says where each piece is in the text.
+		// For each atom: path start and end, var count (-1 for no {}), then name start and end (0 for none) and value start and end per var.
+		// Cutting the pieces out here is quicker than Rust making strings, since BYOND is slow to keep that many strings around.
+		var/i = 1
+		var/split_length = length(split_model)
+		while(i < split_length)
+			var/atom_text = copytext(model, split_model[i], split_model[i + 1])
+			var/var_count = split_model[i + 2]
+			i += 3
 			var/atom_def = text2path(atom_text)
 			if(!atom_def)
 				stack_trace("Bad path: [atom_text] | Source String: [model]")
+				i += max(var_count, 0) * 4
 				continue
 			members.Add(atom_def)
 
 			var/list/fields = list()
-			var/list/split_vars = split_model[i + 1]
-			if(split_vars)
-				for(var/j in 1 to length(split_vars) step 2)
-					var/var_name = split_vars[j]
-					if(isnull(var_name))
-						fields += parse_value(split_vars[j + 1])
+			if(var_count >= 0)
+				for(var/j in 1 to var_count)
+					var/name_start = split_model[i]
+					var/value_text = copytext(model, split_model[i + 2], split_model[i + 3])
+					if(name_start)
+						fields[copytext(model, name_start, split_model[i + 1])] = parse_value(value_text)
 					else
-						fields[var_name] = parse_value(split_vars[j + 1])
+						fields += parse_value(value_text)
+					i += 4
 
 				for(var/I in fields)
 					var/value = fields[I]
