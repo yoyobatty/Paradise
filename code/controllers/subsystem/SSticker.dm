@@ -43,6 +43,8 @@ SUBSYSTEM_DEF(ticker)
 	var/selected_fact
 	/// This is used for calculations for the statpanel
 	var/pregame_timeleft
+	/// Whether we've told everyone the round is waiting on lavaland and the ruins
+	var/told_zlevels_building = FALSE
 	/// If set to TRUE, the round will not restart on it's own
 	var/delay_end = FALSE
 	/// Global holder for triple AI mode
@@ -109,6 +111,11 @@ SUBSYSTEM_DEF(ticker)
 				facted = TRUE
 
 			if(pregame_timeleft <= 0 || force_start)
+				if(SSmapping.building_zlevels)
+					if(!told_zlevels_building)
+						told_zlevels_building = TRUE
+						to_chat(world, SPAN_BOLDNOTICE("Lavaland and the ruins are still being built. The round will start once they're done."))
+					return
 				current_state = GAME_STATE_SETTING_UP
 				Master.SetRunLevel(RUNLEVEL_SETUP)
 		if(GAME_STATE_SETTING_UP)

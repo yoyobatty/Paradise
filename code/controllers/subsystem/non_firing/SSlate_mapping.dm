@@ -58,7 +58,10 @@ SUBSYSTEM_DEF(late_mapping)
 
 	maintenance_mice()
 
+#ifdef GAME_TESTS
+	// Otherwise this waits for lavaland and the ruins, which have spawners too. See SSmapping.fill_zlevels()
 	GLOB.spawn_pool_manager.process_pools()
+#endif
 
 /**
  * Randomly spawns mice in maintenance instead of being purely fixed spawn points

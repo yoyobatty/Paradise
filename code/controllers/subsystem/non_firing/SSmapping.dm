@@ -20,6 +20,8 @@ SUBSYSTEM_DEF(mapping)
 	var/list/ghostteleportlocs
 	///List of areas that exist on the station this shift
 	var/list/existing_station_areas
+	/// TRUE while lavaland and the ruins are still being built after startup. The round won't start until it's done.
+	var/building_zlevels = FALSE
 	/// Types of areas that exist on the station this shift
 	var/list/existing_station_areas_types
 
@@ -164,19 +166,7 @@ SUBSYSTEM_DEF(mapping)
 
 	teleportlocs = sortAssoc(teleportlocs)
 
-	ghostteleportlocs = list()
-	for(var/area/AR as anything in all_areas)
-		if(ghostteleportlocs[AR.name])
-			continue
-		var/list/pickable_turfs = list()
-		for(var/turf/turfs in AR)
-			pickable_turfs += turfs
-			CHECK_TICK
-		if(length(pickable_turfs))
-			ghostteleportlocs[AR.name] = AR
-		CHECK_TICK
-
-	ghostteleportlocs = sortAssoc(ghostteleportlocs)
+	update_ghost_teleport_locs(all_areas)
 
 	// Now we make a list of areas that exist on the station. Good for if you don't want to select areas that exist for one station but not others. Directly references
 	existing_station_areas = list()
@@ -203,12 +193,50 @@ SUBSYSTEM_DEF(mapping)
 	if(HAS_TRAIT(SSstation, STATION_TRAIT_HANGOVER))
 		generate_themed_messes(list(/obj/effect/spawner/themed_mess/party))
 
+/// Every area with a turf in it, for ghosts to teleport to
+/datum/controller/subsystem/mapping/proc/update_ghost_teleport_locs(list/all_areas)
+	var/list/new_locs = list()
+	for(var/area/AR as anything in all_areas)
+		if(new_locs[AR.name])
+			continue
+		var/list/pickable_turfs = list()
+		for(var/turf/turfs in AR)
+			pickable_turfs += turfs
+			CHECK_TICK
+		if(length(pickable_turfs))
+			new_locs[AR.name] = AR
+		CHECK_TICK
+
+	ghostteleportlocs = sortAssoc(new_locs)
+
 /datum/controller/subsystem/mapping/proc/generate_zlevels()
 	generate_space_zlevels()
 	generate_lavaland_zlevels()
 
 	// Setup the Z-level linkage
 	GLOB.space_manager.do_transition_setup()
+
+#ifdef GAME_TESTS
+	// Tests run right after startup, so they need everything there
+	fill_zlevels()
+#endif
+
+/datum/controller/subsystem/mapping/LateInitialize()
+#ifndef GAME_TESTS
+	// Lavaland and the ruins are most of the startup time, so they get built while the lobby is up
+	fill_zlevels()
+#endif
+
+/// Loads lavaland, places ruins and generates lavaland's caves and rivers
+/datum/controller/subsystem/mapping/proc/fill_zlevels()
+	building_zlevels = TRUE
+	var/watch = start_watch()
+	var/list/filled_levels = levels_by_trait(ORE_LEVEL) | levels_by_trait(SPAWN_RUINS)
+	// Hold off initializing what gets placed until it's all in, the same as at startup
+	for(var/z in filled_levels)
+		GLOB.space_manager.add_dirt(z)
+
+	load_lavaland_zlevels()
 
 	// Seed ruins
 	if(GLOB.configuration.ruins.enable_ruins)
@@ -220,6 +248,34 @@ SUBSYSTEM_DEF(mapping)
 	// Perform procedural generation for lavaland rivers and caves, which
 	// happens after ruin placement.
 	procgen_lavaland()
+
+	for(var/z in filled_levels)
+		GLOB.space_manager.remove_dirt(z)
+
+	if(initialized)
+		// Startup already set up air, lighting and smoothing for the rest of the world, so catch these levels up
+		for(var/z in filled_levels)
+			var/datum/milla_safe/setup_level_air/milla = new()
+			milla.invoke_async(z)
+			CHECK_TICK
+		for(var/z in filled_levels)
+			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
+				if(T.smoothing_flags & (SMOOTH_CORNERS|SMOOTH_BITMASK))
+					T.smooth_icon()
+				for(var/atom/A as anything in T)
+					if(A.smoothing_flags & (SMOOTH_CORNERS|SMOOTH_BITMASK))
+						A.smooth_icon()
+				CHECK_TICK
+		GLOB.spawn_pool_manager.process_pools()
+		// Lighting runs in the lobby too. Wait for it to light these levels so the round doesn't start with the backlog.
+		UNTIL(!length(SSlighting.sources_queue) && !length(SSlighting.corners_queue) && !length(SSlighting.objects_queue))
+		var/list/all_areas = list()
+		for(var/area/areas in world)
+			all_areas += areas
+		update_ghost_teleport_locs(all_areas)
+
+	building_zlevels = FALSE
+	log_startup_progress("Built lavaland and ruins in [stop_watch(watch)]s.")
 
 /datum/controller/subsystem/mapping/proc/seed_space_salvage(space_z_levels)
 	log_startup_progress("Seeding space salvage...")
@@ -299,19 +355,26 @@ SUBSYSTEM_DEF(mapping)
 		log_startup_progress("Skipping lavaland levels...")
 		return
 
-	log_startup_progress("Loading lavaland...")
-	var/watch = start_watch()
 	for(var/i in 1 to zlevel_count)
-		var/lavaland_zlevel = GLOB.space_manager.add_new_zlevel(
+		GLOB.space_manager.add_new_zlevel(
 			"LAVALAND[i]",
 			linkage = CROSSLINKED,
 			traits = list(ORE_LEVEL, REACHABLE_BY_CREW, STATION_CONTACT, HAS_WEATHER, AI_OK),
 			transition_tag = TRANSITION_TAG_LAVALAND,
 			level_type = /datum/space_level/lavaland
 		)
+
+/// Loads lavaland's base layer onto its z-levels
+/datum/controller/subsystem/mapping/proc/load_lavaland_zlevels()
+	var/list/lavaland_levels = levels_by_trait(ORE_LEVEL)
+	if(!length(lavaland_levels))
+		return
+	log_startup_progress("Loading lavaland...")
+	var/watch = start_watch()
+	for(var/lavaland_zlevel in lavaland_levels)
 		GLOB.maploader.load_map(file("_maps/map_files/generic/lavaland_baselayer.dmm"), z_offset = lavaland_zlevel)
 		CHECK_TICK
-	log_startup_progress("Added [zlevel_count] lavaland levels in [stop_watch(watch)]s")
+	log_startup_progress("Added [length(lavaland_levels)] lavaland levels in [stop_watch(watch)]s")
 
 /datum/controller/subsystem/mapping/proc/place_lavaland_ruins()
 	log_startup_progress("Placing lavaland ruins...")
@@ -538,3 +601,9 @@ SUBSYSTEM_DEF(mapping)
 /// Schedules a group of turfs to be handed back to the reservation system's control
 /datum/controller/subsystem/mapping/proc/unreserve_turfs(list/turfs)
 	lists_to_reserve += list(turfs)
+
+/// Sets up air for a whole z-level, the same as SSair does for everything at startup
+/datum/milla_safe/setup_level_air
+
+/datum/milla_safe/setup_level_air/on_run(z)
+	SSair.setup_turfs(locate(1, 1, z), locate(world.maxx, world.maxy, z))

@@ -152,7 +152,7 @@ DEFINE_BITFIELD(smoothing_junction, list(
 //do not use, use QUEUE_SMOOTH(atom)
 /atom/proc/smooth_icon()
 	smoothing_flags &= ~SMOOTH_QUEUED
-	if(!z)
+	if(!z || !initialized) // Not set up yet, whatever loads it smooths it after
 		return
 	if(smoothing_flags & SMOOTH_CORNERS)
 		if(smoothing_flags & SMOOTH_DIAGONAL_CORNERS)

@@ -111,6 +111,15 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	///used for guaranteeing there is only one oranges_ear per turf when assigned, speeds up view() iteration
 	var/mob/oranges_ear/assigned_oranges_ear
 
+/turf/attempt_init(...)
+	if(SSatoms.initialized != INITIALIZATION_INSSATOMS)
+		// Turfs on a z-level that's still being loaded wait for its contents, the same as at startup
+		var/datum/space_level/level = GLOB.space_manager.z_list["[z]"]
+		if(level?.dirt_count > 0)
+			GLOB.space_manager.postpone_init(z, src)
+			return
+	return ..()
+
 /turf/Initialize(mapload)
 	SHOULD_CALL_PARENT(FALSE)
 	if(initialized)
