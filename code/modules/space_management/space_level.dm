@@ -28,8 +28,8 @@
 	var/list/init_list = list()
 	/// TRUE while resume_init() is initializing what got loaded here
 	var/resuming_init = FALSE
-	/// TRUE while this level is built after startup. Turf changes skip lighting, and it gets lit all at once when done, the same as at startup.
-	var/lighting_deferred = FALSE
+	/// TRUE while this level is built after startup. Turf changes here skip lighting, air and smoothing work that the build does once when it's done.
+	var/being_built = FALSE
 	/// TRUE if this level is filled after startup. It's empty space until then, which is what MILLA starts with, so SSair leaves it for the builder to set up.
 	var/filled_after_startup = FALSE
 

@@ -146,10 +146,16 @@
 		return TRUE
 	return FALSE
 
+/obj/effect/mob_spawn/proc/make_mob()
+	return new mob_type(get_turf(src))
+
 /obj/effect/mob_spawn/proc/create(ckey, flavour = TRUE, name, mob/user = usr)
 	if(ckey) // we don't care about corpse spawners etc
 		log_game("[ckey] became [mob_name]")
-	var/mob/living/M = new mob_type(get_turf(src)) //living mobs only
+	// A human's body icon gets rebuilt over a dozen times while it's set up below, so it's held and built once at the end
+	GLOB.hold_new_human_icons = TRUE
+	var/mob/living/M = make_mob() //living mobs only
+	GLOB.hold_new_human_icons = FALSE
 	if(mob_name)
 		M.rename_character(M.real_name, mob_name)
 	if(faction)
@@ -164,6 +170,11 @@
 	M.adjustFireLoss(burn_damage)
 	M.color = mob_color
 	equip(M)
+	if(ishuman(M))
+		var/mob/living/carbon/human/H = M
+		if(H.icon_updates_held)
+			H.icon_updates_held = FALSE
+			H.regenerate_icons()
 
 	if(ckey)
 		M.ckey = ckey
@@ -255,6 +266,12 @@
 		mob_name = id_job
 	return ..()
 
+/obj/effect/mob_spawn/human/make_mob()
+	if(!mob_species)
+		return ..()
+	// Made as the right species to begin with, instead of as a human whose organs all get swapped out in equip()
+	return new mob_type(get_turf(src), mob_species)
+
 /obj/effect/mob_spawn/human/species_prompt(mob/user)
 	if(allow_species_pick)
 		var/selected_species = tgui_input_list(user, "Select a species", "Species Selection", pickable_species)
@@ -293,6 +310,7 @@
 		H.get_dna_scrambled()
 
 	H.update_dna() // saves everything we've set above
+	H.icon_updates_held = FALSE // So the ID photo below gets the finished body
 	H.regenerate_icons()
 
 	if(outfit)

@@ -1,4 +1,9 @@
+/// Set by things that build a human in one go, like /obj/effect/mob_spawn, so new humans start with icon_updates_held
+GLOBAL_VAR_INIT(hold_new_human_icons, FALSE)
+
 /mob/living/carbon/human/Initialize(mapload, datum/species/new_species = /datum/species/human)
+	if(GLOB.hold_new_human_icons)
+		icon_updates_held = TRUE
 	icon = null // This is now handled by overlays -- we just keep an icon for the sake of the map editor.
 	create_dna()
 

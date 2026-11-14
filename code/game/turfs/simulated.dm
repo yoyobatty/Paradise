@@ -166,7 +166,8 @@
 
 /turf/simulated/ChangeTurf(path, defer_change = FALSE, keep_icon = TRUE, ignore_air = FALSE, copy_existing_baseturf = TRUE)
 	. = ..()
-	QUEUE_SMOOTH_NEIGHBORS(src)
+	if(!level_being_built()) // That smooths everything once it's done
+		QUEUE_SMOOTH_NEIGHBORS(src)
 
 /turf/simulated/proc/is_shielded()
 	return

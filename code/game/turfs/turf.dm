@@ -117,7 +117,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	if(do_initialize == INITIALIZATION_INSSATOMS)
 		return
 	// Turfs on a z-level that's still being loaded wait for its contents, the same as at startup
-	var/datum/space_level/level = GLOB.space_manager.z_list["[z]"]
+	var/datum/space_level/level = GLOB.space_manager.level_at(z)
 	if(level?.dirt_count > 0)
 		GLOB.space_manager.postpone_init(z, src)
 		return
@@ -338,6 +338,10 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	if(!GLOB.use_preloader && path == type) // Don't no-op if the map loader requires it to be reconstructed
 		return src
 
+	// Never initialized, nothing listening and the level is still being built, so there's nothing to clean up
+	if(!initialized && !comp_lookup && level_being_built())
+		return build_change_turf(path, defer_change, ignore_air, copy_existing_baseturf)
+
 	var/old_lighting_object = lighting_object
 	var/old_blueprint_data = blueprint_data
 	var/old_obscured = obscured
@@ -380,8 +384,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	lighting_corner_SW = old_lighting_corner_SW
 	lighting_corner_NW = old_lighting_corner_NW
 
-	var/datum/space_level/our_level = GLOB.space_manager.z_list["[z]"]
-	if(SSlighting.initialized && !our_level?.lighting_deferred)
+	if(SSlighting.initialized && !level_being_built())
 		W.lighting_object = old_lighting_object
 		directional_opacity = old_directional_opacity
 		recalculate_directional_opacity()
@@ -404,10 +407,31 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 	return W
 
+/// ChangeTurf() for a turf that never initialized on a level that's being built. It has no lights, signals,
+/// components or air copy yet, and the build lights, smooths and sets up air for the whole level when it's done.
+/turf/proc/build_change_turf(path, defer_change, ignore_air, copy_existing_baseturf)
+	PRIVATE_PROC(TRUE)
+	var/datum/space_level/level = GLOB.space_manager.level_at(z)
+	level.remove_from_transit(src)
+	var/old_baseturf = baseturf
+	var/carryover_turf_flags = turf_flags & (RESERVATION_TURF|UNUSED_RESERVATION_TURF)
+	var/turf/W = new path(src)
+	W.turf_flags |= carryover_turf_flags
+	if(copy_existing_baseturf)
+		W.baseturf = old_baseturf
+	if(!defer_change)
+		W.AfterChange(ignore_air)
+	return W
+
+/// TRUE if our z-level is being built after startup, see /datum/space_level/var/being_built
+/turf/proc/level_being_built()
+	var/datum/space_level/level = GLOB.space_manager.level_at(z)
+	return level?.being_built
+
 /turf/proc/BeforeChange()
 	SHOULD_CALL_PARENT(TRUE)
-	if("[z]" in GLOB.space_manager.z_list)
-		var/datum/space_level/S = GLOB.space_manager.get_zlev(z)
+	var/datum/space_level/S = GLOB.space_manager.level_at(z)
+	if(S)
 		S.remove_from_transit(src)
 
 /turf/proc/is_safe()
@@ -415,12 +439,16 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 // I'm including `ignore_air` because BYOND lacks positional-only arguments
 /turf/proc/AfterChange(ignore_air = FALSE, keep_cabling = FALSE) //called after a turf has been replaced in ChangeTurf()
-	levelupdate()
-	initialize_milla()
+	var/being_built = level_being_built()
+	// On a level that's being built, Initialize() does these when it's done. Space doesn't set up MILLA there, so it still does it here.
+	if(!being_built)
+		levelupdate()
+	if(!being_built || isspaceturf(src))
+		initialize_milla()
 	recalculate_atmos_connectivity()
 
 	// Firedoors and weeds set themselves up in Initialize(), so skip this while the map is still loading
-	if(SSatoms.initialized != INITIALIZATION_INSSATOMS)
+	if(SSatoms.initialized != INITIALIZATION_INSSATOMS && !being_built)
 		// Finding the open turfs around us reads MILLA, so only do it if there's a firedoor here or next to us
 		var/firedoor_nearby = locate(/obj/machinery/door/firedoor) in src
 		for(var/direction in GLOB.cardinal)
@@ -446,15 +474,15 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		for(var/obj/structure/cable/C in contents)
 			qdel(C)
 
-	if("[z]" in GLOB.space_manager.z_list)
-		var/datum/space_level/S = GLOB.space_manager.get_zlev(z)
+	var/datum/space_level/S = GLOB.space_manager.level_at(z)
+	if(S)
 		S.add_to_transit(src)
 		S.apply_transition(src)
 
 /turf/simulated/AfterChange(ignore_air = FALSE, keep_cabling = FALSE)
 	..()
 	RemoveLattice()
-	if(!ignore_air)
+	if(!ignore_air && !level_being_built()) // A level being built gets its air set up from scratch when it's done
 		var/datum/milla_safe/turf_assimilate_air/milla = new()
 		milla.invoke_async(src)
 

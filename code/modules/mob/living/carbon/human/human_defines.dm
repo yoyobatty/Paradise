@@ -17,6 +17,8 @@
 	mob_biotypes = MOB_ORGANIC | MOB_HUMANOID
 	blocks_emissive = EMISSIVE_BLOCK_UNIQUE
 	//Marking colour and style
+	/// While TRUE, update_body() and regenerate_icons() do nothing. For building a human in one go, call regenerate_icons() after clearing it.
+	var/icon_updates_held = FALSE
 	var/list/m_colours = DEFAULT_MARKING_COLOURS //All colours set to #000000.
 	var/list/m_styles = DEFAULT_MARKING_STYLES //All markings set to None.
 

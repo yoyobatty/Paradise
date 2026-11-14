@@ -240,8 +240,14 @@ SUBSYSTEM_DEF(mapping)
 /datum/controller/subsystem/mapping/proc/fill_zlevels()
 	building_zlevels = TRUE
 	var/watch = start_watch()
+	// Lighting is done in one go at the end, in the right order, so each lighting object only draws once
+	if(initialized)
+		SSlighting.can_fire = FALSE
+	var/phase = start_watch()
 	if(GLOB.configuration.ruins.enable_ruins)
 		preloadRuinTemplates()
+	log_startup_progress("PHASE templates: [stop_watch(phase)]s")
+	phase = start_watch()
 	var/list/filled_levels = levels_by_trait(ORE_LEVEL) | levels_by_trait(SPAWN_RUINS)
 	for(var/z in 1 to world.maxz)
 		var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
@@ -252,14 +258,18 @@ SUBSYSTEM_DEF(mapping)
 		GLOB.space_manager.add_dirt(z)
 		if(initialized)
 			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
-			level.lighting_deferred = TRUE
+			level.being_built = TRUE
 			// SSatoms left the empty space here for us. Anything that gets changed is initialized again anyway, so just queue them up.
 			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
 				if(!T.initialized)
 					GLOB.space_manager.postpone_init(z, T)
 			CHECK_TICK
+		log_startup_progress("PHASE queue space: [stop_watch(phase)]s")
+		phase = start_watch()
 
 	load_lavaland_zlevels()
+	log_startup_progress("PHASE lavaland base: [stop_watch(phase)]s")
+	phase = start_watch()
 
 	// Seed ruins
 	if(GLOB.configuration.ruins.enable_ruins)
@@ -267,24 +277,38 @@ SUBSYSTEM_DEF(mapping)
 		place_space_ruins()
 	else
 		log_startup_progress("Skipping z-level content...")
+	log_startup_progress("PHASE ruins: [stop_watch(phase)]s")
+	phase = start_watch()
 
 	// Perform procedural generation for lavaland rivers and caves, which
 	// happens after ruin placement.
 	procgen_lavaland()
+	log_startup_progress("PHASE procgen: [stop_watch(phase)]s")
+	phase = start_watch()
 
 	if(initialized)
-		// Light the finished levels, like create_all_lighting_objects() does at startup
 		for(var/z in filled_levels)
 			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
-			level.lighting_deferred = FALSE
+			level.being_built = FALSE
+
+	for(var/z in filled_levels)
+		GLOB.space_manager.remove_dirt(z)
+	log_startup_progress("PHASE init atoms: [stop_watch(phase)]s")
+	phase = start_watch()
+
+	if(initialized)
+		// Lights first, then the lighting objects (like create_all_lighting_objects() at startup), so each object is drawn once
+		SSlighting.process_queues_now()
+		for(var/z in filled_levels)
 			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
 				var/area/A = T.loc
 				if(!T.lighting_object && IS_DYNAMIC_LIGHTING(T) && IS_DYNAMIC_LIGHTING(A))
 					new /datum/lighting_object(T)
 				CHECK_TICK
-
-	for(var/z in filled_levels)
-		GLOB.space_manager.remove_dirt(z)
+		SSlighting.process_queues_now()
+		SSlighting.can_fire = TRUE
+		log_startup_progress("PHASE lighting: [stop_watch(phase)]s")
+		phase = start_watch()
 
 	if(initialized)
 		// Startup already set up air, lighting and smoothing for the rest of the world, so catch these levels up
@@ -294,6 +318,8 @@ SUBSYSTEM_DEF(mapping)
 			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
 			level.filled_after_startup = FALSE
 			CHECK_TICK
+		log_startup_progress("PHASE air: [stop_watch(phase)]s")
+		phase = start_watch()
 		for(var/z in filled_levels)
 			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
 				if(T.smoothing_flags & (SMOOTH_CORNERS|SMOOTH_BITMASK))
@@ -302,9 +328,15 @@ SUBSYSTEM_DEF(mapping)
 					if(A.smoothing_flags & (SMOOTH_CORNERS|SMOOTH_BITMASK))
 						A.smooth_icon()
 				CHECK_TICK
+		log_startup_progress("PHASE smoothing: [stop_watch(phase)]s")
+		phase = start_watch()
 		GLOB.spawn_pool_manager.process_pools()
+		log_startup_progress("PHASE pools: [stop_watch(phase)]s")
+		phase = start_watch()
 		// Lighting runs in the lobby too. Wait for it to light these levels so the round doesn't start with the backlog.
 		UNTIL(!length(SSlighting.sources_queue) && !length(SSlighting.corners_queue) && !length(SSlighting.objects_queue))
+		log_startup_progress("PHASE lighting wait: [stop_watch(phase)]s")
+		phase = start_watch()
 		var/list/all_areas = list()
 		for(var/area/areas in world)
 			all_areas += areas

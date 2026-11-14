@@ -3,6 +3,8 @@ GLOBAL_DATUM_INIT(space_manager, /datum/zlev_manager, new())
 /datum/zlev_manager
 	// A list of z-levels
 	var/list/z_list = list()
+	/// The same z-levels, indexed by number. Used for lookups turfs do a lot of, since z_list needs its key made each time.
+	var/list/levels_by_z = list()
 	var/list/levels_by_name = list()
 	var/list/heaps = list()
 
@@ -32,6 +34,8 @@ GLOBAL_DATUM_INIT(space_manager, /datum/zlev_manager, new())
 		milla_init_z(k)
 		var/datum/space_level/S = new /datum/space_level(k, name, transition_type = linking, traits = attributes)
 		z_list["[k]"] = S
+		LISTASSERTLEN(levels_by_z, k, null)
+		levels_by_z[k] = S
 		levels_by_name[name] = S
 		k++
 
@@ -40,14 +44,22 @@ GLOBAL_DATUM_INIT(space_manager, /datum/zlev_manager, new())
 	for(var/i = k, i <= world.maxz, i++)
 		milla_init_z(k)
 		z_list["[i]"] = new /datum/space_level(i)
+		LISTASSERTLEN(levels_by_z, i, null)
+		levels_by_z[i] = z_list["[i]"]
 	initialized = 1
 
 
 /datum/zlev_manager/proc/get_zlev(z)
-	if(!("[z]" in z_list))
+	if(istext(z)) // Some callers pass z_list keys
+		z = text2num(z)
+	var/datum/space_level/level = (z > 0 && z <= length(levels_by_z)) ? levels_by_z[z] : null
+	if(!level)
 		throw EXCEPTION("Unmanaged z level: '[z]'")
-	else
-		return z_list["[z]"]
+	return level
+
+/// Same as get_zlev(), but returns null instead of throwing for a z-level we don't manage (yet)
+/datum/zlev_manager/proc/level_at(z)
+	return (z > 0 && z <= length(levels_by_z)) ? levels_by_z[z] : null
 
 /datum/zlev_manager/proc/get_zlev_by_name(A)
 	if(!(A in levels_by_name))
@@ -116,6 +128,8 @@ GLOBAL_DATUM_INIT(space_manager, /datum/zlev_manager, new())
 	var/datum/space_level/S = new level_type(our_z, name, transition_type = linkage, traits = traits, transition_tag_ = transition_tag)
 	levels_by_name[name] = S
 	z_list["[our_z]"] = S
+	LISTASSERTLEN(levels_by_z, our_z, null)
+	levels_by_z[our_z] = S
 	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_NEW_Z, name, linkage, traits, transition_tag, level_type, our_z)
 	return our_z
 
@@ -131,5 +145,7 @@ GLOBAL_DATUM_INIT(space_manager, /datum/zlev_manager, new())
 	var/our_z = world.maxz
 	var/datum/space_level/S = get_zlev(our_z)
 	z_list.Remove(S)
+	if(length(levels_by_z) >= our_z)
+		levels_by_z.len = our_z - 1
 	qdel(S)
 	world.maxz--

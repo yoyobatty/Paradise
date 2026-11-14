@@ -115,3 +115,29 @@ SUBSYSTEM_DEF(lighting)
 /datum/controller/subsystem/lighting/Recover()
 	initialized = SSlighting.initialized
 	..()
+
+/// Does everything queued right now instead of over the next ticks. For big batches, like levels built after startup, while firing is paused.
+/datum/controller/subsystem/lighting/proc/process_queues_now()
+	var/list/queue = sources_queue
+	while(length(queue))
+		var/datum/light_source/L = queue[length(queue)]
+		queue.len--
+		L.update_corners()
+		L.needs_update = LIGHTING_NO_UPDATE
+		CHECK_TICK
+	queue = corners_queue
+	while(length(queue))
+		var/datum/lighting_corner/C = queue[length(queue)]
+		queue.len--
+		C.needs_update = FALSE
+		C.update_objects()
+		CHECK_TICK
+	queue = objects_queue
+	while(length(queue))
+		var/datum/lighting_object/O = queue[length(queue)]
+		queue.len--
+		if(QDELETED(O))
+			continue
+		O.update()
+		O.needs_update = FALSE
+		CHECK_TICK
