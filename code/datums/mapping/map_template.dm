@@ -129,8 +129,7 @@
 			var/datum/map_template/T = new(path = "[path][map]", rename = "[map]")
 			GLOB.map_templates[T.name] = T
 
-	if(GLOB.configuration.ruins.enable_ruins) // so we don't unnecessarily clutter start-up
-		preloadRuinTemplates()
+	// Ruin templates are loaded by SSmapping.fill_zlevels(), which places them
 	preloadShelterTemplates()
 	preloadShuttleTemplates()
 	preloadBridgeTemplates()
@@ -149,11 +148,10 @@
 		// screen out the abstract subtypes
 		if(!initial(ruin_type.id))
 			continue
-		var/datum/map_template/ruin/R = new ruin_type()
-
-		// If not in the active list, skip it
-		if(!(R.mappath in all_ruins))
+		// If not in the active list, skip it. Checked before making it, since that reads the whole map file to measure it.
+		if(!((initial(ruin_type.prefix) + initial(ruin_type.suffix)) in all_ruins))
 			continue
+		var/datum/map_template/ruin/R = new ruin_type()
 
 		GLOB.map_templates[R.name] = R
 

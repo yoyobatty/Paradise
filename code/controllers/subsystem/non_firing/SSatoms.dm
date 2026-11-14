@@ -37,8 +37,13 @@ SUBSYSTEM_DEF(atoms)
 				CHECK_TICK
 	else
 		count = 0
+		// Levels filled after startup are still empty space, so their turfs get initialized when they're filled
+		var/list/filled_later = new /list(world.maxz)
+		for(var/z in 1 to world.maxz)
+			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
+			filled_later[z] = level?.filled_after_startup
 		for(var/atom/A in world)
-			if(!A.initialized)
+			if(!A.initialized && !(A.z && filled_later[A.z]))
 				InitAtom(A, mapload_arg)
 				++count
 				CHECK_TICK

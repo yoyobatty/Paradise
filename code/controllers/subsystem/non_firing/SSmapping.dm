@@ -235,6 +235,8 @@ SUBSYSTEM_DEF(mapping)
 /datum/controller/subsystem/mapping/proc/fill_zlevels()
 	building_zlevels = TRUE
 	var/watch = start_watch()
+	if(GLOB.configuration.ruins.enable_ruins)
+		preloadRuinTemplates()
 	var/list/filled_levels = levels_by_trait(ORE_LEVEL) | levels_by_trait(SPAWN_RUINS)
 	// Hold off initializing what gets placed until it's all in, the same as at startup
 	for(var/z in filled_levels)
@@ -242,6 +244,11 @@ SUBSYSTEM_DEF(mapping)
 		if(initialized)
 			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
 			level.lighting_deferred = TRUE
+			// SSatoms left the empty space here for us. Anything that gets changed is initialized again anyway, so just queue them up.
+			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
+				if(!T.initialized)
+					GLOB.space_manager.postpone_init(z, T)
+			CHECK_TICK
 
 	load_lavaland_zlevels()
 
