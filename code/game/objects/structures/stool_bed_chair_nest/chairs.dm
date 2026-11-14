@@ -41,11 +41,12 @@
 		if(!SK.status)
 			to_chat(user, SPAN_NOTICE("[SK] is not ready to be attached!"))
 			return ITEM_INTERACT_COMPLETE
-		user.drop_item()
+		if(!user.canUnEquip(SK))
+			return ITEM_INTERACT_COMPLETE
 		var/obj/structure/chair/e_chair/E = new /obj/structure/chair/e_chair(get_turf(src), SK)
+		user.transfer_item_to(SK, E)
 		playsound(src.loc, W.usesound, 50, 1)
 		E.dir = dir
-		SK.loc = E
 		SK.master = E
 		qdel(src)
 		return ITEM_INTERACT_COMPLETE

@@ -455,7 +455,7 @@
 			B.name = name
 		else if(used.name != "paper" && used.name != "photo")
 			B.name = used.name
-		user.drop_item_to_ground(used)
+		user.transfer_item_to(used, B)
 		if(ishuman(user))
 			var/mob/living/carbon/human/h_user = user
 			if(h_user.r_hand == src)
@@ -487,7 +487,6 @@
 				h_user.put_in_hands(B)
 		to_chat(user, SPAN_NOTICE("You clip [used] to [(src.name == "paper") ? "the paper" : src.name]."))
 		forceMove(B)
-		used.loc = B
 		B.amount++
 		B.update_icon()
 		return ITEM_INTERACT_COMPLETE

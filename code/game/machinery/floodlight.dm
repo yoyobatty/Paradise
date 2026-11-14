@@ -94,9 +94,9 @@
 			if(cell)
 				to_chat(user, SPAN_WARNING("There is a power cell already installed."))
 			else
+				if(!user.transfer_item_to(used, src))
+					return ITEM_INTERACT_COMPLETE
 				playsound(loc, used.usesound, 50, TRUE)
-				user.drop_item()
-				used.loc = src
 				cell = used
 				to_chat(user, SPAN_NOTICE("You insert the power cell."))
 

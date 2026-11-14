@@ -110,15 +110,13 @@
 
 /obj/item/restraints/handcuffs/proc/apply_cuffs(mob/living/carbon/target, mob/user, remove_src = TRUE)
 	if(!target.handcuffed)
-		if(remove_src)
-			user.drop_item()
 		if(trashtype)
 			target.handcuffed = new trashtype(target)
 			if(remove_src)
 				qdel(src)
 		else
 			if(remove_src)
-				loc = target
+				user.transfer_item_to(src, target, force = TRUE)
 				target.handcuffed =  src
 			else
 				target.handcuffed = new type(loc)

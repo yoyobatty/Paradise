@@ -911,7 +911,7 @@
 	if(!equipment.can_attach(src))
 		to_chat(user, SPAN_WARNING("You were unable to attach [equipment] to [src]!"))
 		return FALSE
-	if(!user.drop_item())
+	if(!user.transfer_item_to(equipment, src))
 		to_chat(user, SPAN_WARNING("[equipment] is stuck to your hand!"))
 		return FALSE
 	equipment.attach(src)
@@ -1331,7 +1331,7 @@
 		else if(mmi_as_oc.brainmob.stat)
 			to_chat(user, SPAN_WARNING("Beta-rhythm below acceptable level."))
 			return FALSE
-		if(!user.drop_item_to_ground(mmi_as_oc))
+		if(!user.transfer_item_to(mmi_as_oc, src))
 			to_chat(user, SPAN_WARNING("[mmi_as_oc] is stuck to your hand, you cannot put it in [src]!"))
 			return FALSE
 		var/mob/living/brain/brainmob = mmi_as_oc.brainmob
@@ -1342,9 +1342,7 @@
 			var/obj/item/mmi/robotic_brain/R = mmi_as_oc
 			if(R.imprinted_master)
 				to_chat(brainmob, SPAN_BIGGERDANGER("Your imprint to [R.imprinted_master] has been temporarily disabled. You should help the crew and not commit harm."))
-		mmi_as_oc.loc = src
 		mmi_as_oc.mecha = src
-		Entered(mmi_as_oc)
 		Move(loc)
 		icon_state = reset_icon()
 		dir = dir_in

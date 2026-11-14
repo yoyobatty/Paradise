@@ -388,9 +388,9 @@
 	//make a special case you might as well do it explicitly. -Sayu
 /obj/item/grenade/chem_grenade/large/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(istype(used, /obj/item/slime_extract) && stage == WIRED)
+		if(!user.transfer_item_to(used, src))
+			return ITEM_INTERACT_COMPLETE
 		to_chat(user, SPAN_NOTICE("You add [used] to the assembly."))
-		user.drop_item()
-		used.loc = src
 		beakers += used
 		return ITEM_INTERACT_COMPLETE
 

@@ -296,10 +296,9 @@ MAPPING_DIRECTIONAL_HELPERS_CUSTOM(/obj/structure/toilet, 8, -8, 0, 0)
 	if(w_items + I.w_class > WEIGHT_CLASS_HUGE)
 		to_chat(user, SPAN_WARNING("The cistern is full!"))
 		return
-	if(!user.drop_item())
+	if(!user.transfer_item_to(I, src))
 		to_chat(user, SPAN_WARNING("[I] is stuck to your hand, you cannot put it in the cistern!"))
 		return
-	I.loc = src
 	update_contents_weight_class()
 	user.visible_message(
 		SPAN_WARNING("[user] puts [I] into the cistern of [src]!"),

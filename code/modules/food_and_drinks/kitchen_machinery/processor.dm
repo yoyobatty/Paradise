@@ -225,14 +225,17 @@
 		to_chat(user, SPAN_WARNING("That probably won't blend."))
 		return ITEM_INTERACT_COMPLETE
 
+	if(what == used)
+		if(!user.transfer_item_to(what, src))
+			return ITEM_INTERACT_COMPLETE
+	else
+		user.drop_item() // the grab
+		what.forceMove(src)
+
 	user.visible_message(
 		SPAN_NOTICE("[user] puts [what] into [src]."),
 		SPAN_NOTICE("You put [what] into [src].")
 	)
-
-	user.drop_item()
-
-	what.loc = src
 	return ITEM_INTERACT_COMPLETE
 
 /obj/machinery/processor/attack_hand(mob/user)

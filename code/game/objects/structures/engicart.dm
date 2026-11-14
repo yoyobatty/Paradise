@@ -37,11 +37,10 @@
 	return ..()
 
 /obj/structure/engineeringcart/proc/put_in_cart(obj/item/used, mob/user)
-	if(!user.drop_item())
+	if(!user.transfer_item_to(used, src))
 		to_chat(user, SPAN_WARNING("[used] is stuck to your hand!"))
 		return FALSE
 
-	used.loc = src
 	to_chat(user, SPAN_NOTICE("You put [used] into [src]."))
 	return TRUE
 

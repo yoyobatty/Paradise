@@ -443,13 +443,13 @@
 			SPAN_WARNING("There aren't any ports on [target] that match the jack belonging to [src].")
 		)
 		return
+	if(!user.transfer_item_to(src, target))
+		return
 	user.visible_message(
 		SPAN_WARNING("[user] inserts [src] into a data port on [target]!"),
 		SPAN_NOTICE("You insert [src] into a data port on [target]."),
 		SPAN_HEAR("You hear the satisfying click of a wire jack fastening into place.")
 	)
-	user.drop_item()
-	src.loc = target
 	src.machine = target
 
 /obj/item/pai_cable/interact_with_atom(obj/machinery/target, mob/living/user, list/modifiers)

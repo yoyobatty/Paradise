@@ -122,14 +122,12 @@
 /obj/machinery/atmospherics/portable/item_interaction(mob/living/user, obj/item/used, list/modifiers)
 	if(istype(used, /obj/item/tank))
 		if(!(stat & BROKEN))
-			if(!user.drop_item())
-				return ITEM_INTERACT_COMPLETE
 			var/obj/item/tank/T = used
-			user.drop_item()
+			if(!user.transfer_item_to(T, src))
+				return ITEM_INTERACT_COMPLETE
 			if(holding_tank)
 				to_chat(user, SPAN_NOTICE("[holding_tank ? "In one smooth motion you pop [holding_tank] out of [src]'s connector and replace it with [T]" : "You insert [T] into [src]"]."))
 				replace_tank(user, FALSE)
-			T.loc = src
 			holding_tank = T
 			update_icon()
 		return ITEM_INTERACT_COMPLETE

@@ -166,12 +166,13 @@
 	setme.desc = "[name.desc] It has been [thiscooktype]."
 
 /obj/machinery/cooker/proc/putIn(obj/item/tocook, mob/chef)
+	if(!chef.transfer_item_to(tocook, src))
+		return FALSE
 	icon_state = onicon
 	to_chat(chef, SPAN_NOTICE("You put [tocook] into [src]."))
 	soundloop.start()
 	on = TRUE
-	chef.drop_item()
-	tocook.loc = src
+	return TRUE
 
 // Override this with the correct snack type
 /obj/machinery/cooker/proc/gettype()
@@ -200,7 +201,8 @@
 			if(checkCooked(used))
 				to_chat(user, SPAN_WARNING("That is already [thiscooktype], it would do nothing!"))
 				return ITEM_INTERACT_COMPLETE
-	putIn(used, user)
+	if(!putIn(used, user))
+		return ITEM_INTERACT_COMPLETE
 	for(var/mob/living/L in used.contents) //Emagged cookers - Any mob put in will not survive the trip
 		if(L.stat != DEAD)
 			if(ispAI(L)) //Snowflake check because pAIs are weird
