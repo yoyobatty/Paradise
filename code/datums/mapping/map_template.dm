@@ -19,11 +19,57 @@
 		name = rename
 
 /datum/map_template/proc/preload_size(path)
+	// Measuring reads the whole map, so the sizes of maps on disk are kept between rounds, keyed by their contents
+	var/cache_key = istext(path) && map_size_cache_key(path)
+	if(cache_key)
+		var/list/cached = get_map_size_cache()[path]
+		if(length(cached) == 3 && cached[1] == cache_key)
+			width = cached[2]
+			height = cached[3]
+			return list(1, 1, 1, width, height, 1)
 	var/bounds = GLOB.maploader.load_map(file(path), 1, 1, 1, shouldCropMap = FALSE, measureOnly = TRUE)
 	if(bounds)
 		width = bounds[MAP_MAXX] // Assumes all templates are rectangular, have a single Z level, and begin at 1,1,1
 		height = bounds[MAP_MAXY]
+		if(cache_key)
+			get_map_size_cache()[path] = list(cache_key, width, height)
+			GLOB.map_size_cache_changed = TRUE
 	return bounds
+
+#define MAP_SIZE_CACHE_FILE "data/map_template_sizes.json"
+
+/// "map path" = list(map_size_cache_key(), width, height), see /datum/map_template/proc/preload_size()
+GLOBAL_LIST(map_size_cache)
+/// Whether map_size_cache has sizes that aren't saved yet
+GLOBAL_VAR_INIT(map_size_cache_changed, FALSE)
+
+/proc/get_map_size_cache()
+	RETURN_TYPE(/list)
+	if(isnull(GLOB.map_size_cache))
+		GLOB.map_size_cache = list()
+		if(fexists(MAP_SIZE_CACHE_FILE))
+			var/list/saved = json_decode(file2text(MAP_SIZE_CACHE_FILE))
+			if(islist(saved))
+				GLOB.map_size_cache = saved
+	return GLOB.map_size_cache
+
+/// What a map's size is cached under. Changes when the map or its mapmanip config does.
+/proc/map_size_cache_key(path)
+	if(!fexists(path))
+		return null
+	. = md5(file(path))
+	var/config_path = "[copytext(path, 1, -4)].jsonc"
+	if(fexists(config_path))
+		. += md5(file(config_path))
+
+/proc/save_map_size_cache()
+	if(!GLOB.map_size_cache_changed)
+		return
+	GLOB.map_size_cache_changed = FALSE
+	fdel(MAP_SIZE_CACHE_FILE)
+	text2file(json_encode(GLOB.map_size_cache), MAP_SIZE_CACHE_FILE)
+
+#undef MAP_SIZE_CACHE_FILE
 
 /datum/map_template/proc/load(turf/T, centered = 0)
 	var/turf/placement = T
@@ -136,6 +182,7 @@
 	preloadEventTemplates()
 	preloadLazyTemplates()
 	preloadDiorama()
+	save_map_size_cache()
 
 /proc/preloadRuinTemplates()
 	// Merge the active lists together
@@ -159,6 +206,7 @@
 			GLOB.lava_ruins_templates[R.name] = R
 		if(istype(R, /datum/map_template/ruin/space))
 			GLOB.space_ruins_templates[R.name] = R
+	save_map_size_cache()
 
 /proc/preloadShelterTemplates()
 	for(var/item in subtypesof(/datum/map_template/shelter))
