@@ -172,9 +172,7 @@
 	equip(M)
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
-		if(H.icon_updates_held)
-			H.icon_updates_held = FALSE
-			H.regenerate_icons()
+		H.release_icon_updates()
 
 	if(ckey)
 		M.ckey = ckey
@@ -310,8 +308,10 @@
 		H.get_dna_scrambled()
 
 	H.update_dna() // saves everything we've set above
-	H.icon_updates_held = FALSE // So the ID photo below gets the finished body
-	H.regenerate_icons()
+	if(H.icon_updates_held)
+		H.release_icon_updates() // So the outfit and ID photo below get the finished body
+	else
+		H.regenerate_icons()
 
 	if(outfit)
 		var/static/list/slots = list("uniform", "r_hand", "l_hand", "suit", "shoes", "gloves", "ears", "glasses", "mask", "head", "belt", "r_pocket", "l_pocket", "back", "id", "neck", "backpack_contents", "suit_store")

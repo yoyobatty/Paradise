@@ -435,6 +435,8 @@ GLOBAL_LIST_EMPTY(damage_icon_parts)
 //HANDS OVERLAY
 //Exists to stop the need to cut holes in jumpsuit sprites
 /mob/living/carbon/human/proc/update_hands_layer()
+	if(icon_updates_held) // Built from the body, which isn't drawn yet. regenerate_icons() does this when the hold ends.
+		return
 	remove_overlay(HANDS_LAYER)
 
 	if(w_uniform?.body_parts_covered & HANDS)
@@ -576,6 +578,16 @@ GLOBAL_LIST_EMPTY(damage_icon_parts)
 
 /* --------------------------------------- */
 //For legacy support.
+/// Ends icon_updates_held and draws what was skipped while it was on
+/mob/living/carbon/human/proc/release_icon_updates()
+	if(!icon_updates_held)
+		return
+	icon_updates_held = FALSE
+	if(notransform) // regenerate_icons() won't draw, but the body and what's built from it still have to be there
+		update_body(TRUE)
+	else
+		regenerate_icons()
+
 /mob/living/carbon/human/regenerate_icons()
 	if(icon_updates_held)
 		return
