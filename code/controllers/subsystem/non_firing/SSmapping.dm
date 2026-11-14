@@ -686,4 +686,14 @@ SUBSYSTEM_DEF(mapping)
 /datum/milla_safe/setup_level_air
 
 /datum/milla_safe/setup_level_air/on_run(z)
-	SSair.setup_turfs(locate(1, 1, z), locate(world.maxx, world.maxy, z))
+	// Empty space is what MILLA starts every tile as, so only load the stretches of each row that have something in them
+	for(var/y in 1 to world.maxy)
+		var/run_start = 0
+		for(var/x in 1 to world.maxx + 1)
+			var/turf/T = x <= world.maxx ? locate(x, y, z) : null
+			var/empty_space = isnull(T) || (isspaceturf(T) && !length(T.contents) && T.atmos_mode == ATMOS_MODE_SPACE)
+			if(!empty_space && !run_start)
+				run_start = x
+			else if(empty_space && run_start)
+				SSair.setup_turfs(locate(run_start, y, z), locate(x - 1, y, z))
+				run_start = 0
