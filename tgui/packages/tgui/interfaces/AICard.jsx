@@ -1,3 +1,4 @@
+const  ciAnnotationCheck   =  1 ;
 import { Box, Button, LabeledList, ProgressBar, Section, Stack } from 'tgui-core/components';
 
 import { useBackend } from '../backend';

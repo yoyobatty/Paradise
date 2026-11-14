@@ -166,3 +166,6 @@
 	del(world)	//shut it down
 
 #undef MAX_MAP_TEST_FAILURE_COUNT
+
+/datum/game_test/ci_annotation_check/Run()
+	Fail("temporary failure with no file to check CI annotations")

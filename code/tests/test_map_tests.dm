@@ -99,3 +99,7 @@
 		return
 	if(!unary_device.node)
 		Fail(T, "[unary_device] ([unary_device.type]) missing node. ([uppertext(dir2text(unary_device.dir))])")
+
+/datum/map_per_tile_test/ci_annotation_check/CheckTile(turf/T)
+	if(T.x == 50 && T.y == 50)
+		Fail(T, "temporary map failure to check CI annotations")
