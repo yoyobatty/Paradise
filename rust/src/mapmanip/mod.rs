@@ -24,6 +24,7 @@ use tools::insert_submap;
 use crate::logging::setup_panic_handler;
 
 mod core;
+mod dm_split;
 mod procgen;
 mod tools;
 
@@ -462,6 +463,73 @@ fn mapmanip_read_dmm_file(path: ByondValue) -> eyre::Result<ByondValue> {
 pub(crate) fn internal_mapmanip_read_dmm_file(path: ByondValue) -> eyre::Result<ByondValue> {
     setup_panic_handler();
 
+    let Some((path, dmm)) = read_dmm_with_mapmanip(path)? else {
+        return Ok(ByondValue::null());
+    };
+
+    // convert the map back to a string
+    let dmm = crate::mapmanip::core::map_to_string(&dmm).wrap_err(format!(
+        "error in converting map back to string; dmm file path: {path:?}"
+    ))?;
+
+    // and return it
+    Ok(ByondValue::new_str(dmm)?)
+}
+
+/// Same as `mapmanip_read_dmm_file()`, but also splits every tile definition into its atoms and their vars, the way
+/// the DM map loader would. Returns `list(map text, list("key" = list(path, vars, path, vars, ...)))`, where `vars` is
+/// null for an atom with no `{...}` block, or a flat list of name (null for a plain value) and value text pairs.
+#[byondapi::bind]
+fn mapmanip_read_dmm_file_split(path: ByondValue) -> eyre::Result<ByondValue> {
+    setup_panic_handler();
+
+    let Some((path, dmm)) = read_dmm_with_mapmanip(path)? else {
+        return Ok(ByondValue::null());
+    };
+
+    // Lists are filled with write_list(), since push_list() adds a list's items like DM's += does, instead of the list itself
+    let mut models = ByondValue::new_list()?;
+    for (&key, prefabs) in dmm.dictionary.iter() {
+        let mut members = vec![];
+        for member in dm_split::split_model(&dm_split::model_text(prefabs)) {
+            members.push(ByondValue::new_str(member.path)?);
+            match member.vars {
+                None => members.push(ByondValue::null()),
+                Some(vars) => {
+                    let mut var_values = Vec::with_capacity(vars.len() * 2);
+                    for var in vars {
+                        var_values.push(match var.name {
+                            Some(name) => ByondValue::new_str(name)?,
+                            None => ByondValue::null(),
+                        });
+                        var_values.push(ByondValue::new_str(var.value)?);
+                    }
+                    let var_list = ByondValue::new_list()?;
+                    var_list.write_list(&var_values)?;
+                    members.push(var_list);
+                }
+            }
+        }
+        let member_list = ByondValue::new_list()?;
+        member_list.write_list(&members)?;
+        models.write_list_index(
+            ByondValue::new_str(dmm.format_key(key).to_string())?,
+            member_list,
+        )?;
+    }
+
+    let text = crate::mapmanip::core::map_to_string(&dmm).wrap_err(format!(
+        "error in converting map back to string; dmm file path: {path:?}"
+    ))?;
+    let result = ByondValue::new_list()?;
+    result.write_list(&[ByondValue::new_str(text)?, models])?;
+    Ok(result)
+}
+
+/// Reads a dmm file and does its mapmanip, if it has a config. Returns None if the path isn't a file.
+fn read_dmm_with_mapmanip(
+    path: ByondValue,
+) -> eyre::Result<Option<(std::path::PathBuf, dmmtools::dmm::Map)>> {
     let path: std::path::PathBuf = path
         .get_string()
         .wrap_err(format!("path arg is not a string: {:?}", path))?
@@ -469,7 +537,7 @@ pub(crate) fn internal_mapmanip_read_dmm_file(path: ByondValue) -> eyre::Result<
 
     // just return null if path is bad for whatever reason
     if !path.is_file() || !path.exists() {
-        return Ok(ByondValue::null());
+        return Ok(None);
     }
 
     // read file and parse with spacemandmm
@@ -495,13 +563,7 @@ pub(crate) fn internal_mapmanip_read_dmm_file(path: ByondValue) -> eyre::Result<
             .wrap_err(format!("mapmanip fail; dmm file path: {path:?}"))?;
     }
 
-    // convert the map back to a string
-    let dmm = crate::mapmanip::core::map_to_string(&dmm).wrap_err(format!(
-        "error in converting map back to string; dmm file path: {path:?}"
-    ))?;
-
-    // and return it
-    Ok(ByondValue::new_str(dmm)?)
+    Ok(Some((path, dmm)))
 }
 
 /// To be used by the `tools/rustlib_tools/mapmanip.ps1` script.

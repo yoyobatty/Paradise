@@ -27,6 +27,8 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
  */
 /datum/dmm_suite/proc/load_map(dmm_file, x_offset = 0, y_offset = 0, z_offset = 0, shouldCropMap = FALSE, measureOnly = FALSE)
 	var/map_data
+	/// "key" = each tile definition already split into atoms and vars by the Rust code, so parse_grid() doesn't have to
+	var/list/split_models
 	var/fname = "Lambda"
 	if(isfile(dmm_file))
 		fname = "[dmm_file]"
@@ -39,7 +41,17 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
 		// use rustlib to read, parse, process, mapmanip etc
 		// this will "crash"/stacktrace on fail
 		// is not passed `dmm_file` because byondapi-rs doesn't support resource types yet
-		map_data = mapmanip_read_dmm(fname)
+		var/list/split
+		try
+			split = mapmanip_read_dmm_split(fname)
+		catch
+			// A library built before this existed. Just read the text, and parse_grid() splits it.
+			split = mapmanip_read_dmm(fname)
+		if(islist(split))
+			map_data = split[1]
+			split_models = split[2]
+		else
+			map_data = split
 		// if rustlib for whatever reason fails and returns null
 		// try to load it the old dm way instead
 		if(!map_data)
@@ -149,7 +161,7 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
 									var/model_key = copytext(line, tpos, tpos + key_len)
 									if(!grid_models[model_key])
 										throw EXCEPTION("Undefined model key in DMM: [model_key]. Map file: [fname].")
-									parse_grid(grid_models[model_key], xcrd, ycrd, zcrd, LM)
+									parse_grid(grid_models[model_key], xcrd, ycrd, zcrd, LM, split_models?[model_key])
 									// After this call, it is NOT safe to reference `dmmRegex` without another call to
 									// "Find" - we might've hit a map loader here and changed its state
 									CHECK_TICK
@@ -197,7 +209,7 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
  * 4) Instanciates the atom with its variables
  *
  */
-/datum/dmm_suite/proc/parse_grid(model = "", xcrd = 0, ycrd = 0, zcrd = 0, datum/dmm_suite/loaded_map/LM)
+/datum/dmm_suite/proc/parse_grid(model = "", xcrd = 0, ycrd = 0, zcrd = 0, datum/dmm_suite/loaded_map/LM, list/split_model)
 	/*Method parse_grid()
 	- Accepts a text string containing a comma separated list of type paths of the
 		same construction as those contained in a .dmm file, and instantiates them.
@@ -223,39 +235,68 @@ GLOBAL_DATUM_INIT(_preloader, /datum/dmm_suite/preloader, new())
 		var/old_position = 1
 		var/dpos
 
-		do
-			// finding next member (e.g /turf/simulated/wall{icon_state = "rock"} or /area/mine/dangerous/explored)
-			dpos = find_next_delimiter_position(model, old_position, ",", "{", "}") // find next delimiter (comma here) that's not within {...}
-
-			var/full_def = trim_text(copytext(model, old_position, dpos)) // full definition, e.g : /obj/foo/bar{variables=derp}
-			var/variables_start = findtext(full_def, "{")
-			var/atom_text = trim_text(copytext(full_def, 1, variables_start))
-			var/atom_def = text2path(atom_text) // path definition, e.g /obj/foo/bar
-			old_position = dpos + 1
-
-			if(!atom_def) // Skip the item if the path does not exist.  Fix your crap, mappers!
-				stack_trace("Bad path: [atom_text] | Source String: [model] | dpos: [dpos]")
+		// Rust already split this the same way the loop below does, so just turn the text into paths and values
+		for(var/i in 1 to length(split_model) step 2)
+			var/atom_text = split_model[i]
+			var/atom_def = text2path(atom_text)
+			if(!atom_def)
+				stack_trace("Bad path: [atom_text] | Source String: [model]")
 				continue
 			members.Add(atom_def)
 
-			// transform the variables in text format into a list (e.g {var1="derp"; var2; var3=7} => list(var1="derp", var2, var3=7))
 			var/list/fields = list()
-
-			if(variables_start) // if there's any variable
-				full_def = copytext(full_def, variables_start + 1, length(full_def)) // removing the last '}'
-				fields = readlist(full_def, ";")
+			var/list/split_vars = split_model[i + 1]
+			if(split_vars)
+				for(var/j in 1 to length(split_vars) step 2)
+					var/var_name = split_vars[j]
+					if(isnull(var_name))
+						fields += parse_value(split_vars[j + 1])
+					else
+						fields[var_name] = parse_value(split_vars[j + 1])
 
 				for(var/I in fields)
 					var/value = fields[I]
 					if(istext(value))
 						fields[I] = apply_text_macros(value)
 
-			// then fill the members_attributes list with the corresponding variables
 			members_attributes.len++
 			members_attributes[index++] = fields
-
 			CHECK_TICK
-		while(dpos != 0)
+
+		if(!split_model)
+			do
+				// finding next member (e.g /turf/simulated/wall{icon_state = "rock"} or /area/mine/dangerous/explored)
+				dpos = find_next_delimiter_position(model, old_position, ",", "{", "}") // find next delimiter (comma here) that's not within {...}
+
+				var/full_def = trim_text(copytext(model, old_position, dpos)) // full definition, e.g : /obj/foo/bar{variables=derp}
+				var/variables_start = findtext(full_def, "{")
+				var/atom_text = trim_text(copytext(full_def, 1, variables_start))
+				var/atom_def = text2path(atom_text) // path definition, e.g /obj/foo/bar
+				old_position = dpos + 1
+
+				if(!atom_def) // Skip the item if the path does not exist.  Fix your crap, mappers!
+					stack_trace("Bad path: [atom_text] | Source String: [model] | dpos: [dpos]")
+					continue
+				members.Add(atom_def)
+
+				// transform the variables in text format into a list (e.g {var1="derp"; var2; var3=7} => list(var1="derp", var2, var3=7))
+				var/list/fields = list()
+
+				if(variables_start) // if there's any variable
+					full_def = copytext(full_def, variables_start + 1, length(full_def)) // removing the last '}'
+					fields = readlist(full_def, ";")
+
+					for(var/I in fields)
+						var/value = fields[I]
+						if(istext(value))
+							fields[I] = apply_text_macros(value)
+
+				// then fill the members_attributes list with the corresponding variables
+				members_attributes.len++
+				members_attributes[index++] = fields
+
+				CHECK_TICK
+			while(dpos != 0)
 
 		modelCache[model] = list(members, members_attributes)
 

@@ -146,6 +146,11 @@
 /proc/mapmanip_read_dmm(mapname)
 	return RUSTLIB_CALL(mapmanip_read_dmm_file, mapname)
 
+/// Same as mapmanip_read_dmm(), but also splits each tile definition the way /datum/dmm_suite/proc/parse_grid() would.
+/// Returns list(map text, list("key" = list(path text, var list, ...))), see mapmanip_read_dmm_file_split() in the Rust code.
+/proc/mapmanip_read_dmm_split(mapname)
+	return RUSTLIB_CALL(mapmanip_read_dmm_file_split, mapname)
+
 // MARK: MFA
 
 /proc/rustlibs_mfa_generate_secret()
