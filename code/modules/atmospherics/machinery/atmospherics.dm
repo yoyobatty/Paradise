@@ -309,7 +309,9 @@ Pipelines + Other Objects -> Pipe network
 		level = 2
 	update_icon(UPDATE_ICON_STATE)
 	add_fingerprint(usr)
-	if(!SSair.initialized) //If there's no atmos subsystem, we can't really initialize pipenets
+	var/datum/space_level/our_z = GLOB.space_manager.z_list["[z]"]
+	// If there's no atmos subsystem, or our z-level is still loading, we can't really initialize pipenets yet
+	if(!SSair.initialized || our_z?.dirt_count || our_z?.resuming_init)
 		SSair.machinery_to_construct.Add(src)
 		return
 	initialize_atmos_network()

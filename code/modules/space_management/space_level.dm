@@ -26,6 +26,8 @@
 	// Init deferral stuff
 	var/dirt_count = 0
 	var/list/init_list = list()
+	/// TRUE while resume_init() is initializing what got loaded here
+	var/resuming_init = FALSE
 
 	/// This is a list of ruins on the space_level. Used to prevent certain ruins from spawning on the same level as other ruins.
 	var/list/our_ruin_list = list()
@@ -172,12 +174,32 @@ GLOBAL_LIST_INIT(cable_typecache, typecacheof(/obj/structure/cable))
 	var/list/our_atoms = init_list // OURS NOW!!! (Keeping this list to ourselves will prevent hijack)
 	init_list = list()
 	listclearnulls(our_atoms)
+	resuming_init = TRUE
 	var/list/pipes = typecache_filter_list(our_atoms, GLOB.atmos_machine_typecache)
 	var/list/cables = typecache_filter_list(our_atoms, GLOB.cable_typecache)
-	SSatoms.InitializeAtoms(our_atoms, FALSE)
+	// Turfs go after what's on them, the same order as at startup
+	var/list/movables = list()
+	var/list/turfs = list()
+	for(var/atom/A as anything in our_atoms)
+		if(isturf(A))
+			turfs += A
+		else
+			movables += A
+	SSatoms.InitializeAtoms(movables, FALSE)
+	SSatoms.InitializeAtoms(turfs, FALSE)
 	our_atoms.Cut()
+	resuming_init = FALSE
+	// Pipes built while this was loading (like by airlock spawners) join up once the rest are in, the same as at startup
+	var/list/constructed = list()
+	for(var/obj/machinery/atmospherics/A as anything in SSair.machinery_to_construct)
+		if(A.z == zpos)
+			constructed += A
+	SSair.machinery_to_construct -= constructed
+	pipes |= constructed
 	if(length(pipes))
 		do_pipes(pipes)
+	for(var/obj/machinery/atmospherics/A as anything in constructed)
+		A.initialize_atmos_network()
 	if(length(cables))
 		do_cables(cables)
 
