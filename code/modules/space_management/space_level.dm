@@ -28,6 +28,8 @@
 	var/list/init_list = list()
 	/// TRUE while resume_init() is initializing what got loaded here
 	var/resuming_init = FALSE
+	/// TRUE while this level is built after startup. Turf changes skip lighting, and it gets lit all at once when done, the same as at startup.
+	var/lighting_deferred = FALSE
 
 	/// This is a list of ruins on the space_level. Used to prevent certain ruins from spawning on the same level as other ruins.
 	var/list/our_ruin_list = list()

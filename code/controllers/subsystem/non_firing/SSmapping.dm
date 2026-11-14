@@ -235,6 +235,9 @@ SUBSYSTEM_DEF(mapping)
 	// Hold off initializing what gets placed until it's all in, the same as at startup
 	for(var/z in filled_levels)
 		GLOB.space_manager.add_dirt(z)
+		if(initialized)
+			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
+			level.lighting_deferred = TRUE
 
 	load_lavaland_zlevels()
 
@@ -248,6 +251,17 @@ SUBSYSTEM_DEF(mapping)
 	// Perform procedural generation for lavaland rivers and caves, which
 	// happens after ruin placement.
 	procgen_lavaland()
+
+	if(initialized)
+		// Light the finished levels, like create_all_lighting_objects() does at startup
+		for(var/z in filled_levels)
+			var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
+			level.lighting_deferred = FALSE
+			for(var/turf/T as anything in block(1, 1, z, world.maxx, world.maxy, z))
+				var/area/A = T.loc
+				if(!T.lighting_object && IS_DYNAMIC_LIGHTING(T) && IS_DYNAMIC_LIGHTING(A))
+					new /datum/lighting_object(T)
+				CHECK_TICK
 
 	for(var/z in filled_levels)
 		GLOB.space_manager.remove_dirt(z)

@@ -376,7 +376,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	lighting_corner_SW = old_lighting_corner_SW
 	lighting_corner_NW = old_lighting_corner_NW
 
-	if(SSlighting.initialized)
+	var/datum/space_level/our_level = GLOB.space_manager.z_list["[z]"]
+	if(SSlighting.initialized && !our_level?.lighting_deferred)
 		W.lighting_object = old_lighting_object
 		directional_opacity = old_directional_opacity
 		recalculate_directional_opacity()
