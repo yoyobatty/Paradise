@@ -137,7 +137,12 @@ SUBSYSTEM_DEF(mapping)
 #endif
 
 	// Makes a blank space level for the sake of randomness
-	GLOB.space_manager.add_new_zlevel("Empty Area", linkage = CROSSLINKED, traits = empty_z_traits)
+	var/empty_z = GLOB.space_manager.add_new_zlevel("Empty Area", linkage = CROSSLINKED, traits = empty_z_traits)
+#ifndef GAME_TESTS
+	// Nothing goes here, so its space can wait for the lobby too
+	var/datum/space_level/empty_level = GLOB.space_manager.get_zlev(empty_z)
+	empty_level.filled_after_startup = TRUE
+#endif
 	// Add a reserved z-level for shuttle transit
 	add_reservation_zlevel(required_traits = list(TCOMM_RELAY_ALWAYS))
 
@@ -238,6 +243,10 @@ SUBSYSTEM_DEF(mapping)
 	if(GLOB.configuration.ruins.enable_ruins)
 		preloadRuinTemplates()
 	var/list/filled_levels = levels_by_trait(ORE_LEVEL) | levels_by_trait(SPAWN_RUINS)
+	for(var/z in 1 to world.maxz)
+		var/datum/space_level/level = GLOB.space_manager.get_zlev(z)
+		if(level?.filled_after_startup)
+			filled_levels |= z
 	// Hold off initializing what gets placed until it's all in, the same as at startup
 	for(var/z in filled_levels)
 		GLOB.space_manager.add_dirt(z)
