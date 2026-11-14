@@ -20,9 +20,8 @@
 
 // Defines for the ssgarbage queue items
 #define GC_QUEUE_ITEM_QUEUE_TIME 1 //! Time this item entered the queue
-#define GC_QUEUE_ITEM_REF 2 //! Ref to the item
-#define GC_QUEUE_ITEM_GCD_DESTROYED 3 //! Item's gc_destroyed var value. Used to detect ref reuse.
-#define GC_QUEUE_ITEM_INDEX_COUNT 3 //! Number of item indexes, used for allocating the nested lists. Don't forget to increase this if you add a new queue item index
+#define GC_QUEUE_ITEM_REF 2 //! The item
+#define GC_QUEUE_ITEM_INDEX_COUNT 2 //! Number of item indexes, used for allocating the nested lists. Don't forget to increase this if you add a new queue item index
 
 // Defines for the time an item has to get its reference cleaned before it fails the queue and moves to the next.
 #define GC_FILTER_QUEUE (1 SECONDS)

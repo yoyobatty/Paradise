@@ -126,7 +126,8 @@ SUBSYSTEM_DEF(garbage)
 			pass_counts[i] = 0
 			fail_counts[i] = 0
 
-#define IS_DELETED(datum, gcd_at_time) (isnull(##datum) || ##datum.gc_destroyed != gcd_at_time)
+// The queue entry and the var in HandleQueue(). If nothing else holds it, it's gone once we let go.
+#define REFS_WE_EXPECT 2
 
 /datum/controller/subsystem/garbage/proc/HandleQueue(level = GC_QUEUE_FILTER)
 	if(level == GC_QUEUE_FILTER)
@@ -159,13 +160,9 @@ SUBSYSTEM_DEF(garbage)
 			break // Everything else is newer, skip them
 		count++
 
-		var/GCd_at_time = L[GC_QUEUE_ITEM_GCD_DESTROYED]
+		var/datum/D = L[GC_QUEUE_ITEM_REF]
 
-		var/refID = L[GC_QUEUE_ITEM_REF]
-		var/datum/D
-		D = locate(refID)
-
-		if(IS_DELETED(D, GCd_at_time)) // So if something else coincidently gets the same ref, it's not deleted by mistake
+		if(isnull(D) || refcount(D) == REFS_WE_EXPECT)
 			++gcedlasttick
 			++totalgcs
 			pass_counts[level]++
@@ -221,7 +218,7 @@ SUBSYSTEM_DEF(garbage)
 		queue.Cut(1, count + 1)
 		count = 0
 
-#undef IS_DELETED
+#undef REFS_WE_EXPECT
 
 /datum/controller/subsystem/garbage/proc/Queue(datum/D, level = GC_QUEUE_FILTER)
 	if(isnull(D))
@@ -231,7 +228,6 @@ SUBSYSTEM_DEF(garbage)
 		return
 	var/queue_time = world.time
 
-	var/refid = text_ref(D)
 	var/static/uid = 0
 	if(D.gc_destroyed <= 0)
 		uid = WRAP(uid + 1, 1, SHORT_REAL_LIMIT - 1)
@@ -239,7 +235,8 @@ SUBSYSTEM_DEF(garbage)
 
 	var/list/queue = queues[level]
 
-	queue[++queue.len] = list(queue_time, refid, D.gc_destroyed) // not += for byond reasons
+	// Holds the datum itself, not its ref text. BYOND is slow to store lots of ref text, so a qdel cost ~60 us at startup.
+	queue[++queue.len] = list(queue_time, D) // not += for byond reasons
 
 //this is mainly to separate things profile wise.
 /datum/controller/subsystem/garbage/proc/HardDelete(datum/D)

@@ -551,7 +551,7 @@ USER_VERB(show_gc_queues, R_DEBUG|R_VIEWRUNTIMES, "View GC Queue", \
 
 	// Iterate that target and see whats what
 	for(var/queue_entry in target_queue)
-		var/datum/D = locate(queue_entry[GC_QUEUE_ITEM_REF])
+		var/datum/D = queue_entry[GC_QUEUE_ITEM_REF]
 		if(!istype(D))
 			continue
 
