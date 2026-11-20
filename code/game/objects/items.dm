@@ -717,7 +717,7 @@ GLOBAL_DATUM_INIT(welding_sparks, /mutable_appearance, mutable_appearance('icons
 /obj/item/singularity_pull(S, current_size)
 	..()
 	if(current_size >= STAGE_FOUR)
-		throw_at(S, 14, 3, spin = 0)
+		throw_at(S, 14, 3, spin = TRUE)
 	else
 		return
 
