@@ -5,7 +5,7 @@ use eyre::{eyre, Result};
 use mysql::{
     consts::{ColumnFlags, ColumnType::*},
     prelude::Queryable,
-    OptsBuilder, Params, Pool, PoolConstraints, PoolOpts, Value,
+    Column, OptsBuilder, Params, Pool, PoolConstraints, PoolOpts, Value,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -54,15 +54,15 @@ struct LocalResponse {
 #[byondapi::bind]
 fn sql_connect_pool(options_p: ByondValue) -> Result<ByondValue> {
     let options: ConnectOptions = ConnectOptions {
-        host: options_p.read_string("host").unwrap(),
-        port: options_p.read_number("port").unwrap() as u16,
-        user: options_p.read_string("user").unwrap(),
-        pass: options_p.read_string("pass").unwrap(),
-        db_name: options_p.read_string("db_name").unwrap(),
-        read_timeout: options_p.read_number("read_timeout").unwrap(),
-        write_timeout: options_p.read_number("write_timeout").unwrap(),
-        min_threads: options_p.read_number("min_threads").unwrap() as usize,
-        max_threads: options_p.read_number("max_threads").unwrap() as usize,
+        host: options_p.read_string("host")?,
+        port: options_p.read_number("port")? as u16,
+        user: options_p.read_string("user")?,
+        pass: options_p.read_string("pass")?,
+        db_name: options_p.read_string("db_name")?,
+        read_timeout: options_p.read_number("read_timeout")?,
+        write_timeout: options_p.read_number("write_timeout")?,
+        min_threads: options_p.read_number("min_threads")? as usize,
+        max_threads: options_p.read_number("max_threads")? as usize,
     };
 
     let target_type = ByondValue::new_str("/datum/db_connection_response")?;
@@ -89,31 +89,14 @@ fn sql_connect_pool(options_p: ByondValue) -> Result<ByondValue> {
 
 #[byondapi::bind]
 fn sql_query_blocking(mut options_p: ByondValue) -> Result<ByondValue> {
-    // Sort our params now
-    let mut local_params: Params = Params::Empty;
+    let lq = read_local_query(&options_p)?;
 
-    match options_p.read_list("arguments") {
-        Ok(v) => local_params = byondlist_to_params(v), // Create params from a BYOND list,
-        Err(_) => {}
-    }
-
-    let lq: LocalQuery = LocalQuery {
-        query: options_p.read_string("sql").unwrap(),
-        connection: options_p.read_string("connection").unwrap(),
-        params: local_params,
-    };
-
+    // No need to go through JSON here, that's only for the jobs system
     match do_query(lq) {
-        Ok(o) => {
-            let query_response: LocalResponse = serde_json::from_str(&o).unwrap();
-
-            query_data_to_byond(query_response, options_p)
-        }
+        Ok(query_response) => query_data_to_byond(query_response, options_p),
         Err(e) => {
             // Write error back to BYOND
-            options_p
-                .write_var("last_error", &ByondValue::new_str(unwrap_box(e)).unwrap())
-                .unwrap()
+            options_p.write_var("last_error", &ByondValue::new_str(unwrap_box(e))?)?
         }
     };
 
@@ -122,21 +105,10 @@ fn sql_query_blocking(mut options_p: ByondValue) -> Result<ByondValue> {
 
 #[byondapi::bind]
 fn sql_query_async(mut options_p: ByondValue) -> Result<ByondValue> {
-    let mut local_params: Params = Params::Empty;
-
-    match options_p.read_list("arguments") {
-        Ok(v) => local_params = byondlist_to_params(v), // Create params from a BYOND list,
-        Err(_) => {}
-    }
-
-    let lq: LocalQuery = LocalQuery {
-        query: options_p.read_string("sql").unwrap(),
-        connection: options_p.read_string("connection").unwrap(),
-        params: local_params,
-    };
+    let lq = read_local_query(&options_p)?;
 
     let job_id = jobs::start(move || match do_query(lq) {
-        Ok(o) => o,
+        Ok(o) => serde_json::to_string(&o).unwrap(),
         Err(e) => unwrap_box(e),
     });
 
@@ -281,19 +253,18 @@ fn sql_connect(options: ConnectOptions) -> Result<String, Box<dyn Error>> {
     Ok(handle.to_string())
 }
 
-fn do_query(lq: LocalQuery) -> Result<String, Box<dyn Error>> {
+fn do_query(lq: LocalQuery) -> Result<LocalResponse, Box<dyn Error>> {
     let mut conn = {
         let pool = match POOL.get(&lq.connection.parse()?) {
             Some(s) => s,
             None => {
-                return Ok(serde_json::to_string(&LocalResponse {
+                return Ok(LocalResponse {
                     status: "offline".to_string(),
                     affected: None,
                     //columns: None,
                     last_insert_id: None,
                     rows: None,
-                })
-                .unwrap());
+                });
             }
         };
         pool.get_conn()?
@@ -313,61 +284,78 @@ fn do_query(lq: LocalQuery) -> Result<String, Box<dyn Error>> {
         let row = row?;
         let mut json_row: Vec<serde_json::Value> = Vec::new();
         for (i, col) in row.columns_ref().iter().enumerate() {
-            let ctype = col.column_type();
             let value = row
                 .as_ref(i)
                 .ok_or("length of row was smaller than column count")?;
-            let converted = match value {
-                mysql::Value::Bytes(b) => match ctype {
-                    MYSQL_TYPE_VARCHAR | MYSQL_TYPE_STRING | MYSQL_TYPE_VAR_STRING => {
-                        serde_json::Value::String(String::from_utf8_lossy(b).into_owned())
-                    }
-                    MYSQL_TYPE_BLOB
-                    | MYSQL_TYPE_LONG_BLOB
-                    | MYSQL_TYPE_MEDIUM_BLOB
-                    | MYSQL_TYPE_TINY_BLOB => {
-                        if col.flags().contains(ColumnFlags::BINARY_FLAG) {
-                            serde_json::Value::Array(
-                                b.iter()
-                                    .map(|x| serde_json::Value::Number(Number::from(*x)))
-                                    .collect(),
-                            )
-                        } else {
-                            serde_json::Value::String(String::from_utf8_lossy(b).into_owned())
-                        }
-                    }
-                    _ => serde_json::Value::Null,
-                },
-                mysql::Value::Float(f) => serde_json::Value::Number(
-                    Number::from_f64(f64::from(*f)).unwrap_or_else(|| Number::from(0)),
-                ),
-                mysql::Value::Double(f) => serde_json::Value::Number(
-                    Number::from_f64(*f).unwrap_or_else(|| Number::from(0)),
-                ),
-                mysql::Value::Int(i) => serde_json::Value::Number(Number::from(*i)),
-                mysql::Value::UInt(u) => serde_json::Value::Number(Number::from(*u)),
-                mysql::Value::Date(year, month, day, hour, minute, second, _ms) => {
-                    serde_json::Value::String(format!(
-                        "{year}-{month:02}-{day:02} {hour:02}:{minute:02}:{second:02}"
-                    ))
-                }
-                _ => serde_json::Value::Null,
-            };
-            json_row.push(converted);
+            json_row.push(column_to_json(value, col));
         }
         rows.push(serde_json::Value::Array(json_row));
     }
 
     drop(conn);
 
-    Ok(serde_json::to_string(&LocalResponse {
+    Ok(LocalResponse {
         status: "ok".to_string(),
         affected: Some(affected),
         last_insert_id: last_insert_id,
         //columns: Some(columns),
         rows: Some(rows),
     })
-    .unwrap())
+}
+
+/// Turns one value from a row into something we can hand to BYOND
+fn column_to_json(value: &mysql::Value, col: &Column) -> serde_json::Value {
+    match value {
+        mysql::Value::NULL => serde_json::Value::Null,
+        mysql::Value::Bytes(b) => match col.column_type() {
+            // MySQL sends DECIMAL as text, so read it back as a number
+            MYSQL_TYPE_DECIMAL | MYSQL_TYPE_NEWDECIMAL => String::from_utf8_lossy(b)
+                .parse::<f64>()
+                .ok()
+                .and_then(Number::from_f64)
+                .map_or(serde_json::Value::Null, serde_json::Value::Number),
+            // BIT is sent as raw bytes, biggest first
+            MYSQL_TYPE_BIT => serde_json::Value::Number(Number::from(
+                b.iter().fold(0u64, |acc, x| (acc << 8) | u64::from(*x)),
+            )),
+            MYSQL_TYPE_BLOB
+            | MYSQL_TYPE_LONG_BLOB
+            | MYSQL_TYPE_MEDIUM_BLOB
+            | MYSQL_TYPE_TINY_BLOB
+                if col.flags().contains(ColumnFlags::BINARY_FLAG) =>
+            {
+                serde_json::Value::Array(
+                    b.iter()
+                        .map(|x| serde_json::Value::Number(Number::from(*x)))
+                        .collect(),
+                )
+            }
+            // Text, ENUM, JSON and anything else we don't know gets passed on as text
+            // instead of turning into null
+            _ => serde_json::Value::String(String::from_utf8_lossy(b).into_owned()),
+        },
+        mysql::Value::Float(f) => serde_json::Value::Number(
+            Number::from_f64(f64::from(*f)).unwrap_or_else(|| Number::from(0)),
+        ),
+        mysql::Value::Double(f) => {
+            serde_json::Value::Number(Number::from_f64(*f).unwrap_or_else(|| Number::from(0)))
+        }
+        mysql::Value::Int(i) => serde_json::Value::Number(Number::from(*i)),
+        mysql::Value::UInt(u) => serde_json::Value::Number(Number::from(*u)),
+        mysql::Value::Date(year, month, day, hour, minute, second, _ms) => {
+            serde_json::Value::String(format!(
+                "{year}-{month:02}-{day:02} {hour:02}:{minute:02}:{second:02}"
+            ))
+        }
+        // TIME can go past 24 hours and below zero, so the days get folded into the hours
+        mysql::Value::Time(negative, days, hours, minutes, seconds, _ms) => {
+            serde_json::Value::String(format!(
+                "{}{:02}:{minutes:02}:{seconds:02}",
+                if *negative { "-" } else { "" },
+                days * 24 + u32::from(*hours)
+            ))
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -377,7 +365,21 @@ fn unwrap_box<E: std::fmt::Display>(e: E) -> String {
     e.to_string()
 }
 
-fn byondlist_to_params(params: Vec<ByondValue>) -> Params {
+/// Reads the query, connection and arguments off a /datum/db_query
+fn read_local_query(options_p: &ByondValue) -> Result<LocalQuery> {
+    let params = match options_p.read_list("arguments") {
+        Ok(v) => byondlist_to_params(v)?, // Create params from a BYOND list
+        Err(_) => Params::Empty,
+    };
+
+    Ok(LocalQuery {
+        query: options_p.read_string("sql")?,
+        connection: options_p.read_string("connection")?,
+        params,
+    })
+}
+
+fn byondlist_to_params(params: Vec<ByondValue>) -> Result<Params> {
     let mut real_params = Params::Empty;
 
     if params.len() > 0 {
@@ -385,7 +387,10 @@ fn byondlist_to_params(params: Vec<ByondValue>) -> Params {
 
         for pair in params.chunks(2) {
             if let [k, v] = pair {
-                let kbytes = k.get_string().unwrap().into_bytes();
+                let kbytes = k
+                    .get_string()
+                    .map_err(|_| eyre!("SQL argument names must be text"))?
+                    .into_bytes();
                 let v_value = byondvalue_to_mysql(v.to_owned());
 
                 temp_params_2.insert(kbytes, v_value);
@@ -395,7 +400,7 @@ fn byondlist_to_params(params: Vec<ByondValue>) -> Params {
         real_params = Params::Named(temp_params_2);
     }
 
-    real_params
+    Ok(real_params)
 }
 
 fn byondvalue_to_mysql(val: ByondValue) -> mysql::Value {
@@ -439,6 +444,13 @@ fn serde_to_byondvalue(val: serde_json::Value) -> ByondValue {
             ByondValue::new_num(v as f32) // Loses precision - but we wont get that in BYOND anyway
         }
         serde_json::Value::String(s) => ByondValue::new_str(s).unwrap(),
+        // Binary blobs come through as a list of bytes
+        serde_json::Value::Array(a) => {
+            let list = ByondValue::new_list().unwrap();
+            let bytes: Vec<ByondValue> = a.into_iter().map(serde_to_byondvalue).collect();
+            list.write_list(&bytes).unwrap();
+            list
+        }
         _ => ByondValue::null(),
     }
 }
@@ -534,5 +546,63 @@ fn query_data_to_byond(raw_data: LocalResponse, mut byond_obj: ByondValue) {
             byond_obj.write_var("rows", &rows_list).unwrap()
         }
         None => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mysql::consts::ColumnType;
+
+    fn convert(value: mysql::Value, column_type: ColumnType) -> serde_json::Value {
+        column_to_json(&value, &Column::new(column_type))
+    }
+
+    #[test]
+    fn decimal_is_a_number() {
+        let v = convert(Value::Bytes(b"6.50".to_vec()), MYSQL_TYPE_NEWDECIMAL);
+        assert_eq!(v.as_f64(), Some(6.5));
+        let v = convert(Value::Bytes(b"-0.125".to_vec()), MYSQL_TYPE_DECIMAL);
+        assert_eq!(v.as_f64(), Some(-0.125));
+    }
+
+    #[test]
+    fn bit_is_a_number() {
+        assert_eq!(
+            convert(Value::Bytes(vec![1]), MYSQL_TYPE_BIT).as_u64(),
+            Some(1)
+        );
+        assert_eq!(
+            convert(Value::Bytes(vec![1, 2]), MYSQL_TYPE_BIT).as_u64(),
+            Some(258)
+        );
+    }
+
+    #[test]
+    fn time_folds_days_into_hours() {
+        let v = convert(Value::Time(false, 1, 2, 3, 4, 0), MYSQL_TYPE_TIME);
+        assert_eq!(v.as_str(), Some("26:03:04"));
+        let v = convert(Value::Time(true, 0, 0, 5, 9, 0), MYSQL_TYPE_TIME);
+        assert_eq!(v.as_str(), Some("-00:05:09"));
+    }
+
+    #[test]
+    fn unknown_types_are_text_not_null() {
+        let v = convert(Value::Bytes(b"{\"a\":1}".to_vec()), MYSQL_TYPE_JSON);
+        assert_eq!(v.as_str(), Some("{\"a\":1}"));
+        let v = convert(Value::Bytes(b"MMI".to_vec()), MYSQL_TYPE_STRING);
+        assert_eq!(v.as_str(), Some("MMI"));
+    }
+
+    #[test]
+    fn binary_blob_is_bytes() {
+        let col = Column::new(MYSQL_TYPE_BLOB).with_flags(ColumnFlags::BINARY_FLAG);
+        let v = column_to_json(&Value::Bytes(vec![7, 255]), &col);
+        assert_eq!(v, serde_json::json!([7, 255]));
+    }
+
+    #[test]
+    fn null_stays_null() {
+        assert!(convert(Value::NULL, MYSQL_TYPE_NEWDECIMAL).is_null());
     }
 }
