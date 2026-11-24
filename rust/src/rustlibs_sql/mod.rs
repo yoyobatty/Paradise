@@ -3,9 +3,8 @@ use byondapi::{prelude::ValueType, value::ByondValue};
 use dashmap::DashMap;
 use eyre::{eyre, Result};
 use mysql::{
-    consts::{ColumnFlags, ColumnType::*},
-    prelude::Queryable,
-    Column, OptsBuilder, Params, Pool, PoolConstraints, PoolOpts, Value,
+    consts::ColumnType::*, prelude::Queryable, Column, OptsBuilder, Params, Pool, PoolConstraints,
+    PoolOpts, Value,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -20,6 +19,8 @@ const DEFAULT_PORT: u16 = 3306;
 // The `mysql` crate defaults to 10 and 100 for these, but that is too large.
 const DEFAULT_MIN_THREADS: usize = 1;
 const DEFAULT_MAX_THREADS: usize = 10;
+// Character set number MySQL gives columns that hold raw bytes instead of text
+const BINARY_CHARSET: u16 = 63;
 
 struct ConnectOptions {
     host: String,
@@ -318,11 +319,13 @@ fn column_to_json(value: &mysql::Value, col: &Column) -> serde_json::Value {
             MYSQL_TYPE_BIT => serde_json::Value::Number(Number::from(
                 b.iter().fold(0u64, |acc, x| (acc << 8) | u64::from(*x)),
             )),
+            // Only real binary data, text with a binary collation (like MariaDB's JSON) also has
+            // the binary flag
             MYSQL_TYPE_BLOB
             | MYSQL_TYPE_LONG_BLOB
             | MYSQL_TYPE_MEDIUM_BLOB
             | MYSQL_TYPE_TINY_BLOB
-                if col.flags().contains(ColumnFlags::BINARY_FLAG) =>
+                if col.character_set() == BINARY_CHARSET =>
             {
                 serde_json::Value::Array(
                     b.iter()
@@ -552,7 +555,7 @@ fn query_data_to_byond(raw_data: LocalResponse, mut byond_obj: ByondValue) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mysql::consts::ColumnType;
+    use mysql::consts::{ColumnFlags, ColumnType};
 
     fn convert(value: mysql::Value, column_type: ColumnType) -> serde_json::Value {
         column_to_json(&value, &Column::new(column_type))
@@ -596,9 +599,21 @@ mod tests {
 
     #[test]
     fn binary_blob_is_bytes() {
-        let col = Column::new(MYSQL_TYPE_BLOB).with_flags(ColumnFlags::BINARY_FLAG);
+        let col = Column::new(MYSQL_TYPE_BLOB)
+            .with_flags(ColumnFlags::BINARY_FLAG)
+            .with_character_set(BINARY_CHARSET);
         let v = column_to_json(&Value::Bytes(vec![7, 255]), &col);
         assert_eq!(v, serde_json::json!([7, 255]));
+    }
+
+    #[test]
+    fn binary_collation_text_is_text() {
+        // MariaDB's JSON is LONGTEXT with utf8mb4_bin, which sets the binary flag
+        let col = Column::new(MYSQL_TYPE_BLOB)
+            .with_flags(ColumnFlags::BINARY_FLAG)
+            .with_character_set(45);
+        let v = column_to_json(&Value::Bytes(b"{\"a\": 1}".to_vec()), &col);
+        assert_eq!(v.as_str(), Some("{\"a\": 1}"));
     }
 
     #[test]
