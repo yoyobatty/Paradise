@@ -10,11 +10,13 @@
 // - open behind it: the back edge of the fire in the station's three-quarter view, tall tongues and smoke ("edge").
 //   The deeper the fire in front of it, the bigger it is drawn, so a big fire has a wall of flame along its back.
 // - open air to one side only: its flames lean out into it.
-// - a big fire: flames that reach the ceiling turn and roll along it. The station's three-quarter view has no ceiling
-//   to see, but a tile's would be about a tile up the screen, so a band of sideways flame is drawn there. Over a big
-//   fire the bands join into one rolling sheet.
+// - a big fire: its flames reach the ceiling and spread across it, each one flame that rises, turns over and runs on.
+//   The station's three-quarter view has no ceiling to see, but it would be a little under a tile up the screen. They
+//   spread every way across it, so the rows of a big fire join into one rolling sheet.
 // Fires are drawn on a plane of their own. That picture is laid over the lit game, and a blurred copy of it is added
-// round it as the light the flames throw. Both are cut down to where the lighting is not pitch black: being over the
+// round it as the light the flames throw; it flickers. The brightest parts bloom.
+// The hot air over a middling or big fire shimmers: soft blobs on the plane the game's own warp reads, so walls,
+// floors and people ripple above it at no extra drawing cost. Both are cut down to where the lighting is not pitch black: being over the
 // lighting, they would show behind walls and in the dark round a fire, where the lighting hides everything else. A
 // burning tile is lit by its own fire, so its flames stay. Viewers who see in the dark see them all.
 // A slow noise scrolling up the screen pushes the whole picture about, so a
@@ -28,14 +30,14 @@
 /// How far the light round the flames is blurred, and how strong it is (0 to 255)
 #define FLAME_GLOW_BLUR 10
 #define FLAME_GLOW_ALPHA 160
+/// Brighter than this in the flames blooms
+#define FLAME_BLOOM_THRESHOLD "#F0D080"
 /// How many pixels the surge pushes the flames about at most
 #define FLAME_SURGE 7
 /// How many seconds the surge noise takes to scroll a whole screen of it up
 #define FLAME_SURGE_TIME 9
 /// A fire looks again at the walls and things round it every this many updates, as they can move without telling it
 #define FLAME_LOOK_ROUND_EVERY 10
-/// How far up from the floor the flames rolling along the ceiling are drawn, in pixels
-#define FLAME_ROLL_UP 28
 /// A fire's look changes at most this often, as each new look starts its animation over
 #define FLAME_REDRAW_GAP (2 SECONDS)
 /// How long a new look takes to fade in over the old one
@@ -68,11 +70,13 @@
 	mymob.client.screen |= shown
 	set_cut(mymob)
 	remove_filter("surge")
+	shown.remove_filter("bloom")
 	if(mymob.client.prefs?.toggles3 & PREFTOGGLE_3_PLAIN_FIRE)
 		mymob.client.screen -= glow
 		return
 	mymob.client.screen |= glow
 	add_filter("surge", 1, displacement_map_filter(render_source = FIRE_NOISE_RENDER_TARGET, size = FLAME_SURGE))
+	shown.add_filter("bloom", 5, bloom_filter(threshold = FLAME_BLOOM_THRESHOLD, size = 2, offset = 1, alpha = 150))
 
 /// Cuts the fires to where the lighting is not black, unless the mob sees in the dark
 /atom/movable/screen/plane_master/fire/proc/set_cut(mob/viewer)
@@ -109,6 +113,11 @@
 	. = ..()
 	// Blurred first and cut after, so the light doesn't spread into what can't be seen either
 	add_filter("blur", 1, gauss_blur_filter(size = FLAME_GLOW_BLUR))
+	// It flickers, unevenly. On the alpha, not a filter, as rebuilding the filters would start it over.
+	animate(src, alpha = FLAME_GLOW_ALPHA + 20, time = 4, loop = -1, easing = SINE_EASING)
+	animate(alpha = FLAME_GLOW_ALPHA - 25, time = 3, easing = SINE_EASING)
+	animate(alpha = FLAME_GLOW_ALPHA + 10, time = 5, easing = SINE_EASING)
+	animate(alpha = FLAME_GLOW_ALPHA - 10, time = 2, easing = SINE_EASING)
 
 /// Where the viewer can see, for cutting the fires down to: the lighting's picture, solid wherever it is not black. Never shown.
 /atom/movable/screen/plane_master/fire_seen
@@ -117,6 +126,11 @@
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	render_target = FIRE_SEEN_RENDER_TARGET
 	var/atom/movable/screen/fire_seen_part/lit
+
+/atom/movable/screen/plane_master/fire_seen/Initialize(mapload)
+	. = ..()
+	// Soft at its edges: the lighting fades out over a wall's face, and a hard cut there left flames hanging like teeth
+	add_filter("soften", 1, gauss_blur_filter(size = 3))
 
 /atom/movable/screen/plane_master/fire_seen/Destroy()
 	QDEL_NULL(lit)
@@ -134,8 +148,8 @@
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	plane = FIRE_SEEN_PLANE
 	render_source = LIGHTING_PLANE_RENDER_TARGET
-	// Red, green and blue each add to how solid it is, eight times over; the colour is white
-	color = list(0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 0, 1, 1, 1, 0)
+	// Red, green and blue each add to how solid it is, twenty times over, so even faint light counts; the colour is white
+	color = list(0, 0, 0, 20, 0, 0, 0, 20, 0, 0, 0, 20, 0, 0, 0, 0, 1, 1, 1, 0)
 
 /// Holds the noise the fires are pushed about by. Never shown.
 /atom/movable/screen/plane_master/fire_noise
@@ -329,9 +343,8 @@
 		parts += flame_overlay(flame_form, size, flame_hot, flame_lean, loc)
 	if((flame_form == "edge" || flame_form == "climb") && size > 1)
 		parts += flame_smoke_overlay(size, loc)
-	// Only a fire burning hard reaches the ceiling
-	if(flame_size == 3)
-		parts += flame_roll_overlay(flame_hot, loc)
+	if(size > 1)
+		parts += flame_heat_overlay(size, loc)
 	fresh.add_overlay(parts)
 	fresh.alpha = 0
 	vis_contents += fresh
@@ -369,9 +382,11 @@
 	if(made[key])
 		return made[key]
 	var/static/list/sheets = list("inner" = 'icons/effects/flame_gas_inner.dmi', "edge" = 'icons/effects/flame_gas.dmi', "climb" = 'icons/effects/flame_gas_climb.dmi')
-	var/mutable_appearance/flames = mutable_appearance(sheets[form], "[form][size][hot ? "h" : ""]-[kind % FLAME_KINDS][lean ? "r" : ""]", plane = FIRE_PLANE)
-	// Every sheet is two tiles wide with the tile in the middle, 16 pixels up from its bottom
-	flames.pixel_x = -16
+	// A big fire's inner flames run along the ceiling, so they have a wider sheet of their own
+	var/rolling = (form == "inner" && size == 3)
+	var/mutable_appearance/flames = mutable_appearance(rolling ? 'icons/effects/flame_gas_inner3.dmi' : sheets[form], "[form][size][hot ? "h" : ""]-[kind % FLAME_KINDS][lean ? "r" : ""]", plane = FIRE_PLANE)
+	// Every sheet has the tile in the middle across, 16 pixels up from its bottom
+	flames.pixel_x = rolling ? -32 : -16
 	flames.pixel_y = -16
 	// Leaning flames are drawn leaning east; mirrored they lean west. The others are mirrored for half the turfs.
 	if(lean ? (lean < 0) : (kind >= FLAME_KINDS))
@@ -392,21 +407,19 @@
 	made[state] = bed
 	return bed
 
-/// The flames rolling along the ceiling over a big fire
-/proc/flame_roll_overlay(hot, turf/where)
+/// The shimmer of the hot air over a middling or big fire, drawn where the game's warp reads it, not seen itself
+/proc/flame_heat_overlay(size, turf/where)
 	var/static/list/made = list()
 	var/kind = flame_kind(where)
-	var/key = "[hot]-[kind]"
+	var/key = "[size]-[kind]"
 	if(made[key])
 		return made[key]
-	var/mutable_appearance/roll = mutable_appearance('icons/effects/flame_gas_roll.dmi', "roll[hot ? "h" : ""]-[kind % FLAME_KINDS]", plane = FIRE_PLANE)
-	roll.pixel_x = -16
-	roll.pixel_y = -16 + FLAME_ROLL_UP
-	if(kind >= FLAME_KINDS)
-		roll.transform = matrix(-1, 0, 0, 0, 1, 0)
-	roll.appearance_flags = KEEP_APART | PIXEL_SCALE
-	made[key] = roll
-	return roll
+	var/mutable_appearance/heat = mutable_appearance('icons/effects/flame_heat.dmi', "heat[size]-[kind % FLAME_KINDS]", plane = GRAVITY_PULSE_PLANE)
+	heat.pixel_x = -16
+	heat.pixel_y = -16
+	heat.appearance_flags = KEEP_APART | PIXEL_SCALE
+	made[key] = heat
+	return heat
 
 /// The smoke over the back edge of a fire. It is drawn on the game, under the lighting, so it is as dark as the room and lit by the fire.
 /proc/flame_smoke_overlay(size, turf/where)
@@ -429,10 +442,10 @@
 #undef FLAME_HOT_END
 #undef FLAME_GLOW_BLUR
 #undef FLAME_GLOW_ALPHA
+#undef FLAME_BLOOM_THRESHOLD
 #undef FLAME_SURGE
 #undef FLAME_SURGE_TIME
 #undef FLAME_LOOK_ROUND_EVERY
-#undef FLAME_ROLL_UP
 #undef FLAME_REDRAW_GAP
 #undef FLAME_FADE
 #undef FLAME_DIE
