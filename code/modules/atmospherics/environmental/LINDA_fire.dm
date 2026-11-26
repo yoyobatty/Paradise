@@ -76,6 +76,9 @@
 	var/turf/simulated/T = loc
 	if(istype(T) && T.active_hotspot == src)
 		T.active_hotspot = null
+		// The gas shows again, unless the turf is going too
+		if(!QDELETED(T))
+			T.update_visuals()
 	. = ..()
 	// Now we are gone from it, the fires round our turf can look again
 	flame_tell_neighbours(T)

@@ -776,6 +776,8 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		active_hotspot = new(src)
 		active_hotspot.update_interval = max(1, floor(length(SSair.hotspots) / 1000))
 		active_hotspot.update_tick = rand(0, active_hotspot.update_interval - 1)
+		// Its flames take the place of the gas's own picture
+		update_visuals()
 
 	if(active_hotspot.data_tick != SSair.milla_tick)
 		if(isnull(bound_air) || bound_air.lastread < SSair.milla_tick)

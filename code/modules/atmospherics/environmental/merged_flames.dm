@@ -3,8 +3,10 @@
 // one animated overlay and costs the client about what the old sprite did.
 //
 // A fire pushes up and out the way a real one does. Each burning tile looks at what is round it:
-// - fire on all four sides: a churning bed of flame under the low flames, one texture across the tiles with no seams,
-//   so the middle of a big fire burns as one sheet ("bed")
+// - fire on all four sides: a churning bed of flame under the low flames, so the middle of a big fire burns as one
+//   sheet ("bed"). Every burning tile draws its piece of one texture on a hidden plane, and the tiles deep in a fire
+//   draw soft blobs on another; the fire plane shows the texture through the blobs, so the bed has no seams and fades
+//   out softly where the fire thins.
 // - fire behind it (north): low, fat flames that run into the fires round it ("inner")
 // - a wall or something solid behind it: flames that run up its face ("climb")
 // - open behind it: the back edge of the fire in the station's three-quarter view, tall tongues and smoke ("edge").
@@ -14,7 +16,8 @@
 //   The station's three-quarter view has no ceiling to see, but it would be a little under a tile up the screen. They
 //   spread every way across it, so the rows of a big fire join into one rolling sheet.
 // Fires are drawn on a plane of their own. That picture is laid over the lit game, and a blurred copy of it is added
-// round it as the light the flames throw; it flickers. The brightest parts bloom.
+// round it as the light the flames throw; it flickers. No bloom: BYOND's bloom drew a hard orange outline round the
+// flames.
 // The hot air over a middling or big fire shimmers: soft blobs on the plane the game's own warp reads, so walls,
 // floors and people ripple above it at no extra drawing cost. Both are cut down to where the lighting is not pitch black: being over the
 // lighting, they would show behind walls and in the dark round a fire, where the lighting hides everything else. A
@@ -30,8 +33,6 @@
 /// How far the light round the flames is blurred, and how strong it is (0 to 255)
 #define FLAME_GLOW_BLUR 10
 #define FLAME_GLOW_ALPHA 160
-/// Brighter than this in the flames blooms
-#define FLAME_BLOOM_THRESHOLD "#F0D080"
 /// How many pixels the surge pushes the flames about at most
 #define FLAME_SURGE 7
 /// How many seconds the surge noise takes to scroll a whole screen of it up
@@ -54,10 +55,13 @@
 	render_target = FIRE_RENDER_TARGET
 	var/atom/movable/screen/fire_relay/shown
 	var/atom/movable/screen/fire_relay/glow/glow
+	/// Draws the bed of flame onto this plane, under the flames
+	var/atom/movable/screen/fire_bed_relay/bed
 
 /atom/movable/screen/plane_master/fire/Destroy()
 	QDEL_NULL(shown)
 	QDEL_NULL(glow)
+	QDEL_NULL(bed)
 	return ..()
 
 // No ..(): that adds gravity's warp, and nothing here is on screen to be warped
@@ -65,18 +69,18 @@
 	if(!shown)
 		shown = new
 		glow = new
+		bed = new
 	if(!mymob?.client)
 		return
 	mymob.client.screen |= shown
+	mymob.client.screen |= bed
 	set_cut(mymob)
 	remove_filter("surge")
-	shown.remove_filter("bloom")
 	if(mymob.client.prefs?.toggles3 & PREFTOGGLE_3_PLAIN_FIRE)
 		mymob.client.screen -= glow
 		return
 	mymob.client.screen |= glow
 	add_filter("surge", 1, displacement_map_filter(render_source = FIRE_NOISE_RENDER_TARGET, size = FLAME_SURGE))
-	shown.add_filter("bloom", 5, bloom_filter(threshold = FLAME_BLOOM_THRESHOLD, size = 2, offset = 1, alpha = 150))
 
 /// Cuts the fires to where the lighting is not black, unless the mob sees in the dark
 /atom/movable/screen/plane_master/fire/proc/set_cut(mob/viewer)
@@ -118,6 +122,39 @@
 	animate(alpha = FLAME_GLOW_ALPHA - 25, time = 3, easing = SINE_EASING)
 	animate(alpha = FLAME_GLOW_ALPHA + 10, time = 5, easing = SINE_EASING)
 	animate(alpha = FLAME_GLOW_ALPHA - 10, time = 2, easing = SINE_EASING)
+
+/// The bed's texture, shown through its soft blobs, under the flames on the fire plane
+/atom/movable/screen/fire_bed_relay
+	screen_loc = "SOUTHWEST"
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	plane = FIRE_PLANE
+	layer = 1
+	render_source = FIRE_BED_RENDER_TARGET
+
+/atom/movable/screen/fire_bed_relay/Initialize(mapload)
+	. = ..()
+	add_filter("blobs", 1, alpha_mask_filter(render_source = FIRE_BED_MASK_RENDER_TARGET))
+
+/// The bed's texture, never shown itself
+/atom/movable/screen/plane_master/fire_bed
+	name = "fire bed plane master"
+	plane = FIRE_BED_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = FIRE_BED_RENDER_TARGET
+
+// No ..(), the same as the fire plane
+/atom/movable/screen/plane_master/fire_bed/backdrop(mob/mymob)
+	return
+
+/// The bed's soft blobs, never shown themselves
+/atom/movable/screen/plane_master/fire_bed_mask
+	name = "fire bed mask plane master"
+	plane = FIRE_BED_MASK_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = FIRE_BED_MASK_RENDER_TARGET
+
+/atom/movable/screen/plane_master/fire_bed_mask/backdrop(mob/mymob)
+	return
 
 /// Where the viewer can see, for cutting the fires down to: the lighting's picture, solid wherever it is not black. Never shown.
 /atom/movable/screen/plane_master/fire_seen
@@ -335,9 +372,10 @@
 	var/obj/effect/abstract/flame_layer/fresh = new(null)
 	// A deep fire's back edge is drawn bigger: as big as the burning tiles in front of it
 	var/size = (flame_form == "edge" || flame_form == "climb") ? max(flame_size, flame_depth) : flame_size
-	var/list/parts = list()
+	// Every burning tile draws its piece of the bed's texture; only the tiles deep in the fire say where it shows
+	var/list/parts = list(flame_bed_overlay(loc))
 	if(flame_form == "bed")
-		parts += flame_bed_overlay(size, flame_hot, loc)
+		parts += flame_bed_mask_overlay(size)
 		parts += flame_overlay("inner", size, flame_hot, 0, loc)
 	else
 		parts += flame_overlay(flame_form, size, flame_hot, flame_lean, loc)
@@ -395,17 +433,31 @@
 	made[key] = flames
 	return flames
 
-/// The bed of flame on a tile with fire all round it: the piece of a four by four tile texture that this turf shows,
-/// so beds next to each other join with no seam
-/proc/flame_bed_overlay(size, hot, turf/where)
+/// The piece of the bed's texture that a turf shows: one texture four tiles square, so neighbours join with no seam
+/proc/flame_bed_overlay(turf/where)
 	var/static/list/made = list()
-	var/state = "bed[size][hot ? "h" : ""]-[where.x % 4][where.y % 4]"
+	var/state = "bed-[where.x % 4][where.y % 4]"
 	if(made[state])
 		return made[state]
-	var/mutable_appearance/bed = mutable_appearance('icons/effects/flame_gas_bed.dmi', state, plane = FIRE_PLANE)
+	// The sheet is 64x64 with the piece in the middle
+	var/mutable_appearance/bed = mutable_appearance('icons/effects/flame_bed.dmi', state, plane = FIRE_BED_PLANE)
+	bed.pixel_x = -16
+	bed.pixel_y = -16
 	bed.appearance_flags = KEEP_APART | PIXEL_SCALE
 	made[state] = bed
 	return bed
+
+/// A soft blob, solid over its tile and fading out round it, saying the bed shows here
+/proc/flame_bed_mask_overlay(size)
+	var/static/list/made = list()
+	if(made["[size]"])
+		return made["[size]"]
+	var/mutable_appearance/blob = mutable_appearance('icons/effects/flame_bed.dmi', "bedmask[size]", plane = FIRE_BED_MASK_PLANE)
+	blob.pixel_x = -16
+	blob.pixel_y = -16
+	blob.appearance_flags = KEEP_APART | PIXEL_SCALE
+	made["[size]"] = blob
+	return blob
 
 /// The shimmer of the hot air over a middling or big fire, drawn where the game's warp reads it, not seen itself
 /proc/flame_heat_overlay(size, turf/where)
@@ -442,7 +494,6 @@
 #undef FLAME_HOT_END
 #undef FLAME_GLOW_BLUR
 #undef FLAME_GLOW_ALPHA
-#undef FLAME_BLOOM_THRESHOLD
 #undef FLAME_SURGE
 #undef FLAME_SURGE_TIME
 #undef FLAME_LOOK_ROUND_EVERY

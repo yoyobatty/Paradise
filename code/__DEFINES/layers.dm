@@ -101,6 +101,14 @@
 #define HIGH_LANDMARK_LAYER 9.2
 #define AREA_LAYER 10
 #define MASSIVE_OBJ_LAYER 11
+/// The bed of flame in the middle of big fires, in two parts that are put together on the fire plane. Never shown.
+/// Its texture, drawn on every burning tile:
+#define FIRE_BED_PLANE 7
+#define FIRE_BED_RENDER_TARGET "*FIRE_BED_PLANE"
+/// Soft blobs from the tiles deep in a fire: where the texture shows, fading out at the fire's edge.
+#define FIRE_BED_MASK_PLANE 8
+#define FIRE_BED_MASK_RENDER_TARGET "*FIRE_BED_MASK_PLANE"
+
 /// Where the viewer can see: wherever the lighting is not pitch black. Never shown.
 /// Fires are cut down to it, as they are drawn over the lighting, which is what hides what can't be seen.
 #define FIRE_SEEN_PLANE 9

@@ -86,7 +86,8 @@
 	if(!istype(air))
 		air = get_readonly_air()
 	if(air.toxins() > MOLES_PLASMA_VISIBLE)
-		return "plasma"
+		// Where it burns, the flames are the plasma burning. Its speckles, lit red by the fire, showed through them as noise.
+		return active_hotspot ? null : "plasma"
 
 	if(air.sleeping_agent() > 1)
 		return "sleeping_agent"

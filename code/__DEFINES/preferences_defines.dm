@@ -86,7 +86,7 @@
 #define PREFTOGGLE_3_DARK_FLASH						(1<<1) // 2
 #define PREFTOGGLE_3_POSTCREDS 						(1<<2) // 4
 #define PREFTOGGLE_3_HEAR_BLOOPERS 					(1<<3) // 8
-/// Set means plain fires, without the light round them, its bloom and the surge, whole-screen passes slower PCs may not
+/// Set means plain fires, without the light round them and the surge, whole-screen passes slower PCs may not
 /// want. It is the off switch so players who saved before it get fancy fires.
 #define PREFTOGGLE_3_PLAIN_FIRE 					(1<<4) // 16
 
