@@ -124,6 +124,8 @@
 	var/list/pool_edge_overlays
 	/// The darkening for how far the tile is from dry land, swapped when land nearby changes
 	var/mutable_appearance/pool_depth_underlay
+	/// The light on the pool floor this tile has on now
+	var/mutable_appearance/pool_caustics
 
 /turf/simulated/floor/beach/water/Initialize(mapload)
 	// Set before the parent call, so the turf is queued to pick its edges

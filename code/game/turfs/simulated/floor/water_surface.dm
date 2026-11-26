@@ -37,6 +37,9 @@ GLOBAL_LIST_INIT(pool_caustic_colours, list(
 	"deep" = list("#BEEBFF", 255),
 ))
 
+/// How much of the light on the pool floor is left under 0, 1, 2 and 3 tiles' depth of water
+GLOBAL_LIST_INIT(pool_caustic_fade, list(1, 0.86, 0.72, 0.6))
+
 /// Colour and alpha of the water's surface for each look
 GLOBAL_LIST_INIT(pool_surface_colours, list(
 	"pool" = list("#00BAC4", 100),
@@ -61,11 +64,9 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /// Puts the pool bottom and its moving light under the water's edge sprite, and the ripples and glints on it
 /turf/simulated/floor/beach/water/proc/setup_pool_look()
 	underlays += get_pool_appearance(GLOB.pool_edge_floors[edge_style], POOL_FLOOR_PLANE)
-	// The web of light the waves focus onto the bottom. An overlay, so it's over the depth's darkening and still shows
-	// in deep water. It repeats every 4x4 tiles, and rows of it count from the top
+	// The shafts of light coming down through the water, the colour of the light on the floor. That light is put on
+	// with the depth, see update_depth()
 	var/list/light = GLOB.pool_caustic_colours[water_look]
-	overlays += get_pool_appearance("caustics_[x % 4][3 - y % 4]", POOL_FLOOR_PLANE, FLOAT_LAYER, light[1], light[2])
-	// And the shafts of that light coming down through the water, the same colour
 	overlays += get_pool_appearance("rays_[x % 4][3 - y % 4]", WATER_RAYS_PLANE, FLOAT_LAYER, light[1], light[2])
 	// Glints on the tops of the waves, which repeat every 2x2 tiles, and glints flashing here and there, every 4x4
 	overlays += get_pool_appearance("surface_ripple_[x % 2][y % 2 ? 0 : 1]", WATER_SHINE_PLANE)
@@ -127,12 +128,21 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 			if(reach < depths[i])
 				depths[i] = reach
 	var/mutable_appearance/new_underlay = get_pool_appearance("depth-[depths[1]][depths[2]][depths[3]][depths[4]]", POOL_FLOOR_PLANE)
-	if(new_underlay == pool_depth_underlay)
-		return
-	if(pool_depth_underlay)
-		underlays -= pool_depth_underlay
-	underlays += new_underlay
-	pool_depth_underlay = new_underlay
+	if(new_underlay != pool_depth_underlay)
+		if(pool_depth_underlay)
+			underlays -= pool_depth_underlay
+		underlays += new_underlay
+		pool_depth_underlay = new_underlay
+	// The web of light the waves focus onto the bottom, fainter the deeper the water over it. An overlay, so it's over
+	// the depth's darkening. It repeats every 4x4 tiles, and rows of it count from the top
+	var/depth = clamp(round((depths[1] + depths[2] + depths[3] + depths[4]) / 4, 1), 0, POOL_MAX_DEPTH)
+	var/list/light = GLOB.pool_caustic_colours[water_look]
+	var/mutable_appearance/new_caustics = get_pool_appearance("caustics_[x % 4][3 - y % 4]", POOL_FLOOR_PLANE, FLOAT_LAYER, light[1], round(light[2] * GLOB.pool_caustic_fade[depth + 1]))
+	if(new_caustics != pool_caustics)
+		if(pool_caustics)
+			overlays -= pool_caustics
+		overlays += new_caustics
+		pool_caustics = new_caustics
 
 /// Has the pool water near this tile pick its edges and depth again, after this tile became or stopped being water
 /turf/simulated/floor/beach/water/proc/resmooth_pool_around()
