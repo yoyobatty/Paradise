@@ -70,6 +70,9 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	// Glints on the tops of the waves, which repeat every 2x2 tiles, and glints flashing here and there, every 4x4
 	overlays += get_pool_appearance("surface_ripple_[x % 2][y % 2 ? 0 : 1]", WATER_SHINE_PLANE)
 	overlays += get_pool_appearance("sparkle_[x % 4][3 - y % 4]", WATER_SHINE_PLANE)
+	// On a tile here and there, a few bubbles come up now and then
+	if((x * 13 + y * 7) % 17 == 0)
+		overlays += get_pool_appearance("bubbles_[(x + y) % 3 + 1]", WATER_SHINE_PLANE)
 	set_pool_edge_overlays(smoothing_junction || 255)
 	update_depth()
 
@@ -149,6 +152,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 		return
 	// Stepping in from dry land: a ring round their waist, the far half behind them and the near half in front,
 	// a splash, and a big ring of waves out across the water
+	playsound(src, 'sound/effects/slosh.ogg', 30, TRUE)
 	new /obj/effect/temp_visual/water_ripple/waist(src)
 	new /obj/effect/temp_visual/water_ripple/waist/back(src)
 	new /obj/effect/temp_visual/water_splash(src)
@@ -204,10 +208,16 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	icon = null
 	layer = ABOVE_MOB_LAYER + 0.06
 	randomdir = FALSE
+	/// The droplets it throws up
+	var/splash_type = /particles/water_splash
+
+/// The few droplets from something small landing in the water.
+/obj/effect/temp_visual/water_splash/small
+	splash_type = /particles/water_splash/small
 
 /obj/effect/temp_visual/water_splash/Initialize(mapload)
 	. = ..()
-	particles = new /particles/water_splash
+	particles = new splash_type
 	// One burst, then the droplets already in the air fall back
 	addtimer(CALLBACK(src, PROC_REF(stop_spawning)), 0.1 SECONDS)
 

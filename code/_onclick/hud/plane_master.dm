@@ -61,10 +61,24 @@
 
 /atom/movable/screen/plane_master/lava_glow/Initialize(mapload)
 	. = ..()
-	// Spread out into a soft glow round the lava
-	add_filter("bloom_spread", 1, gauss_blur_filter(size = 10))
-	// Not over anything standing in or beside the lava, or it looks lost in a fog
-	add_filter("not_over_things", 2, alpha_mask_filter(render_source = GAME_PLANE_RENDER_TARGET, flags = MASK_INVERSE))
+	// A bright halo round the molten rock in its own colours, the way an emissive blooms: strongest at the rock's edge
+	// and fading out over a few pixels onto the crust and the floor round it
+	add_filter("bloom", 1, bloom_filter(threshold = "#000000", size = 3, offset = 2, alpha = 220))
+	// And a wider, fainter glow round that, which breathes (see update_filters())
+	add_filter("bloom_wide", 2, bloom_filter(threshold = "#000000", size = 10, offset = 1, alpha = LAVA_GLOW_WIDE_LOW))
+	// Only the halo is added. The molten rock itself is already at full brightness, it's on the emissive plane
+	add_filter("not_over_lava", 3, alpha_mask_filter(render_source = EMISSIVE_RENDER_TARGET, flags = MASK_INVERSE))
+	// And not over anything standing in or beside the lava
+	add_filter("not_over_things", 4, alpha_mask_filter(render_source = GAME_PLANE_RENDER_TARGET, flags = MASK_INVERSE))
+
+// The wide glow swells and fades slowly, like heat. Making the filters again stops that, so it's started again here
+/atom/movable/screen/plane_master/lava_glow/update_filters()
+	. = ..()
+	var/wide_glow = get_filter("bloom_wide")
+	if(!wide_glow)
+		return
+	animate(wide_glow, alpha = LAVA_GLOW_WIDE_HIGH, time = 2.2 SECONDS, loop = -1, easing = SINE_EASING)
+	animate(alpha = LAVA_GLOW_WIDE_LOW, time = 2.2 SECONDS, easing = SINE_EASING)
 
 /atom/movable/screen/plane_master/water_ripple
 	name = "water ripple plane master"

@@ -622,6 +622,7 @@
 #include "code\datums\components\parry.dm"
 #include "code\datums\components\persistent_overlay.dm"
 #include "code\datums\components\pool_submerged.dm"
+#include "code\datums\components\pool_sunk.dm"
 #include "code\datums\components\pool_wet.dm"
 #include "code\datums\components\radioactive.dm"
 #include "code\datums\components\ranged_attacks.dm"

@@ -13,6 +13,9 @@
 /// above lighting plane, so lava blooms past its edges
 #define LAVA_GLOW_PLANE -20
 #define LAVA_GLOW_RENDER_TARGET "*LAVA_GLOW_RENDER_TARGET"
+/// How strong lava's wide glow is at its faintest and its strongest, as it breathes, out of 255
+#define LAVA_GLOW_WIDE_LOW 90
+#define LAVA_GLOW_WIDE_HIGH 150
 /// Which way the water's surface slopes, from its ripples and the rings of waves from anything touching it: a normal
 /// map. Never shown: the pool floor, the reflections and the glints are moved by it, so they bend under the waves, and
 /// the relief planes light the waves by it

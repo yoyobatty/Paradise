@@ -9,8 +9,9 @@
  * Makes a mob standing in a pool look waist deep.
  *
  * Water is drawn over the mob's own pixels from the waist down, its legs look shorter through the water with ripples
- * running down them, and a ring of water sits round its waist, half behind it and half in front. Pool water gives this
- * to mobs that walk in, and it takes itself off when they walk out.
+ * running down them, and a ring of water sits round its waist, half behind it and half in front. A mob lying down in
+ * the pool is under the water from head to toe instead. Pool water gives this to mobs that walk in, and it takes
+ * itself off when they walk out.
  */
 /datum/component/pool_submerged
 	/// The colours of the pool the mob is in, "pool" or "deep"
@@ -21,6 +22,8 @@
 	var/obj/effect/abstract/waterline/front_ring
 	/// Their shadow on the pool floor
 	var/obj/effect/abstract/waterline/floor_shadow
+	/// Is the mob lying down in the water? Then all of it is under, not only its legs
+	var/lying = FALSE
 
 /datum/component/pool_submerged/Initialize(look)
 	if(!isliving(parent))
@@ -36,6 +39,7 @@
 	floor_shadow.vis_flags = VIS_INHERIT_ID
 	floor_shadow.plane = POOL_FLOOR_PLANE
 	owner.vis_contents += list(back_ring, front_ring, floor_shadow)
+	lying = owner.body_position == LYING_DOWN
 	set_look(look)
 
 /datum/component/pool_submerged/Destroy(force)
@@ -47,16 +51,30 @@
 	owner.remove_filter(list("pool_submerged", "pool_legs_squash", "pool_legs_wave_sin", "pool_legs_wave_cos"))
 	return ..()
 
+/datum/component/pool_submerged/proc/on_resting(datum/source, now_lying)
+	SIGNAL_HANDLER // COMSIG_LIVING_RESTING
+	lying = now_lying
+	set_look(look)
+
 /datum/component/pool_submerged/RegisterWithParent()
 	RegisterSignal(parent, COMSIG_MOVABLE_MOVED, PROC_REF(on_moved))
+	RegisterSignal(parent, COMSIG_LIVING_RESTING, PROC_REF(on_resting))
 
 /datum/component/pool_submerged/UnregisterFromParent()
-	UnregisterSignal(parent, COMSIG_MOVABLE_MOVED)
+	UnregisterSignal(parent, list(COMSIG_MOVABLE_MOVED, COMSIG_LIVING_RESTING))
 
 /// Puts the water over the mob's legs in the colours of the pool it's in
 /datum/component/pool_submerged/proc/set_look(new_look)
 	look = new_look
 	var/mob/living/owner = parent
+	// No ring round the waist of someone lying under the water
+	back_ring.alpha = lying ? 0 : 255
+	front_ring.alpha = lying ? 0 : 255
+	if(lying)
+		// All of them is under, and there are no legs standing in it to ripple
+		owner.remove_filter(list("pool_legs_squash", "pool_legs_wave_sin", "pool_legs_wave_cos"))
+		owner.add_filter("pool_submerged", 20, layering_filter(icon = icon('icons/turf/floors/pool_water.dmi', "sunk_[look]"), blend_mode = BLEND_INSET_OVERLAY))
+		return
 	// Drawn over the mob's own pixels only, so the tile round it isn't tinted twice
 	owner.add_filter("pool_submerged", 20, layering_filter(icon = icon('icons/turf/floors/pool_water.dmi', "submerged_[look]"), blend_mode = BLEND_INSET_OVERLAY))
 	// Legs look a little shorter through the water. These maps leave the mob alone above its waist

@@ -154,9 +154,11 @@
 	// Water dug or built after the map loaded tells the water round it to redraw its edges and depth
 	if(!mapload)
 		resmooth_pool_around()
-		// And anyone already standing here is in it now
+		// And anyone already standing here is in it now, and anything lying here is under it
 		for(var/mob/living/wader in src)
 			make_waist_deep(wader)
+		for(var/obj/item/sinking in src)
+			sink_item(sinking)
 
 /turf/simulated/floor/beach/water/Destroy()
 	remove_water_effect_tile(src)
@@ -168,16 +170,41 @@
 		var/datum/component/pool_submerged/submerged = wader.GetComponent(/datum/component/pool_submerged)
 		if(submerged)
 			addtimer(CALLBACK(submerged, TYPE_PROC_REF(/datum/component/pool_submerged, check_water)), 0)
+	for(var/obj/item/sinking in src)
+		var/datum/component/pool_sunk/sunk = sinking.GetComponent(/datum/component/pool_sunk)
+		if(sunk)
+			addtimer(CALLBACK(sunk, TYPE_PROC_REF(/datum/component/pool_sunk, check_water)), 0)
 	return ..()
 
 /turf/simulated/floor/beach/water/Entered(atom/movable/AM, atom/OldLoc)
 	. = ..()
 	ripple_from(AM, OldLoc)
 	make_waist_deep(AM)
+	// Something thrown is only flying over until it lands, see hitby()
+	if(isitem(AM) && !AM.throwing)
+		sink_item(AM, splash = !isnull(OldLoc) && !is_reflective_water(OldLoc))
 	if(!linkedcontroller)
 		return
 	if(ismob(AM))
 		linkedcontroller.mobinpool += AM
+
+// Where a thrown thing comes down
+/turf/simulated/floor/beach/water/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum)
+	. = ..()
+	// A throw can report where it landed twice, so only what isn't sunk yet
+	if(isitem(AM) && !AM.GetComponent(/datum/component/pool_sunk))
+		sink_item(AM, splash = TRUE)
+
+/// Makes an item that's landed in the pool look like it's lying under the water, with a small splash as it goes in
+/turf/simulated/floor/beach/water/proc/sink_item(obj/item/sinking, splash = FALSE)
+	if(!water_look || sinking.loc != src)
+		return
+	if(!sinking.GetComponent(/datum/component/pool_sunk))
+		sinking.AddComponent(/datum/component/pool_sunk, water_look)
+	if(splash)
+		new /obj/effect/temp_visual/water_splash/small(src)
+		new /obj/effect/temp_visual/ripple_wave/small(src)
+		playsound(src, 'sound/effects/slosh.ogg', 15, TRUE)
 
 /// Makes a mob standing in a pool look waist deep in it
 /turf/simulated/floor/beach/water/proc/make_waist_deep(atom/movable/wader)
@@ -195,6 +222,8 @@
 	SIGNAL_HANDLER // COMSIG_ATOM_INITIALIZED_ON
 	// Made in the pool rather than walking in, so Entered() isn't called
 	make_waist_deep(A)
+	if(isitem(A))
+		sink_item(A)
 	if(!linkedcontroller)
 		return
 	if(istype(A, /obj/effect/decal/cleanable)) // Better a typecheck than looping through thousands of turfs everyday

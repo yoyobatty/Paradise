@@ -47,9 +47,9 @@
 /**
  * Makes the molten part of the lava glow, to match the sprite it has now.
  *
- * On the emissive plane the lighting doesn't darken it, so lava is bright even in the dark. On the lava glow plane it
- * is blurred and added over the lighting, so it blooms past its edges onto the rock and whoever stands near it.
- * Both keep only the bright molten pixels, so the dark crust round the edges doesn't glow.
+ * On the emissive plane the lighting doesn't darken it, so molten lava shines at full brightness even in the dark. On
+ * the lava glow plane it blooms, and the halo is added over the lighting, round its edges onto the crust and the floor.
+ * Both keep only the molten pixels, so the dark crust round the edges doesn't glow.
  */
 /turf/simulated/floor/lava/proc/update_lava_glow()
 	if(lava_glow_overlays)
@@ -357,9 +357,9 @@
 /**
  * The bright molten part of a lava sprite on `plane`, made once and shared by every lava tile with that sprite.
  *
- * How bright each pixel is decides how much of it glows: 3.5 * (0.5 red + 0.4 green + 0.1 blue - 0.33). The dark
- * crust comes out at nothing and the brightest molten rock at full. On the emissive plane it's white, on the lava
- * glow plane it keeps a fifth of its own colour, so the bloom is a soft glow and doesn't wash the lava out.
+ * How bright each pixel is decides how much of it glows: 6 * (0.5 red + 0.4 green + 0.1 blue - 0.24). The grey crust
+ * comes out at nothing, the dull red of cooling rock at a little, and the molten rock at full. On the emissive plane
+ * it's white, on the lava glow plane it keeps its own colour for the bloom.
  */
 /proc/get_lava_glow(icon, icon_state, plane)
 	var/static/list/made = list()
@@ -369,9 +369,9 @@
 		return
 	var/mutable_appearance/glow = mutable_appearance(icon, icon_state, plane = plane)
 	if(plane == EMISSIVE_PLANE)
-		glow.color = list(0, 0, 0, 1.75, 0, 0, 0, 1.4, 0, 0, 0, 0.35, 0, 0, 0, 0, 1, 1, 1, -1.155)
+		glow.color = list(0, 0, 0, 3, 0, 0, 0, 2.4, 0, 0, 0, 0.6, 0, 0, 0, 0, 1, 1, 1, -1.44)
 	else
-		glow.color = list(0.2, 0, 0, 1.75, 0, 0.2, 0, 1.4, 0, 0, 0.2, 0.35, 0, 0, 0, 0, 0, 0, 0, -1.155)
+		glow.color = list(1, 0, 0, 3, 0, 1, 0, 2.4, 0, 0, 1, 0.6, 0, 0, 0, 0, 0, 0, 0, -1.44)
 	made[key] = glow
 	return glow
 

@@ -20,6 +20,13 @@
 	velocity = generator(GEN_BOX, list(-16, 26), list(16, 46))
 	gravity = list(0, -90)
 
+/// A few droplets from something small landing in the water.
+/particles/water_splash/small
+	count = 6
+	spawning = 6
+	position = generator(GEN_BOX, list(-3, -5), list(3, -2))
+	velocity = generator(GEN_BOX, list(-10, 18), list(10, 32))
+
 /// Drips falling off someone who's just climbed out of the water.
 /particles/water_drip
 	icon = 'icons/turf/floors/pool_water.dmi'

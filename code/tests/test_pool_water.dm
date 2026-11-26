@@ -46,6 +46,13 @@
 	// Its north corners touch land, its south ones are a tile from it
 	TEST_ASSERT_EQUAL(top_middle.pool_depth_underlay?.icon_state, "depth-0011", "the water in the middle of the pool has the wrong depth")
 
+	// Things lying in the pool look sunk, and stop when they're taken out
+	var/obj/item/wrench/wrench = allocate(/obj/item/wrench, top_middle)
+	TEST_ASSERT_NOTNULL(wrench.GetComponent(/datum/component/pool_sunk), "an item made in the pool doesn't look sunk")
+	wrench.forceMove(origin)
+	TEST_ASSERT_NULL(wrench.GetComponent(/datum/component/pool_sunk), "an item taken out of the pool still looks sunk")
+	TEST_ASSERT_NULL(wrench.get_filter("pool_sunk"), "an item taken out of the pool still has the water drawn over it")
+
 	// Filling in a corner gives the water next to it an edge
 	var/turf/corner = locate(origin.x + 3, origin.y, origin.z)
 	corner.ChangeTurf(turfs_before[corner])
