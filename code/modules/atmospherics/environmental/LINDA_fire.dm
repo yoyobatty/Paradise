@@ -38,6 +38,26 @@
 	/// How often do we update?
 	var/update_interval = 1
 
+	// How our flames look: see merged_flames.dm
+	/// 1, 2 or 3 for a small, middling or big fire
+	var/flame_size = 1
+	/// Whether we burn paler and hotter
+	var/flame_hot = FALSE
+	/// "bed", "inner", "edge" or "climb": what is round us
+	var/flame_form = "edge"
+	/// -1 or 1 to lean our flames out to the west or east, where there is open air on that side only
+	var/flame_lean = 0
+	/// How many burning tiles are in front of us, up to 3: a deep fire's back edge is drawn bigger
+	var/flame_depth = 0
+	/// Counts updates, for looking round again now and then
+	var/flame_updates = 0
+	/// What our flames are drawn on. A new one fades in over the old one when they change.
+	var/obj/effect/abstract/flame_layer/flame_layer
+	/// When our flames were last drawn
+	var/flame_drawn_at = 0
+	/// TRUE when our flames should change but were drawn too lately
+	var/flame_dirty = FALSE
+
 /obj/effect/hotspot/proc/update_visuals(fuel_burnt)
 	// Only the light takes the heat's colour. The flames have theirs drawn in, and changing ours would send every
 	// burning tile to every client watching each update.
