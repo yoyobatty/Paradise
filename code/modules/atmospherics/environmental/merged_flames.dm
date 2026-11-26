@@ -1,63 +1,50 @@
-// Merged flames prototype.
-// Fires are drawn on a plane of their own that is never shown. Three copies of that picture are then drawn over the
-// lit game:
-// - the outer flame: blurred a little, with everything under a set strength cut away, so the flames of neighbouring
-//   tiles join into one shape with one edge. It is the fire's heat colour, darker and redder at the edge.
-// - the core: blurred a lot and cut higher, so it only shows where a fire is thick. Brighter and yellower.
-// - the glow: both of those blurred wide and added, as the light round the flames.
+// Pixel flames prototype.
+// A fire is a crowd of small pixel art flame licks that rise, go from pale yellow to dark red and die. They are added
+// over each other, so where a fire is thick it burns white-yellow and its loose edge is orange and red, and the
+// flames of neighbouring tiles run into each other with no tile edge between them.
+// Fires are drawn on a plane of their own that is never shown. That picture is drawn over the lit game, and again
+// blurred and added round it, as the light the flames throw.
 
-/// TRUE for merged flames, FALSE for the old one sprite a tile
+/// TRUE for pixel flames, FALSE for the old one sprite a tile
 GLOBAL_VAR_INIT(merged_flames, TRUE)
 
 /// The numbers the look is made of. Change one, then call flame_look_changed().
-/// tools/shift_bench/flame_look_sim.py draws the same sums without the game: keep its numbers in step.
 GLOBAL_LIST_INIT(flame_look, list(
-	// The outer flame: how far it is blurred before the cut, in pixels
-	"blur" = 2,
-	// The strength under which nothing is drawn, 0 to 1
-	"cut" = 0.3,
-	// How fast a flame becomes solid above the cut. Higher is a harder edge, and a brighter middle: see flame_filters().
-	"edge" = 5,
-	// How much of the fire's own heat colour goes into red, green and blue at the edge
-	"heat_red" = 0.7,
-	"heat_green" = 0.3,
-	"heat_blue" = 0.3,
-	// The core: the same three
-	"core_blur" = 7,
-	"core_cut" = 0.58,
-	"core_edge" = 5,
-	// How much of the heat colour's green and blue goes into it, and how much green and blue every core gets
-	"core_heat" = 0.6,
-	"core_green" = 0.12,
-	"core_blue" = 0.03,
-	// The glow: how far it is blurred and how strong it is, 0 to 255
+	// Flame licks a small, middling and big fire has at once, and how many start each tenth of a second
+	"count_1" = 12,
+	"count_2" = 22,
+	"count_3" = 32,
+	"rate_1" = 2,
+	"rate_2" = 3.5,
+	"rate_3" = 5,
+	// How many tenths of a second a lick lasts, at least and at most
+	"life_min" = 5,
+	"life_max" = 10,
+	// How many pixels a tenth of a second they rise, at least and at most
+	"rise_min" = 0.4,
+	"rise_max" = 1.2,
+	// Their size, at least and at most, and how much they shrink each tenth of a second
+	"scale_min" = 1.8,
+	"scale_max" = 3,
+	"shrink" = 0.1,
+	// How far down the colour list a lick moves each tenth of a second: higher burns out redder sooner
+	"cool" = 0.14,
+	// Strength of the licks, 0 to 255
+	"alpha" = 200,
+	// 1 to add the fires over the game, 0 to lay them over it
+	"add" = 1,
+	// The light round the flames: how far it is blurred and how strong it is, 0 to 255
 	"glow_blur" = 10,
-	"glow_alpha" = 70,
-	// The licking: how many pixels the flames are pushed about at most (0 for none), and how many seconds the
-	// noise that pushes them takes to scroll 24 tiles up the screen
-	"lick" = 10,
-	"lick_time" = 10,
-	// The body of a small, middling and big fire: strength 0 to 255 and size
-	"body_alpha_1" = 70,
-	"body_alpha_2" = 95,
-	"body_alpha_3" = 120,
-	"body_scale_1" = 0.8,
-	"body_scale_2" = 0.95,
-	"body_scale_3" = 1.1,
-	// The moving swirl inside it
-	"swirl_alpha" = 110,
-	"swirl_scale" = 1.7,
-	// The tongues that rise off it: how many a fire has at once, how many start each tenth of a second, their
-	// strength 0 to 255, width, how many times taller than wide, how fast they rise and how many tenths of a
-	// second they last
-	"tongues" = 8,
-	"tongue_rate" = 0.7,
-	"tongue_alpha" = 170,
-	"tongue_size" = 0.45,
-	"tongue_tall" = 2.2,
-	"tongue_rise" = 3.4,
-	"tongue_life" = 11,
+	"glow_alpha" = 160,
+	// Embers: how many at once and how many start each tenth of a second
+	"embers" = 3,
+	"ember_rate" = 0.25,
 ))
+
+/// How many different fires of each size and heat there are. A turf always gets the same one.
+#define FLAME_KINDS 4
+/// Above this a fire burns paler
+#define FLAME_HOT_TEMPERATURE 4000
 
 // MARK: The plane
 
@@ -66,108 +53,30 @@ GLOBAL_LIST_INIT(flame_look, list(
 	plane = FIRE_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	render_target = FIRE_RENDER_TARGET
-	var/atom/movable/screen/fire_relay/outer
-	var/atom/movable/screen/fire_relay/core/core
+	var/atom/movable/screen/fire_relay/shown
 	var/atom/movable/screen/fire_relay/glow/glow
 
 /atom/movable/screen/plane_master/fire/Destroy()
-	QDEL_NULL(outer)
-	QDEL_NULL(core)
+	QDEL_NULL(shown)
 	QDEL_NULL(glow)
 	return ..()
 
 // No ..(): that adds gravity's warp, and nothing here is on screen to be warped
 /atom/movable/screen/plane_master/fire/backdrop(mob/mymob)
-	if(!outer)
-		outer = new
-		core = new
+	if(!shown)
+		shown = new
 		glow = new
 	if(mymob?.client)
-		mymob.client.screen |= outer
-		mymob.client.screen |= core
+		mymob.client.screen |= shown
 		mymob.client.screen |= glow
 	set_look()
 
-/**
- * The colour filter that cuts a blurred picture of the fires down to flames.
- *
- * Rows are what each of red, green, blue and alpha going in gives to red, green, blue and alpha coming out, then what
- * is added to each. BYOND multiplies the colour that comes out by the alpha that comes out before it caps that alpha
- * at 1. With edge 5 and cut 0.3 that is times 1 at the edge of a flame and times 3.5 at full strength, so the colours
- * are kept low and a flame grows brighter towards its middle by itself.
- */
-/proc/flame_filter(cut, edge, red, green, blue, add_green = 0, add_blue = 0)
-	return color_matrix_filter(list(
-		red, 0, 0, 0,
-		0, green, 0, 0,
-		0, 0, blue, 0,
-		0, 0, 0, edge,
-		0, add_green, add_blue, -edge * cut,
-	))
-
-/// Sets the blurs, the cuts and the colours from GLOB.flame_look
 /atom/movable/screen/plane_master/fire/proc/set_look()
 	var/list/look = GLOB.flame_look
-	var/list/outer_cut = flame_filter(look["cut"], look["edge"], look["heat_red"], look["heat_green"], look["heat_blue"])
-	outer.clear_filters()
-	outer.add_filter("blur", 1, gauss_blur_filter(size = look["blur"]))
-	outer.add_filter("cut", 2, outer_cut)
-	core.clear_filters()
-	core.add_filter("blur", 1, gauss_blur_filter(size = look["core_blur"]))
-	core.add_filter("cut", 2, flame_filter(look["core_cut"], look["core_edge"], 1, look["core_heat"], look["core_heat"], look["core_green"], look["core_blue"]))
+	shown.blend_mode = look["add"] ? BLEND_ADD : BLEND_OVERLAY
 	glow.clear_filters()
-	glow.add_filter("blur", 1, gauss_blur_filter(size = look["blur"]))
-	glow.add_filter("cut", 2, outer_cut)
-	glow.add_filter("spread", 3, gauss_blur_filter(size = look["glow_blur"]))
+	glow.add_filter("blur", 1, gauss_blur_filter(size = look["glow_blur"]))
 	glow.alpha = look["glow_alpha"]
-	if(look["lick"] > 0)
-		// Before the blur and the cut, so the edge that comes out is still smooth
-		var/list/lick = displacement_map_filter(render_source = FIRE_NOISE_RENDER_TARGET, size = look["lick"])
-		outer.add_filter("lick", 0, lick)
-		core.add_filter("lick", 0, lick)
-
-/// Holds the noise the flames are pushed about by. Never shown.
-/atom/movable/screen/plane_master/fire_noise
-	name = "fire noise plane master"
-	plane = FIRE_NOISE_PLANE
-	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	render_target = FIRE_NOISE_RENDER_TARGET
-	var/atom/movable/screen/fire_noise/noise
-
-/atom/movable/screen/plane_master/fire_noise/Destroy()
-	QDEL_NULL(noise)
-	return ..()
-
-// No ..(), the same as the fire plane
-/atom/movable/screen/plane_master/fire_noise/backdrop(mob/mymob)
-	if(!noise)
-		noise = new
-		noise.start_scroll()
-	if(mymob?.client)
-		mymob.client.screen |= noise
-
-/**
- * Smooth random red and green, three times its size so it covers the whole screen, scrolling upwards for ever.
- *
- * In a displace filter red pushes a pixel sideways and green up or down, and mid grey leaves it be.
- * The sheet is the same square twice, one above the other, so after scrolling one square's height it can jump
- * back to where it started without that showing.
- */
-/atom/movable/screen/fire_noise
-	icon = 'icons/effects/flame_noise.dmi'
-	icon_state = "noise"
-	screen_loc = "SOUTHWEST"
-	plane = FIRE_NOISE_PLANE
-	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	appearance_flags = NO_CLIENT_COLOR
-	// Scaling is about the sheet's middle, so this puts its left edge back at the screen's
-	pixel_x = 256
-
-/atom/movable/screen/fire_noise/proc/start_scroll()
-	transform = matrix().Scale(3)
-	pixel_y = -256
-	animate(src, pixel_y = 512, time = GLOB.flame_look["lick_time"] SECONDS, loop = -1)
-	animate(pixel_y = -256, time = 0)
 
 /// The picture of the fires drawn as a thing over the lit game
 /atom/movable/screen/fire_relay
@@ -179,110 +88,121 @@ GLOBAL_LIST_INIT(flame_look, list(
 	layer = ABOVE_LIGHTING_LAYER + 0.2
 	render_source = FIRE_RENDER_TARGET
 
-/atom/movable/screen/fire_relay/core
-	layer = ABOVE_LIGHTING_LAYER + 0.3
-
 /atom/movable/screen/fire_relay/glow
 	layer = ABOVE_LIGHTING_LAYER + 0.1
 	blend_mode = BLEND_ADD
 
 // MARK: The flames
 
-/// Shapes that rise off a fire and thin out. Above the body they are cut down to tongues of flame.
-/particles/flame_tongues
-	icon = 'icons/effects/flame_body.dmi'
-	icon_state = "blob"
-	width = 160
-	height = 256
-	fade = 0.5 SECONDS
-	fadein = 0.1 SECONDS
-	position = generator("box", list(-10, -8), list(10, 2), UNIFORM_RAND)
-	drift = generator("vector", list(-0.25, 0), list(0.25, 0.12), UNIFORM_RAND)
+/particles/pixel_flame
+	icon = 'icons/effects/flame_bits.dmi'
+	icon_state = list("1" = 1, "2" = 1, "3" = 1, "4" = 1, "5" = 1, "6" = 1, "7" = 1, "8" = 1)
+	width = 96
+	height = 128
+	fadein = 1
+	fade = 3
+	position = generator("box", list(-13, -15), list(13, 5), UNIFORM_RAND)
+	drift = generator("vector", list(-0.08, 0), list(0.08, 0.05), UNIFORM_RAND)
+	color = 0
+
+/particles/pixel_flame/embers
+	icon_state = "spark"
+	width = 96
+	height = 224
+	fade = 8
+	position = generator("box", list(-12, -4), list(12, 8), UNIFORM_RAND)
+	velocity = generator("vector", list(-0.6, 1.6), list(0.6, 3), UNIFORM_RAND)
+	drift = generator("vector", list(-0.3, -0.05), list(0.3, 0.1), UNIFORM_RAND)
+	scale = list(1, 1)
+
+/// What shows a fire's flames. A few are made of each kind and every fire of that kind shows one, so a fire costs
+/// the server one entry in a list.
+/obj/effect/abstract/flame_holder
+	invisibility = 0
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	plane = FIRE_PLANE
+	blend_mode = BLEND_ADD
+	// The fire's own colour and see-through-ness are for the old look
+	appearance_flags = RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM | KEEP_APART | PIXEL_SCALE
+
+/// The colours a lick goes through as it rises: index 0 when it starts, 1 when it is about to go
+/proc/flame_gradient(hot)
+	if(hot)
+		return list(0, "#ffffff", 0.3, "#e8f0ff", 0.6, "#ffe9a8", 0.85, "#ff9a3c", 1, "#a02a10")
+	return list(0, "#fff7d0", 0.25, "#ffd24a", 0.5, "#ff9a22", 0.75, "#e8480e", 1, "#7a1206")
+
+/// The holders for a fire of that size and heat on that turf
+/proc/flame_holders(size, hot, turf/where)
+	var/static/list/holders = list()
+	if(isnull(size))
+		for(var/key in holders)
+			QDEL_LIST_CONTENTS(holders[key])
+		holders = list()
+		return
+	var/kind = (where.x * 7 + where.y * 13) % FLAME_KINDS
+	var/key = "[size]-[hot]-[kind]"
+	if(holders[key])
+		return holders[key]
+	var/list/look = GLOB.flame_look
+	var/obj/effect/abstract/flame_holder/flames = new(null)
+	var/particles/pixel_flame/licks = new
+	licks.count = look["count_[size]"]
+	licks.spawning = look["rate_[size]"]
+	licks.lifespan = generator("num", look["life_min"], look["life_max"], UNIFORM_RAND)
+	licks.velocity = generator("vector", list(-0.15, look["rise_min"]), list(0.15, look["rise_max"]), UNIFORM_RAND)
+	licks.scale = generator("vector", list(look["scale_min"], look["scale_min"]), list(look["scale_max"], look["scale_max"]), UNIFORM_RAND)
+	licks.grow = list(-look["shrink"], -look["shrink"])
+	licks.gradient = flame_gradient(hot)
+	licks.color_change = look["cool"]
+	flames.particles = licks
+	flames.alpha = look["alpha"]
+	var/list/parts = list(flames)
+	if(look["embers"] > 0 && size > 1)
+		var/obj/effect/abstract/flame_holder/sparks = new(null)
+		var/particles/pixel_flame/embers/embers = new
+		embers.count = look["embers"]
+		embers.spawning = look["ember_rate"]
+		embers.lifespan = generator("num", 12, 24, UNIFORM_RAND)
+		embers.gradient = flame_gradient(hot)
+		embers.color_change = look["cool"] * 0.5
+		sparks.particles = embers
+		parts += sparks
+	holders[key] = parts
+	return parts
 
 /obj/effect/hotspot
 	/// 1, 2 or 3 for a small, middling or big fire
 	var/flame_size = 1
+	/// Whether we were last drawn hot
+	var/flame_hot = FALSE
 	/// The value of GLOB.merged_flames we were last drawn for
 	var/flame_merged
 
-/// The parts of a merged fire of that size. A turf always gets the same ones, so a fire doesn't jump about when it changes size.
-/proc/merged_flame_parts(size, turf/where)
-	var/static/list/parts = list()
-	if(isnull(size))
-		parts = list()
-		return
-	var/kind = (where.x * 7 + where.y * 13) % 8
-	var/key = "[size]-[kind]"
-	if(parts[key])
-		return parts[key]
-	var/list/look = GLOB.flame_look
-	// Each kind is a little off the tile's middle and a little bigger or smaller, so the edge of a fire is not a straight line
-	var/shift_x = ((kind * 5) % 11) - 5
-	var/shift_y = ((kind * 3) % 9) - 4
-	var/stretch = 0.88 + (kind % 4) * 0.08
-	var/mutable_appearance/body = mutable_appearance('icons/effects/flame_body.dmi', "blob")
-	body.alpha = look["body_alpha_[size]"]
-	body.transform = matrix().Scale(look["body_scale_[size]"] * stretch)
-	// The sheet is three tiles wide
-	body.pixel_x = -32 + shift_x
-	body.pixel_y = -32 + shift_y
-	var/mutable_appearance/swirl = mutable_appearance('icons/effects/flame_swirl.dmi', "[size]")
-	swirl.alpha = look["swirl_alpha"]
-	swirl.transform = matrix().Scale(look["swirl_scale"])
-	swirl.pixel_x = shift_x
-	swirl.pixel_y = shift_y
-	parts[key] = list(body, swirl)
-	return parts[key]
-
-/// The tongues every merged fire shares
-/proc/merged_flame_tongues(remake = FALSE)
-	var/static/particles/flame_tongues/tongues
-	if(!tongues || remake)
-		if(!tongues)
-			tongues = new
-		var/list/look = GLOB.flame_look
-		tongues.count = look["tongues"]
-		tongues.spawning = look["tongue_rate"]
-		tongues.color = rgb(255, 255, 255, look["tongue_alpha"])
-		var/wide = look["tongue_size"]
-		var/tall = wide * look["tongue_tall"]
-		tongues.scale = generator("vector", list(wide * 0.7, tall * 0.7), list(wide * 1.3, tall * 1.3), UNIFORM_RAND)
-		tongues.grow = list(-wide / 22, -tall / 22)
-		tongues.velocity = generator("vector", list(-0.25, look["tongue_rise"] * 0.6), list(0.25, look["tongue_rise"] * 1.3), UNIFORM_RAND)
-		tongues.lifespan = generator("num", look["tongue_life"] * 0.7, look["tongue_life"] * 1.3, UNIFORM_RAND)
-	return tongues
-
 /// Draws us as a small (1), middling (2) or big (3) fire
 /obj/effect/hotspot/proc/set_flame_size(size, force = FALSE)
-	if(!force && size == flame_size && flame_merged == GLOB.merged_flames)
+	var/hot = temperature > FLAME_HOT_TEMPERATURE
+	if(!force && size == flame_size && hot == flame_hot && flame_merged == GLOB.merged_flames)
 		return
 	flame_size = size
+	flame_hot = hot
 	flame_merged = GLOB.merged_flames
-	cut_overlays()
+	vis_contents.Cut()
 	if(!flame_merged)
-		plane = initial(plane)
-		blend_mode = initial(blend_mode)
-		alpha = initial(alpha)
 		icon = initial(icon)
 		icon_state = "[size]"
-		particles = null
 		return
-	plane = FIRE_PLANE
-	blend_mode = BLEND_DEFAULT
-	alpha = 255
 	icon = null
-	particles = merged_flame_tongues()
 	if(isturf(loc))
-		add_overlay(merged_flame_parts(size, loc))
+		vis_contents += flame_holders(size, hot, loc)
 
 /// Call after changing GLOB.flame_look or GLOB.merged_flames: every fire and every client's fire plane takes the new numbers
 /proc/flame_look_changed()
-	merged_flame_parts(null)
-	merged_flame_tongues(TRUE)
+	flame_holders(null)
 	for(var/obj/effect/hotspot/fire in world)
 		fire.set_flame_size(fire.flame_size, TRUE)
 	for(var/client/C as anything in GLOB.clients)
 		var/atom/movable/screen/plane_master/fire/master = C.mob?.hud_used?.plane_masters["[FIRE_PLANE]"]
 		master?.set_look()
-		var/atom/movable/screen/plane_master/fire_noise/noise_master = C.mob?.hud_used?.plane_masters["[FIRE_NOISE_PLANE]"]
-		noise_master?.noise?.start_scroll()
+
+#undef FLAME_KINDS
+#undef FLAME_HOT_TEMPERATURE
