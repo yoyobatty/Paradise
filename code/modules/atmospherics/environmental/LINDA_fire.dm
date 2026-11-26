@@ -54,12 +54,7 @@
 		if(r_delta > 10 || g_delta > 10 || b_delta > 10)
 			set_light(l_color = heat_colour)
 
-	if(fuel_burnt > 1)
-		set_flame_size(3)
-	else if(fuel_burnt > 0.1)
-		set_flame_size(2)
-	else
-		set_flame_size(1)
+	set_flame_fuel(fuel_burnt)
 	flames_tick()
 
 
@@ -77,6 +72,7 @@
 
 /obj/effect/hotspot/Destroy()
 	set_light(0)
+	flames_die()
 	var/turf/simulated/T = loc
 	if(istype(T) && T.active_hotspot == src)
 		T.active_hotspot = null

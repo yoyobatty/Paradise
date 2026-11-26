@@ -8,8 +8,14 @@
 // - open behind it: the back edge of the fire in the station's three-quarter view, tall tongues and smoke ("edge").
 //   The deeper the fire in front of it, the bigger it is drawn, so a big fire has a wall of flame along its back.
 // - open air to one side only: its flames lean out into it.
+// - a big fire: flames that reach the ceiling turn and roll along it. The station's three-quarter view has no ceiling
+//   to see, but a tile's would be about a tile up the screen, so a band of sideways flame is drawn there. Over a big
+//   fire the bands join into one rolling sheet.
 // Fires are drawn on a plane of their own. That picture is laid over the lit game, and a blurred copy of it is added
-// round it as the light the flames throw. A slow noise scrolling up the screen pushes the whole picture about, so a
+// round it as the light the flames throw. Both are cut down to where the lighting is not pitch black: being over the
+// lighting, they would show behind walls and in the dark round a fire, where the lighting hides everything else. A
+// burning tile is lit by its own fire, so its flames stay. Viewers who see in the dark see them all.
+// A slow noise scrolling up the screen pushes the whole picture about, so a
 // big fire surges as one. The glow and the surge are both whole-screen passes, so players can turn them off.
 
 /// How many different fires of each form and size there are. A turf always shows the same one, mirrored for half of them.
@@ -26,6 +32,14 @@
 #define FLAME_SURGE_TIME 9
 /// A fire looks again at the walls and things round it every this many updates, as they can move without telling it
 #define FLAME_LOOK_ROUND_EVERY 10
+/// How far up from the floor the flames rolling along the ceiling are drawn, in pixels
+#define FLAME_ROLL_UP 28
+/// A fire's look changes at most this often, as each new look starts its animation over
+#define FLAME_REDRAW_GAP (2 SECONDS)
+/// How long a new look takes to fade in over the old one
+#define FLAME_FADE (0.5 SECONDS)
+/// How long the flames of a fire that went out take to die down
+#define FLAME_DIE (1 SECONDS)
 
 // MARK: The planes
 
@@ -50,12 +64,24 @@
 	if(!mymob?.client)
 		return
 	mymob.client.screen |= shown
+	set_cut(mymob)
 	remove_filter("surge")
 	if(mymob.client.prefs?.toggles3 & PREFTOGGLE_3_PLAIN_FIRE)
 		mymob.client.screen -= glow
 		return
 	mymob.client.screen |= glow
 	add_filter("surge", 1, displacement_map_filter(render_source = FIRE_NOISE_RENDER_TARGET, size = FLAME_SURGE))
+
+/// Cuts the fires to where the lighting is not black, unless the mob sees in the dark
+/atom/movable/screen/plane_master/fire/proc/set_cut(mob/viewer)
+	var/cut = viewer.lighting_alpha >= LIGHTING_PLANE_ALPHA_VISIBLE
+	shown.cut_to_seen(cut)
+	glow.cut_to_seen(cut)
+
+/mob/sync_lighting_plane_alpha()
+	. = ..()
+	var/atom/movable/screen/plane_master/fire/master = hud_used?.plane_masters["[FIRE_PLANE]"]
+	master?.set_cut(src)
 
 /// The picture of the fires drawn as a thing over the lit game
 /atom/movable/screen/fire_relay
@@ -71,9 +97,43 @@
 	blend_mode = BLEND_ADD
 	alpha = FLAME_GLOW_ALPHA
 
+/// Cuts us to where the viewer can see, or doesn't
+/atom/movable/screen/fire_relay/proc/cut_to_seen(cut)
+	remove_filter("seen")
+	if(cut)
+		add_filter("seen", 10, alpha_mask_filter(render_source = FIRE_SEEN_RENDER_TARGET))
+
 /atom/movable/screen/fire_relay/glow/Initialize(mapload)
 	. = ..()
+	// Blurred first and cut after, so the light doesn't spread into what can't be seen either
 	add_filter("blur", 1, gauss_blur_filter(size = FLAME_GLOW_BLUR))
+
+/// Where the viewer can see, for cutting the fires down to: the lighting's picture, solid wherever it is not black. Never shown.
+/atom/movable/screen/plane_master/fire_seen
+	name = "fire seen plane master"
+	plane = FIRE_SEEN_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = FIRE_SEEN_RENDER_TARGET
+	var/atom/movable/screen/fire_seen_part/lit
+
+/atom/movable/screen/plane_master/fire_seen/Destroy()
+	QDEL_NULL(lit)
+	return ..()
+
+// No ..(), the same as the fire plane
+/atom/movable/screen/plane_master/fire_seen/backdrop(mob/mymob)
+	if(!lit)
+		lit = new
+	mymob?.client?.screen |= lit
+
+/// The lighting's picture drawn on the seen plane, see-through where it is black and solid where it is even a little lit
+/atom/movable/screen/fire_seen_part
+	screen_loc = "SOUTHWEST"
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	plane = FIRE_SEEN_PLANE
+	render_source = LIGHTING_PLANE_RENDER_TARGET
+	// Red, green and blue each add to how solid it is, eight times over; the colour is white
+	color = list(0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 0, 1, 1, 1, 0)
 
 /// Holds the noise the fires are pushed about by. Never shown.
 /atom/movable/screen/plane_master/fire_noise
@@ -131,6 +191,41 @@
 	var/flame_depth = 0
 	/// Counts updates, for looking round again now and then
 	var/flame_updates = 0
+	/// What our flames are drawn on. A new one fades in over the old one when they change.
+	var/obj/effect/abstract/flame_layer/flame_layer
+	/// When our flames were last drawn
+	var/flame_drawn_at = 0
+	/// TRUE when our flames should change but were drawn too lately
+	var/flame_dirty = FALSE
+
+/**
+ * What a fire's flames are drawn on, shown as part of the fire.
+ *
+ * A fire's animations start from their first frame whenever they change, so a tile that just swapped to a new look
+ * jumps. Each look gets one of these instead, and the new one fades in while the old one fades out.
+ */
+/obj/effect/abstract/flame_layer
+	// Abstract effects can't be seen, and neither can what shows them
+	invisibility = 0
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	plane = FIRE_PLANE
+	appearance_flags = RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM | KEEP_APART | PIXEL_SCALE
+
+/obj/effect/abstract/flame_layer/Destroy()
+	// Only fires show these, and they are movables
+	for(var/atom/movable/shown_by as anything in vis_locs)
+		shown_by.vis_contents -= src
+	return ..()
+
+/// Sets our size from how much fuel we burnt. A size is only left again well past the line it was reached at, so a
+/// fire burning right on a line doesn't flick between two sizes.
+/obj/effect/hotspot/proc/set_flame_fuel(fuel)
+	var/size = 1
+	if(fuel > 1 || (flame_size == 3 && fuel > 0.6))
+		size = 3
+	else if(fuel > 0.1 || (flame_size >= 2 && fuel > 0.06))
+		size = 2
+	set_flame_size(size)
 
 /// Draws us as a small (1), middling (2) or big (3) fire, as hot as we are now
 /obj/effect/hotspot/proc/set_flame_size(size)
@@ -201,26 +296,62 @@
 		for(var/obj/effect/hotspot/fire in behind)
 			fire.look_round()
 
-/// Called on every update: now and then looks round again, as walls and things can come and go without telling us
+/// Called on every update: draws a change that had to wait, and now and then looks round again, as walls and things
+/// can come and go without telling us
 /obj/effect/hotspot/proc/flames_tick()
 	flame_updates++
 	if(flame_updates % FLAME_LOOK_ROUND_EVERY == 0)
 		look_round()
+	if(flame_dirty && world.time >= flame_drawn_at + FLAME_REDRAW_GAP)
+		update_flames()
 
 /obj/effect/hotspot/proc/update_flames()
-	cut_overlays()
 	if(!isturf(loc))
 		return
+	// Redrawn at most so often, as every new look starts its animation over
+	if(flame_layer && world.time < flame_drawn_at + FLAME_REDRAW_GAP)
+		flame_dirty = TRUE
+		return
+	flame_dirty = FALSE
+	flame_drawn_at = world.time
+	var/obj/effect/abstract/flame_layer/fresh = new(null)
 	// A deep fire's back edge is drawn bigger: as big as the burning tiles in front of it
 	var/size = (flame_form == "inner") ? flame_size : max(flame_size, flame_depth)
-	add_overlay(flame_overlay(flame_form, size, flame_hot, flame_lean, loc))
+	var/list/parts = list(flame_overlay(flame_form, size, flame_hot, flame_lean, loc))
 	if(flame_form != "inner" && size > 1)
-		add_overlay(flame_smoke_overlay(size, loc))
+		parts += flame_smoke_overlay(size, loc)
+	// Only a fire burning hard reaches the ceiling
+	if(flame_size == 3)
+		parts += flame_roll_overlay(flame_hot, loc)
+	fresh.add_overlay(parts)
+	fresh.alpha = 0
+	vis_contents += fresh
+	animate(fresh, alpha = 255, time = FLAME_FADE)
+	if(flame_layer)
+		animate(flame_layer, alpha = 0, time = FLAME_FADE)
+		QDEL_IN(flame_layer, FLAME_FADE)
+	flame_layer = fresh
+
+/// Leaves our flames on the turf to die down, as we go out
+/obj/effect/hotspot/proc/flames_die()
+	if(!flame_layer)
+		return
+	var/obj/effect/abstract/flame_layer/dying = flame_layer
+	flame_layer = null
+	vis_contents -= dying
+	if(!isturf(loc))
+		qdel(dying)
+		return
+	dying.forceMove(loc)
+	animate(dying, alpha = 0, time = FLAME_DIE)
+	QDEL_IN(dying, FLAME_DIE)
 
 /// Which of the fires a turf shows, 0 to FLAME_KINDS * 2 - 1, the top half mirrored.
 /// Not x and y times numbers mod a power of two, which repeat every few tiles in a lattice you can see.
 /proc/flame_kind(turf/where)
 	return ((where.x * 9283 + where.y * 6917) % 1009 * 7 + where.x * where.y) % (FLAME_KINDS * 2)
+
+// The parts below take their layer's see-through-ness, so they fade with it
 
 /proc/flame_overlay(form, size, hot, lean, turf/where)
 	var/static/list/made = list()
@@ -236,9 +367,25 @@
 	// Leaning flames are drawn leaning east; mirrored they lean west. The others are mirrored for half the turfs.
 	if(lean ? (lean < 0) : (kind >= FLAME_KINDS))
 		flames.transform = matrix(-1, 0, 0, 0, 1, 0)
-	flames.appearance_flags = RESET_COLOR | RESET_ALPHA | KEEP_APART | PIXEL_SCALE
+	flames.appearance_flags = KEEP_APART | PIXEL_SCALE
 	made[key] = flames
 	return flames
+
+/// The flames rolling along the ceiling over a big fire
+/proc/flame_roll_overlay(hot, turf/where)
+	var/static/list/made = list()
+	var/kind = flame_kind(where)
+	var/key = "[hot]-[kind]"
+	if(made[key])
+		return made[key]
+	var/mutable_appearance/roll = mutable_appearance('icons/effects/flame_gas_roll.dmi', "roll[hot ? "h" : ""]-[kind % FLAME_KINDS]", plane = FIRE_PLANE)
+	roll.pixel_x = -16
+	roll.pixel_y = -16 + FLAME_ROLL_UP
+	if(kind >= FLAME_KINDS)
+		roll.transform = matrix(-1, 0, 0, 0, 1, 0)
+	roll.appearance_flags = KEEP_APART | PIXEL_SCALE
+	made[key] = roll
+	return roll
 
 /// The smoke over the back edge of a fire. It is drawn on the game, under the lighting, so it is as dark as the room and lit by the fire.
 /proc/flame_smoke_overlay(size, turf/where)
@@ -252,7 +399,7 @@
 	smoke.pixel_y = -16
 	if(kind >= FLAME_KINDS)
 		smoke.transform = matrix(-1, 0, 0, 0, 1, 0)
-	smoke.appearance_flags = RESET_COLOR | RESET_ALPHA | KEEP_APART | PIXEL_SCALE
+	smoke.appearance_flags = KEEP_APART | PIXEL_SCALE
 	made[key] = smoke
 	return smoke
 
@@ -264,3 +411,7 @@
 #undef FLAME_SURGE
 #undef FLAME_SURGE_TIME
 #undef FLAME_LOOK_ROUND_EVERY
+#undef FLAME_ROLL_UP
+#undef FLAME_REDRAW_GAP
+#undef FLAME_FADE
+#undef FLAME_DIE

@@ -39,6 +39,7 @@
 	appearance_flags = PLANE_MASTER
 	blend_mode = BLEND_MULTIPLY
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = LIGHTING_PLANE_RENDER_TARGET
 
 /atom/movable/screen/plane_master/lighting/backdrop(mob/mymob)
 	. = ..()

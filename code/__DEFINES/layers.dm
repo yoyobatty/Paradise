@@ -101,6 +101,11 @@
 #define HIGH_LANDMARK_LAYER 9.2
 #define AREA_LAYER 10
 #define MASSIVE_OBJ_LAYER 11
+/// Where the viewer can see: wherever the lighting is not pitch black. Never shown.
+/// Fires are cut down to it, as they are drawn over the lighting, which is what hides what can't be seen.
+#define FIRE_SEEN_PLANE 9
+#define FIRE_SEEN_RENDER_TARGET "*FIRE_SEEN_PLANE"
+
 /// Smooth noise that scrolls up the screen, out of sight. The picture of the fires is pushed about by it.
 #define FIRE_NOISE_PLANE 10
 #define FIRE_NOISE_RENDER_TARGET "*FIRE_NOISE_PLANE"
@@ -125,6 +130,8 @@
 #define COGBAR_PLANE 15
 
 #define LIGHTING_PLANE 16
+/// The lighting's picture, for things drawn over it that must still not show where it is black. No star: it is still drawn.
+#define LIGHTING_PLANE_RENDER_TARGET "LIGHTING_PLANE_PICTURE"
 #define LIGHTING_LAYER 16
 
 #define LIGHTING_LAMPS_GLARE 17 // Light glare (optional setting)
