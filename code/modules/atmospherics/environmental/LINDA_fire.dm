@@ -61,11 +61,11 @@
 			set_light(l_color = color)
 
 	if(fuel_burnt > 1)
-		icon_state = "3"
+		set_flame_size(3)
 	else if(fuel_burnt > 0.1)
-		icon_state = "2"
+		set_flame_size(2)
 	else
-		icon_state = "1"
+		set_flame_size(1)
 
 
 /obj/effect/hotspot/Initialize(mapload)
@@ -74,6 +74,7 @@
 		COMSIG_ATOM_ENTERED = PROC_REF(on_atom_entered),
 	)
 	AddElement(/datum/element/connect_loc, loc_connections)
+	set_flame_size(flame_size, TRUE)
 
 // Garbage collect itself by nulling reference to it
 

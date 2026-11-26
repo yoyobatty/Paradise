@@ -2110,6 +2110,7 @@
 #include "code\modules\asset_cache\transports\webroot_transport.dm"
 #include "code\modules\atmospherics\environmental\LINDA_fire.dm"
 #include "code\modules\atmospherics\environmental\LINDA_system.dm"
+#include "code\modules\atmospherics\environmental\merged_flames.dm"
 #include "code\modules\atmospherics\environmental\LINDA_turf_tile.dm"
 #include "code\modules\atmospherics\gasmixtures\gas_mixture.dm"
 #include "code\modules\atmospherics\machinery\airalarm.dm"

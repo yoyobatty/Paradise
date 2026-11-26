@@ -101,6 +101,15 @@
 #define HIGH_LANDMARK_LAYER 9.2
 #define AREA_LAYER 10
 #define MASSIVE_OBJ_LAYER 11
+/// Smooth noise that scrolls up the screen, out of sight. The picture of the fires is pushed about by it.
+#define FIRE_NOISE_PLANE 10
+#define FIRE_NOISE_RENDER_TARGET "*FIRE_NOISE_PLANE"
+
+/// Fires are drawn here first, out of sight, so their flames can be joined up before they are shown.
+#define FIRE_PLANE 11
+/// The joined up picture of the fires.
+#define FIRE_RENDER_TARGET "*FIRE_PLANE"
+
 #define SMOKE_PLANE 12
 #define POINT_LAYER 13
 
