@@ -53,7 +53,7 @@ GLOBAL_LIST_INIT(flame_look, list(
 ))
 
 /// How many different fires of each size and heat there are. A turf always gets the same one.
-#define FLAME_KINDS 4
+#define FLAME_KINDS 8
 /// Above this a fire burns paler
 #define FLAME_HOT_TEMPERATURE 4000
 
@@ -151,7 +151,7 @@ GLOBAL_LIST_INIT(flame_look, list(
 			QDEL_LIST_CONTENTS(holders[key])
 		holders = list()
 		return
-	var/kind = (where.x * 7 + where.y * 13) % FLAME_KINDS
+	var/kind = (where.x * 37 + where.y * 61 + where.x * where.y * 11) % FLAME_KINDS
 	var/key = "[size]-[hot]-[kind]"
 	if(holders[key])
 		return holders[key]
@@ -224,7 +224,7 @@ GLOBAL_LIST_INIT(flame_look, list(
 /// The animated flames for a fire of that size and heat on that turf
 /proc/baked_flame(size, hot, turf/where, style = FLAMES_BAKED)
 	var/static/list/baked = list()
-	var/kind = (where.x * 7 + where.y * 13) % FLAME_KINDS
+	var/kind = (where.x * 37 + where.y * 61 + where.x * where.y * 11) % FLAME_KINDS
 	var/state = "[size][hot ? "h" : ""]-[kind]"
 	var/key = "[style][state]"
 	if(baked[key])
@@ -246,7 +246,7 @@ GLOBAL_LIST_INIT(flame_look, list(
 	if(remake)
 		baked = list()
 		return
-	var/kind = (where.x * 7 + where.y * 13) % FLAME_KINDS
+	var/kind = (where.x * 37 + where.y * 61 + where.x * where.y * 11) % FLAME_KINDS
 	var/state = "smoke[size]-[kind]"
 	var/key = "[station][state]"
 	if(baked[key])
