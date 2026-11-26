@@ -962,8 +962,8 @@
 						var/atom/movable/screen/plane_master/point/PM = locate(/atom/movable/screen/plane_master/point) in parent.screen
 						PM.backdrop(parent.mob)
 
-				if("fire_glow")
-					toggles3 ^= PREFTOGGLE_3_NO_FIRE_GLOW
+				if("fancy_fire")
+					toggles3 ^= PREFTOGGLE_3_PLAIN_FIRE
 					if(length(parent?.screen))
 						var/atom/movable/screen/plane_master/fire/PM = locate(/atom/movable/screen/plane_master/fire) in parent.screen
 						PM?.backdrop(parent.mob)

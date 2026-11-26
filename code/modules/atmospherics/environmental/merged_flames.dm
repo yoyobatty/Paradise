@@ -2,21 +2,32 @@
 // round them. The animations are worked out ahead of time (tools/shift_bench/make_gas_fire.py, local), so a fire is
 // one animated overlay and costs the client about what the old sprite did.
 //
-// A tile with fire behind it (to the north) shows low, fat flames that run into the fires round it. A tile with no fire
-// behind it is the back edge of the fire in the station's three-quarter view, and shows tall tongues and smoke.
+// A fire pushes up and out the way a real one does. Each burning tile looks at what is round it:
+// - fire behind it (north): low, fat flames that run into the fires round it ("inner")
+// - a wall or something solid behind it: flames that run up its face ("climb")
+// - open behind it: the back edge of the fire in the station's three-quarter view, tall tongues and smoke ("edge").
+//   The deeper the fire in front of it, the bigger it is drawn, so a big fire has a wall of flame along its back.
+// - open air to one side only: its flames lean out into it.
 // Fires are drawn on a plane of their own. That picture is laid over the lit game, and a blurred copy of it is added
-// round it as the light the flames throw.
+// round it as the light the flames throw. A slow noise scrolling up the screen pushes the whole picture about, so a
+// big fire surges as one. The glow and the surge are both whole-screen passes, so players can turn them off.
 
-/// How many different fires of each size there are. A turf always shows the same one, mirrored for half of them.
-#define FLAME_KINDS 4
+/// How many different fires of each form and size there are. A turf always shows the same one, mirrored for half of them.
+#define FLAME_KINDS 3
 /// A fire burns paler with a blue root above this, and goes back below FLAME_HOT_END. The gap stops a fire flicking between the two.
 #define FLAME_HOT_START 5000
 #define FLAME_HOT_END 4500
 /// How far the light round the flames is blurred, and how strong it is (0 to 255)
 #define FLAME_GLOW_BLUR 10
 #define FLAME_GLOW_ALPHA 160
+/// How many pixels the surge pushes the flames about at most
+#define FLAME_SURGE 7
+/// How many seconds the surge noise takes to scroll a whole screen of it up
+#define FLAME_SURGE_TIME 9
+/// A fire looks again at the walls and things round it every this many updates, as they can move without telling it
+#define FLAME_LOOK_ROUND_EVERY 10
 
-// MARK: The plane
+// MARK: The planes
 
 /atom/movable/screen/plane_master/fire
 	name = "fire plane master"
@@ -39,11 +50,12 @@
 	if(!mymob?.client)
 		return
 	mymob.client.screen |= shown
-	// The glow is a blur of the whole screen, the dearest part of a fire to draw, so players can turn it off
-	if(mymob.client.prefs?.toggles3 & PREFTOGGLE_3_NO_FIRE_GLOW)
+	remove_filter("surge")
+	if(mymob.client.prefs?.toggles3 & PREFTOGGLE_3_PLAIN_FIRE)
 		mymob.client.screen -= glow
-	else
-		mymob.client.screen |= glow
+		return
+	mymob.client.screen |= glow
+	add_filter("surge", 1, displacement_map_filter(render_source = FIRE_NOISE_RENDER_TARGET, size = FLAME_SURGE))
 
 /// The picture of the fires drawn as a thing over the lit game
 /atom/movable/screen/fire_relay
@@ -63,15 +75,62 @@
 	. = ..()
 	add_filter("blur", 1, gauss_blur_filter(size = FLAME_GLOW_BLUR))
 
+/// Holds the noise the fires are pushed about by. Never shown.
+/atom/movable/screen/plane_master/fire_noise
+	name = "fire noise plane master"
+	plane = FIRE_NOISE_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = FIRE_NOISE_RENDER_TARGET
+	var/atom/movable/screen/fire_noise/noise
+
+/atom/movable/screen/plane_master/fire_noise/Destroy()
+	QDEL_NULL(noise)
+	return ..()
+
+// No ..(), the same as the fire plane
+/atom/movable/screen/plane_master/fire_noise/backdrop(mob/mymob)
+	if(!noise)
+		noise = new
+	mymob?.client?.screen |= noise
+
+/**
+ * Smooth random red and green, three times its size so it covers the whole screen, scrolling up for ever.
+ *
+ * In a displace filter red pushes a pixel sideways and green up or down, and mid grey leaves it be.
+ * The sheet is the same square twice, one above the other, so after scrolling one square's height it jumps back to
+ * where it started without that showing.
+ */
+/atom/movable/screen/fire_noise
+	icon = 'icons/effects/flame_noise.dmi'
+	icon_state = "noise"
+	screen_loc = "SOUTHWEST"
+	plane = FIRE_NOISE_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	// Scaling is about the sheet's middle, so this puts its left edge back at the screen's
+	pixel_x = 256
+	pixel_y = -256
+
+/atom/movable/screen/fire_noise/Initialize(mapload)
+	. = ..()
+	transform = matrix().Scale(3)
+	animate(src, pixel_y = 512, time = FLAME_SURGE_TIME SECONDS, loop = -1)
+	animate(pixel_y = -256, time = 0)
+
 // MARK: The flames
 
 /obj/effect/hotspot
 	/// 1, 2 or 3 for a small, middling or big fire
 	var/flame_size = 1
-	/// Whether we burn blue-white
+	/// Whether we burn paler and hotter
 	var/flame_hot = FALSE
-	/// Whether there is a fire behind us, so we show low flames and no smoke
-	var/flame_inner = FALSE
+	/// "inner", "edge" or "climb": what is behind us
+	var/flame_form = "edge"
+	/// -1 or 1 to lean our flames out to the west or east, where there is open air on that side only
+	var/flame_lean = 0
+	/// How many burning tiles are in front of us, up to 3: a deep fire's back edge is drawn bigger
+	var/flame_depth = 0
+	/// Counts updates, for looking round again now and then
+	var/flame_updates = 0
 
 /// Draws us as a small (1), middling (2) or big (3) fire, as hot as we are now
 /obj/effect/hotspot/proc/set_flame_size(size)
@@ -82,51 +141,100 @@
 	flame_hot = hot
 	update_flames()
 
-/// Whether there is a fire on the turf to the north of us
-/obj/effect/hotspot/proc/set_flame_inner(inner)
-	if(inner == flame_inner)
+/// Whether a turf is burning
+/proc/flame_burning(turf/T)
+	return T && !isnull(locate(/obj/effect/hotspot) in T)
+
+/// Whether flames can't go into a turf: a wall, the edge of the map, or something solid on it
+/proc/flame_blocked(turf/T)
+	if(!T || T.density)
+		return TRUE
+	for(var/obj/thing in T)
+		if(thing.density && !iseffect(thing))
+			return TRUE
+	return FALSE
+
+/// Looks at what is round us and redraws us if that changed what we show
+/obj/effect/hotspot/proc/look_round()
+	var/turf/here = loc
+	if(!isturf(here))
 		return
-	flame_inner = inner
+	var/turf/behind = get_step(here, NORTH)
+	var/form = "edge"
+	if(flame_burning(behind))
+		form = "inner"
+	else if(flame_blocked(behind))
+		form = "climb"
+	var/lean = 0
+	if(form != "climb")
+		var/turf/east = get_step(here, EAST)
+		var/turf/west = get_step(here, WEST)
+		var/open_east = !flame_burning(east) && !flame_blocked(east)
+		var/open_west = !flame_burning(west) && !flame_blocked(west)
+		if(open_east != open_west)
+			lean = open_east ? 1 : -1
+	var/depth = 0
+	if(form != "inner")
+		var/turf/in_front = get_step(here, SOUTH)
+		while(depth < 3 && flame_burning(in_front))
+			depth++
+			in_front = get_step(in_front, SOUTH)
+	if(form == flame_form && lean == flame_lean && depth == flame_depth)
+		return
+	flame_form = form
+	flame_lean = lean
+	flame_depth = depth
 	update_flames()
+
+/// Tells the fires whose looks depend on a turf to look round again: beside it, and behind it up to three tiles
+/proc/flame_tell_neighbours(turf/here)
+	if(!isturf(here))
+		return
+	for(var/direction in list(SOUTH, EAST, WEST))
+		for(var/obj/effect/hotspot/fire in get_step(here, direction))
+			fire.look_round()
+	var/turf/behind = here
+	for(var/i in 1 to 3)
+		behind = get_step(behind, NORTH)
+		if(!behind)
+			return
+		for(var/obj/effect/hotspot/fire in behind)
+			fire.look_round()
+
+/// Called on every update: now and then looks round again, as walls and things can come and go without telling us
+/obj/effect/hotspot/proc/flames_tick()
+	flame_updates++
+	if(flame_updates % FLAME_LOOK_ROUND_EVERY == 0)
+		look_round()
 
 /obj/effect/hotspot/proc/update_flames()
 	cut_overlays()
 	if(!isturf(loc))
 		return
-	add_overlay(flame_overlay(flame_size, flame_hot, flame_inner, loc))
-	if(!flame_inner && flame_size > 1)
-		add_overlay(flame_smoke_overlay(flame_size, loc))
-
-/// Finds out whether we have a fire behind us, and tells the fire in front of us that it has one now
-/obj/effect/hotspot/proc/join_flames()
-	var/turf/behind = get_step(src, NORTH)
-	flame_inner = behind && !isnull(locate(/obj/effect/hotspot) in behind)
-	var/turf/in_front = get_step(src, SOUTH)
-	var/obj/effect/hotspot/fire = in_front && (locate(/obj/effect/hotspot) in in_front)
-	fire?.set_flame_inner(TRUE)
-
-/// Tells the fire in front of us that it has nothing behind it any more
-/obj/effect/hotspot/proc/part_flames()
-	var/turf/in_front = get_step(src, SOUTH)
-	var/obj/effect/hotspot/fire = in_front && (locate(/obj/effect/hotspot) in in_front)
-	fire?.set_flame_inner(FALSE)
+	// A deep fire's back edge is drawn bigger: as big as the burning tiles in front of it
+	var/size = (flame_form == "inner") ? flame_size : max(flame_size, flame_depth)
+	add_overlay(flame_overlay(flame_form, size, flame_hot, flame_lean, loc))
+	if(flame_form != "inner" && size > 1)
+		add_overlay(flame_smoke_overlay(size, loc))
 
 /// Which of the fires a turf shows, 0 to FLAME_KINDS * 2 - 1, the top half mirrored.
 /// Not x and y times numbers mod a power of two, which repeat every few tiles in a lattice you can see.
 /proc/flame_kind(turf/where)
 	return ((where.x * 9283 + where.y * 6917) % 1009 * 7 + where.x * where.y) % (FLAME_KINDS * 2)
 
-/proc/flame_overlay(size, hot, inner, turf/where)
+/proc/flame_overlay(form, size, hot, lean, turf/where)
 	var/static/list/made = list()
 	var/kind = flame_kind(where)
-	var/key = "[inner][size][hot]-[kind]"
+	var/key = "[form][size][hot][lean]-[kind]"
 	if(made[key])
 		return made[key]
-	var/mutable_appearance/flames = mutable_appearance(inner ? 'icons/effects/flame_gas_inner.dmi' : 'icons/effects/flame_gas.dmi', "[size][hot ? "h" : ""]-[kind % FLAME_KINDS]", plane = FIRE_PLANE)
-	// Both sheets are two tiles wide with the tile in the middle, 16 pixels up from their bottom
+	var/static/list/sheets = list("inner" = 'icons/effects/flame_gas_inner.dmi', "edge" = 'icons/effects/flame_gas.dmi', "climb" = 'icons/effects/flame_gas_climb.dmi')
+	var/mutable_appearance/flames = mutable_appearance(sheets[form], "[form][size][hot ? "h" : ""]-[kind % FLAME_KINDS][lean ? "r" : ""]", plane = FIRE_PLANE)
+	// Every sheet is two tiles wide with the tile in the middle, 16 pixels up from its bottom
 	flames.pixel_x = -16
 	flames.pixel_y = -16
-	if(kind >= FLAME_KINDS)
+	// Leaning flames are drawn leaning east; mirrored they lean west. The others are mirrored for half the turfs.
+	if(lean ? (lean < 0) : (kind >= FLAME_KINDS))
 		flames.transform = matrix(-1, 0, 0, 0, 1, 0)
 	flames.appearance_flags = RESET_COLOR | RESET_ALPHA | KEEP_APART | PIXEL_SCALE
 	made[key] = flames
@@ -153,3 +261,6 @@
 #undef FLAME_HOT_END
 #undef FLAME_GLOW_BLUR
 #undef FLAME_GLOW_ALPHA
+#undef FLAME_SURGE
+#undef FLAME_SURGE_TIME
+#undef FLAME_LOOK_ROUND_EVERY
