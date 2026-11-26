@@ -485,6 +485,7 @@ GLOBAL_LIST_INIT(special_role_times, list(
 			dat += "</a><br>"
 			dat += "<b> - Lamp Exposure:</b> <a href='byond://?_src_=prefs;preference=exposure'>[(light & LIGHT_EXPOSURE) ? "Yes" : "No"]</a><br>"
 			dat += "<b> - Lamp Glare:</b> <a href='byond://?_src_=prefs;preference=glare'>[(light & LIGHT_GLARE) ? "Yes" : "No"]</a><br>"
+			dat += "<b>Fire glow:</b> <a href='byond://?_src_=prefs;preference=fire_glow'>[(toggles3 & PREFTOGGLE_3_NO_FIRE_GLOW) ? "No" : "Yes"]</a><br>"
 			// RIGHT SIDE OF THE PAGE
 			dat += "</td><td width='405px' height='300px' valign='top'>"
 			dat += "<h2>Interface Settings</h2>"

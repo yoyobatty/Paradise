@@ -86,8 +86,10 @@
 #define PREFTOGGLE_3_DARK_FLASH						(1<<1) // 2
 #define PREFTOGGLE_3_POSTCREDS 						(1<<2) // 4
 #define PREFTOGGLE_3_HEAR_BLOOPERS 					(1<<3) // 8
+/// Set means no soft light round fires, for slower PCs. It is the off switch so players who saved before it get the light.
+#define PREFTOGGLE_3_NO_FIRE_GLOW 					(1<<4) // 16
 
-#define TOGGLES_3_TOTAL 							15 // If you add or remove a preference toggle above, make sure you update this define with the total value of the toggles combined.
+#define TOGGLES_3_TOTAL 							31 // If you add or remove a preference toggle above, make sure you update this define with the total value of the toggles combined.
 
 #define TOGGLES_3_DEFAULT (PREFTOGGLE_3_COGBAR_ANIMATIONS|PREFTOGGLE_3_HEAR_BLOOPERS)
 

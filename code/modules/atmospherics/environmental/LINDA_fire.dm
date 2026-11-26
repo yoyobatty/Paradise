@@ -19,14 +19,10 @@
 /datum/milla_safe/make_hotspot/on_run(turf/simulated/tile, exposed_temperature, exposed_volume)
 	create_hotspot(tile, exposed_temperature, exposed_volume)
 
-//This is the icon for fire on turfs.
+// Fire on a turf. Its flames are overlays: see merged_flames.dm
 /obj/effect/hotspot
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	icon = 'icons/goonstation/effects/fire.dmi'
-	icon_state = "1"
 	layer = MASSIVE_OBJ_LAYER
-	alpha = 250
-	blend_mode = BLEND_ADD
 	light_range = 2
 
 	var/volume = 125
@@ -42,23 +38,21 @@
 	/// How often do we update?
 	var/update_interval = 1
 
-/obj/effect/hotspot/New()
-	..()
-	dir = pick(GLOB.cardinal)
-
 /obj/effect/hotspot/proc/update_visuals(fuel_burnt)
-	color = heat2color(temperature)
-	var/list/rgb = rgb2num(color)
+	// Only the light takes the heat's colour. The flames have theirs drawn in, and changing ours would send every
+	// burning tile to every client watching each update.
+	var/heat_colour = heat2color(temperature)
+	var/list/rgb = rgb2num(heat_colour)
 	if(isnull(light_color))
-		light_color = color
-		set_light(l_color = color)
+		light_color = heat_colour
+		set_light(l_color = heat_colour)
 	else
 		var/list/light_rgb = rgb2num(light_color)
 		var/r_delta = abs(rgb[1] - light_rgb[1])
 		var/g_delta = abs(rgb[2] - light_rgb[2])
 		var/b_delta = abs(rgb[3] - light_rgb[3])
 		if(r_delta > 10 || g_delta > 10 || b_delta > 10)
-			set_light(l_color = color)
+			set_light(l_color = heat_colour)
 
 	if(fuel_burnt > 1)
 		set_flame_size(3)
@@ -74,20 +68,22 @@
 		COMSIG_ATOM_ENTERED = PROC_REF(on_atom_entered),
 	)
 	AddElement(/datum/element/connect_loc, loc_connections)
-	set_flame_size(flame_size, TRUE)
+	join_flames()
+	update_flames()
 
 // Garbage collect itself by nulling reference to it
 
 /obj/effect/hotspot/Destroy()
 	set_light(0)
+	part_flames()
 	var/turf/simulated/T = loc
 	if(istype(T) && T.active_hotspot == src)
 		T.active_hotspot = null
 	return ..()
 
 /obj/effect/hotspot/proc/recolor()
-	color = heat2color(temperature)
-	set_light(l_color = color)
+	set_light(l_color = heat2color(temperature))
+	set_flame_size(flame_size)
 
 // TODO: Vestigal, kept temporarily to avoid a merge conflict.
 /obj/effect/hotspot/proc/DestroyTurf()
