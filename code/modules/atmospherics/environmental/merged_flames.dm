@@ -1,12 +1,21 @@
-// Pixel flames prototype.
+// Pixel flames prototype. The baked flames and smoke are drawn by tools/shift_bench/make_flame_bed.py the way
+// KFMod254's fires are made: flames that flare up and die, and dark smoke rising over them.
 // A fire is a crowd of small pixel art flame licks that rise, go from pale yellow to dark red and die. They are added
 // over each other, so where a fire is thick it burns white-yellow and its loose edge is orange and red, and the
 // flames of neighbouring tiles run into each other with no tile edge between them.
 // Fires are drawn on a plane of their own that is never shown. That picture is drawn over the lit game, and again
 // blurred and added round it, as the light the flames throw.
 
-/// TRUE for pixel flames, FALSE for the old one sprite a tile
-GLOBAL_VAR_INIT(merged_flames, TRUE)
+/// FLAMES_OLD for the old one sprite a tile, FLAMES_PARTICLES for pixel flames made by particles, FLAMES_BAKED for the
+/// same worked out ahead of time and shown as an animated sprite (icons/effects/flame_bed.dmi), with only embers as particles
+#define FLAMES_OLD 0
+#define FLAMES_PARTICLES 1
+#define FLAMES_BAKED 2
+/// The same in the station's own sprite style: solid pixel art in flat fire colours, low flames, no particles at all
+#define FLAMES_STATION 3
+/// Burning gas: thin see-through licks that sway, pinch off and rise away (icons/effects/flame_gas.dmi), soft smoke over them
+#define FLAMES_GAS 4
+GLOBAL_VAR_INIT(merged_flames, FLAMES_GAS)
 
 /// The numbers the look is made of. Change one, then call flame_look_changed().
 GLOBAL_LIST_INIT(flame_look, list(
@@ -39,6 +48,8 @@ GLOBAL_LIST_INIT(flame_look, list(
 	// Embers: how many at once and how many start each tenth of a second
 	"embers" = 3,
 	"ember_rate" = 0.25,
+	// Strength of the smoke over middling and big baked fires, 0 to 255 (0 for none)
+	"smoke_alpha" = 255,
 ))
 
 /// How many different fires of each size and heat there are. A turf always gets the same one.
@@ -73,7 +84,8 @@ GLOBAL_LIST_INIT(flame_look, list(
 
 /atom/movable/screen/plane_master/fire/proc/set_look()
 	var/list/look = GLOB.flame_look
-	shown.blend_mode = look["add"] ? BLEND_ADD : BLEND_OVERLAY
+	// Station style flames are solid sprites, laid over; the others are light, added
+	shown.blend_mode = (look["add"] && GLOB.merged_flames != FLAMES_STATION && GLOB.merged_flames != FLAMES_GAS) ? BLEND_ADD : BLEND_OVERLAY
 	glow.clear_filters()
 	glow.add_filter("blur", 1, gauss_blur_filter(size = look["glow_blur"]))
 	glow.alpha = look["glow_alpha"]
@@ -187,17 +199,71 @@ GLOBAL_LIST_INIT(flame_look, list(
 	flame_hot = hot
 	flame_merged = GLOB.merged_flames
 	vis_contents.Cut()
-	if(!flame_merged)
+	cut_overlays()
+	if(flame_merged == FLAMES_OLD)
 		icon = initial(icon)
 		icon_state = "[size]"
 		return
 	icon = null
-	if(isturf(loc))
+	if(!isturf(loc))
+		return
+	if(flame_merged == FLAMES_PARTICLES)
 		vis_contents += flame_holders(size, hot, loc)
+		return
+	var/station = (flame_merged == FLAMES_STATION)
+	add_overlay(baked_flame(size, hot, loc, flame_merged))
+	if(size > 1 && GLOB.flame_look["smoke_alpha"] > 0)
+		add_overlay(baked_smoke(size, loc, station))
+	if(station || flame_merged == FLAMES_GAS)
+		return
+	var/list/holders = flame_holders(size, hot, loc)
+	// Only the embers, if this size has them
+	if(length(holders) > 1)
+		vis_contents += holders[2]
+
+/// The animated flames for a fire of that size and heat on that turf
+/proc/baked_flame(size, hot, turf/where, style = FLAMES_BAKED)
+	var/static/list/baked = list()
+	var/kind = (where.x * 7 + where.y * 13) % FLAME_KINDS
+	var/state = "[size][hot ? "h" : ""]-[kind]"
+	var/key = "[style][state]"
+	if(baked[key])
+		return baked[key]
+	var/static/list/sheets = list("[FLAMES_BAKED]" = 'icons/effects/flame_bed.dmi', "[FLAMES_STATION]" = 'icons/effects/flame_station.dmi', "[FLAMES_GAS]" = 'icons/effects/flame_gas.dmi')
+	var/mutable_appearance/flames = mutable_appearance(sheets["[style]"], state, plane = FIRE_PLANE)
+	// The sheet is two tiles wide and three high, with the tile in the middle at the bottom
+	flames.pixel_x = -16
+	flames.pixel_y = -16
+	// Only the KF style is light, added; the others are drawn see-through or solid
+	flames.blend_mode = (style == FLAMES_BAKED) ? BLEND_ADD : BLEND_DEFAULT
+	flames.appearance_flags = RESET_COLOR | RESET_ALPHA | KEEP_APART | PIXEL_SCALE
+	baked[key] = flames
+	return flames
+
+/// The smoke over a fire of that size on that turf. It is drawn on the game, under the lighting, so it is as dark as the room and lit by the fire.
+/proc/baked_smoke(size, turf/where, station = FALSE, remake = FALSE)
+	var/static/list/baked = list()
+	if(remake)
+		baked = list()
+		return
+	var/kind = (where.x * 7 + where.y * 13) % FLAME_KINDS
+	var/state = "smoke[size]-[kind]"
+	var/key = "[station][state]"
+	if(baked[key])
+		return baked[key]
+	var/mutable_appearance/smoke = mutable_appearance(station ? 'icons/effects/flame_station_smoke.dmi' : 'icons/effects/flame_smoke.dmi', state, MASSIVE_OBJ_LAYER + 0.1, GAME_PLANE)
+	// The sheet is two tiles wide and four high, with the tile in the middle of the bottom one
+	smoke.pixel_x = -16
+	smoke.pixel_y = -16
+	smoke.alpha = GLOB.flame_look["smoke_alpha"]
+	smoke.appearance_flags = RESET_COLOR | RESET_ALPHA | KEEP_APART | PIXEL_SCALE
+	baked[key] = smoke
+	return smoke
 
 /// Call after changing GLOB.flame_look or GLOB.merged_flames: every fire and every client's fire plane takes the new numbers
 /proc/flame_look_changed()
 	flame_holders(null)
+	baked_smoke(remake = TRUE)
 	for(var/obj/effect/hotspot/fire in world)
 		fire.set_flame_size(fire.flame_size, TRUE)
 	for(var/client/C as anything in GLOB.clients)
@@ -205,4 +271,9 @@ GLOBAL_LIST_INIT(flame_look, list(
 		master?.set_look()
 
 #undef FLAME_KINDS
+#undef FLAMES_OLD
+#undef FLAMES_PARTICLES
+#undef FLAMES_BAKED
+#undef FLAMES_STATION
+#undef FLAMES_GAS
 #undef FLAME_HOT_TEMPERATURE
