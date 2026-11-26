@@ -50,7 +50,6 @@
 	// The bottom left corner is where a plane's picture lines up with the screen
 	screen_loc = "SOUTHWEST"
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	appearance_flags = NO_CLIENT_COLOR
 	plane = ABOVE_LIGHTING_PLANE
 	layer = ABOVE_LIGHTING_LAYER + 0.2
 	render_source = FIRE_RENDER_TARGET
