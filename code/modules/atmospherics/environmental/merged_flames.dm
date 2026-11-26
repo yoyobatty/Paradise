@@ -234,23 +234,20 @@
 // A fire's flame vars are on /obj/effect/hotspot in LINDA_fire.dm
 
 /**
- * What a fire's flames are drawn on, shown as part of the fire.
+ * What a fire's flames are drawn on, set on the fire's turf.
  *
  * A fire's animations start from their first frame whenever they change, so a tile that just swapped to a new look
  * jumps. Each look gets one of these instead, and the new one fades in while the old one fades out.
+ * They sit on the turf as things of their own, not in the fire's vis_contents, which cost a little more map sending
+ * every tick for each player watching.
  */
 /obj/effect/abstract/flame_layer
 	// Abstract effects can't be seen, and neither can what shows them
 	invisibility = 0
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	plane = FIRE_PLANE
-	appearance_flags = RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM | KEEP_APART | PIXEL_SCALE
-
-/obj/effect/abstract/flame_layer/Destroy()
-	// Only fires show these, and they are movables
-	for(var/atom/movable/shown_by as anything in vis_locs)
-		shown_by.vis_contents -= src
-	return ..()
+	// Not TILE_BOUND: the flames reach over the tiles round their own, and show while any of those are on screen
+	appearance_flags = PIXEL_SCALE
 
 /// Sets our size from how much fuel we burnt. A size is only left again well past the line it was reached at, so a
 /// fire burning right on a line doesn't flick between two sizes.
@@ -351,7 +348,9 @@
 		return
 	flame_dirty = FALSE
 	flame_drawn_at = world.time
-	var/obj/effect/abstract/flame_layer/fresh = new(null)
+	var/obj/effect/abstract/flame_layer/fresh = new(loc)
+	// Rows nearer the viewer draw over the rows behind, as their flames rise in front of those
+	fresh.layer = MASSIVE_OBJ_LAYER + (world.maxy - fresh.y) / 10000
 	// A deep fire's back edge is drawn bigger: as big as the burning tiles in front of it
 	var/size = (flame_form == "edge" || flame_form == "climb") ? max(flame_size, flame_depth) : flame_size
 	// Every burning tile draws its piece of the bed's texture; only the tiles deep in the fire say where it shows
@@ -367,7 +366,6 @@
 		parts += flame_heat_overlay(size, loc)
 	fresh.add_overlay(parts)
 	fresh.alpha = 0
-	vis_contents += fresh
 	animate(fresh, alpha = 255, time = FLAME_FADE)
 	if(flame_layer)
 		animate(flame_layer, alpha = 0, time = FLAME_FADE)
@@ -380,11 +378,6 @@
 		return
 	var/obj/effect/abstract/flame_layer/dying = flame_layer
 	flame_layer = null
-	vis_contents -= dying
-	if(!isturf(loc))
-		qdel(dying)
-		return
-	dying.forceMove(loc)
 	animate(dying, alpha = 0, time = FLAME_DIE)
 	QDEL_IN(dying, FLAME_DIE)
 
