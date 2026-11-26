@@ -1582,6 +1582,7 @@
 #include "code\game\objects\structures\barsign.dm"
 #include "code\game\objects\structures\bedsheet_bin.dm"
 #include "code\game\objects\structures\coathanger.dm"
+#include "code\game\objects\structures\crate_trolley.dm"
 #include "code\game\objects\structures\curtains.dm"
 #include "code\game\objects\structures\depot_structures.dm"
 #include "code\game\objects\structures\disaster_counter.dm"

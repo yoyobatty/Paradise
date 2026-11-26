@@ -142,6 +142,9 @@
 		if(!isalienhunter(mob)) // i hate grab code
 			add_delay += 7
 
+	if(mob.pulling)
+		add_delay += mob.pulling.pull_slowdown
+
 	var/diagonal_factor = 1
 	if(IS_DIR_DIAGONAL(direct))
 		diagonal_factor = sqrt(2)
