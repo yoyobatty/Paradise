@@ -8,12 +8,28 @@
 	layer = ABOVE_ALL_MOB_LAYER
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 
+/// How many points the line is worked out at, ends included
+#define FISHING_LINE_POINTS 11
+/// How hard the line falls toward the bottom of the screen, in pixels a second squared
+#define FISHING_LINE_GRAVITY 80
+/// How much of its speed the line keeps from one step to the next
+#define FISHING_LINE_DAMPING 0.86
+/// Rounds of pulling the points back to the line's length each step. More makes it stiffer
+#define FISHING_LINE_STIFFNESS 20
+/// A line whose points move less than this between steps, in pixels, has settled and stops being worked out
+#define FISHING_LINE_SETTLED 0.2
+
 /**
- * The line from the rod's tip to the bobber.
+ * The line from the rod's tip to the bobber: a rope that hangs, swings and settles.
  *
- * Drawn as a few short straight pieces along a curve, so it can hang slack while waiting, pull straight while
- * something fights on it and shake when it runs. It sits in the vis_contents of whatever holds the rod, so it moves
- * with them, and is drawn again whenever they move or turn.
+ * It's FISHING_LINE_POINTS points joined by links that can go slack but don't stretch. Each step the points keep
+ * moving the way they were going, fall a little, and are pulled back together, with the ends pinned to the rod's tip
+ * and the bobber (a Verlet rope, as in games). A slack line hangs in a curve, a strained one pulls straight, and
+ * walking, turning, the cast, a bite or a fish running set it swinging. Once it has settled it isn't worked out until
+ * something moves it again, so a line that's just waiting costs nothing.
+ *
+ * The links are short line sprites in this object's vis_contents, animated to their new places over each step, so
+ * the line moves smoothly in between. It sits in the vis_contents of whatever holds the rod, so it moves with them.
  */
 /obj/effect/abstract/fishing_line
 	invisibility = 0
@@ -23,66 +39,156 @@
 	appearance_flags = KEEP_APART | RESET_COLOR | RESET_TRANSFORM | RESET_ALPHA
 	/// The cast this is the line of
 	var/datum/fishing_session/session
+	/// Where each point is, in pixels across the map
+	var/list/point_x
+	var/list/point_y
+	/// Where each point was a step ago, which is how fast it's moving
+	var/list/last_x
+	var/list/last_y
+	/// The sprites drawing the links between the points
+	var/list/obj/effect/abstract/fishing_line_piece/pieces = list()
+	/// Is it being worked out? It stops once it has settled
+	var/swinging = FALSE
 
 /obj/effect/abstract/fishing_line/Initialize(mapload, datum/fishing_session/owner)
 	. = ..()
 	session = owner
+	for(var/i in 1 to FISHING_LINE_POINTS - 1)
+		pieces += new /obj/effect/abstract/fishing_line_piece(null, session.rod.line?.line_color)
+	vis_contents += pieces
 
 /obj/effect/abstract/fishing_line/Destroy()
+	STOP_PROCESSING(SSfastprocess, src)
+	vis_contents.Cut()
+	QDEL_LIST_CONTENTS(pieces)
 	session = null
 	return ..()
 
-/// Draws the line again from where the rod's tip and the bobber are now
-/obj/effect/abstract/fishing_line/proc/redraw()
+/// The rod's tip and where the line meets the bobber, in pixels across the map: list(tip x, tip y, end x, end y)
+/obj/effect/abstract/fishing_line/proc/ends()
 	var/atom/movable/body = session?.body
 	var/obj/effect/abstract/fishing_bobber/bobber = session?.bobber
 	if(!body || !bobber || body.z != bobber.z)
-		overlays.Cut()
-		return
-	// In pixels from the bottom left of the tile the angler is on
+		return null
 	var/list/tip = session.rod.tip_offset(body)
-	var/start_x = tip[1]
-	var/start_y = tip[2]
-	var/end_x = (bobber.x - body.x) * world.icon_size + 16 + bobber.pixel_x
-	var/end_y = (bobber.y - body.y) * world.icon_size + 12 + bobber.pixel_y
-	var/length = sqrt((end_x - start_x) ** 2 + (end_y - start_y) ** 2)
-	if(length < 2)
-		overlays.Cut()
-		return
-	// A slack line hangs down the screen. The curve's middle hangs half as far as the point it bends toward
-	var/sag = session.line_sag() * length
-	var/bend_x = (start_x + end_x) / 2
-	var/bend_y = (start_y + end_y) / 2 - sag * 2
-	var/shake = session.line_shake()
-	var/pieces = clamp(round(length / 12), 3, 12)
-	var/list/new_overlays = list()
-	var/from_x = start_x
-	var/from_y = start_y
-	for(var/i in 1 to pieces)
-		var/t = i / pieces
-		var/to_x = (1 - t) ** 2 * start_x + 2 * (1 - t) * t * bend_x + t ** 2 * end_x
-		var/to_y = (1 - t) ** 2 * start_y + 2 * (1 - t) * t * bend_y + t ** 2 * end_y
-		// The ends stay put, the middle of a strained line trembles
-		if(shake && i < pieces)
-			to_y += (rand() * 2 - 1) * shake
-		new_overlays += line_piece(from_x, from_y, to_x, to_y)
-		from_x = to_x
-		from_y = to_y
-	overlays = new_overlays
+	var/list/float = session.bobber_offset()
+	return list(body.x * world.icon_size + tip[1], body.y * world.icon_size + tip[2], bobber.x * world.icon_size + float[1], bobber.y * world.icon_size + float[2])
 
-/// One straight piece of the line between two points, in pixels from the bottom left of the angler's tile
-/obj/effect/abstract/fishing_line/proc/line_piece(from_x, from_y, to_x, to_y)
-	var/mutable_appearance/piece = mutable_appearance('icons/obj/fishing.dmi', "fishing_line_piece")
-	piece.color = session.rod.line?.line_color
+/// Something moved the line, so it's worked out again until it settles. The first time, it's laid out straight
+/obj/effect/abstract/fishing_line/proc/disturb()
+	var/list/ends = ends()
+	if(!ends)
+		return
+	if(!point_x)
+		point_x = list()
+		point_y = list()
+		for(var/i in 1 to FISHING_LINE_POINTS)
+			var/along = (i - 1) / (FISHING_LINE_POINTS - 1)
+			point_x += ends[1] + (ends[3] - ends[1]) * along
+			point_y += ends[2] + (ends[4] - ends[2]) * along
+		last_x = point_x.Copy()
+		last_y = point_y.Copy()
+		place_pieces(0)
+	if(!swinging)
+		swinging = TRUE
+		START_PROCESSING(SSfastprocess, src)
+
+/obj/effect/abstract/fishing_line/process(wait)
+	var/list/ends = ends()
+	if(!ends)
+		swinging = FALSE
+		return PROCESS_KILL
+	var/seconds = wait * 0.1
+	// The line is as long as the gap and a little slack, which strain takes up
+	var/gap = sqrt((ends[3] - ends[1]) ** 2 + (ends[4] - ends[2]) ** 2)
+	var/link = max(gap * (1 + session.line_slack()), 1) / (FISHING_LINE_POINTS - 1)
+	var/fall = FISHING_LINE_GRAVITY * seconds * seconds
+	var/shake = session.line_shake()
+	// A bobber in flight is moved here, a step at a time along the same path as the end of the line, so they stay tied
+	if(session.bobber_flying())
+		animate(session.bobber, pixel_x = ends[3] - session.bobber.x * world.icon_size - 16, pixel_y = ends[4] - session.bobber.y * world.icon_size - 12, time = wait)
+	for(var/i in 2 to FISHING_LINE_POINTS - 1)
+		var/x = point_x[i]
+		var/y = point_y[i]
+		point_x[i] = x + (x - last_x[i]) * FISHING_LINE_DAMPING
+		point_y[i] = y + (y - last_y[i]) * FISHING_LINE_DAMPING - fall
+		// A strained line trembles
+		if(shake)
+			point_x[i] += (rand() * 2 - 1) * shake
+			point_y[i] += (rand() * 2 - 1) * shake
+		last_x[i] = x
+		last_y[i] = y
+	// The ends are held by the rod and the bobber
+	point_x[1] = ends[1]
+	point_y[1] = ends[2]
+	point_x[FISHING_LINE_POINTS] = ends[3]
+	point_y[FISHING_LINE_POINTS] = ends[4]
+	for(var/round in 1 to FISHING_LINE_STIFFNESS)
+		for(var/i in 1 to FISHING_LINE_POINTS - 1)
+			var/dx = point_x[i + 1] - point_x[i]
+			var/dy = point_y[i + 1] - point_y[i]
+			var/dist = sqrt(dx * dx + dy * dy)
+			// It goes slack, but it doesn't stretch
+			if(dist <= link)
+				continue
+			var/pull = (dist - link) / dist
+			// A pinned end doesn't move, so the point beside it takes all of the pull
+			var/from_share = i == 1 ? 0 : (i + 1 == FISHING_LINE_POINTS ? 1 : 0.5)
+			point_x[i] += dx * pull * from_share
+			point_y[i] += dy * pull * from_share
+			point_x[i + 1] -= dx * pull * (1 - from_share)
+			point_y[i + 1] -= dy * pull * (1 - from_share)
+	place_pieces(wait)
+	var/moved = 0
+	for(var/i in 2 to FISHING_LINE_POINTS - 1)
+		moved = max(moved, abs(point_x[i] - last_x[i]) + abs(point_y[i] - last_y[i]))
+	if(moved < FISHING_LINE_SETTLED && !session.line_busy())
+		swinging = FALSE
+		return PROCESS_KILL
+
+/// Moves the line's sprites to where the points are, over `time`
+/obj/effect/abstract/fishing_line/proc/place_pieces(time)
+	// The sprites are drawn from the bottom left of the tile whoever holds the rod is on
+	var/origin_x = session.body.x * world.icon_size
+	var/origin_y = session.body.y * world.icon_size
+	for(var/i in 1 to length(pieces))
+		var/obj/effect/abstract/fishing_line_piece/piece = pieces[i]
+		var/from_x = point_x[i] - origin_x
+		var/from_y = point_y[i] - origin_y
+		var/to_x = point_x[i + 1] - origin_x
+		var/to_y = point_y[i + 1] - origin_y
+		// The sprite is a line across the middle of the tile, 32 pixels long
+		var/matrix/placed = matrix()
+		placed.Scale(max(sqrt((to_x - from_x) ** 2 + (to_y - from_y) ** 2), 0.5) / 32, 1)
+		placed.Turn(-arctan(to_x - from_x, to_y - from_y))
+		placed.Translate((from_x + to_x) / 2 - 16, (from_y + to_y) / 2 - 16)
+		if(time && piece.alpha)
+			animate(piece, transform = placed, time = time)
+		else
+			piece.transform = placed
+			piece.alpha = 255
+
+/// One link of a fishing line: a short straight line sprite, turned and stretched into place
+/obj/effect/abstract/fishing_line_piece
+	icon = 'icons/obj/fishing.dmi'
+	icon_state = "fishing_line_piece"
+	invisibility = 0
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	// Kept to whole pixels when it's turned, so it stays a crisp line like the rest of the sprites
-	piece.appearance_flags = PIXEL_SCALE
-	// The sprite is a line across the middle of the tile, 32 pixels long
-	var/matrix/placed = matrix()
-	placed.Scale(max(sqrt((to_x - from_x) ** 2 + (to_y - from_y) ** 2), 1) / 32, 1)
-	placed.Turn(-arctan(to_x - from_x, to_y - from_y))
-	placed.Translate((from_x + to_x) / 2 - 16, (from_y + to_y) / 2 - 16)
-	piece.transform = placed
-	return piece
+	appearance_flags = PIXEL_SCALE
+	vis_flags = VIS_INHERIT_PLANE | VIS_INHERIT_LAYER | VIS_INHERIT_ID
+	// Hidden until it's first put in place
+	alpha = 0
+
+/obj/effect/abstract/fishing_line_piece/Initialize(mapload, line_color)
+	. = ..()
+	color = line_color
+
+#undef FISHING_LINE_POINTS
+#undef FISHING_LINE_GRAVITY
+#undef FISHING_LINE_DAMPING
+#undef FISHING_LINE_STIFFNESS
+#undef FISHING_LINE_SETTLED
 
 /// One cast of a fishing rod: the wait for a bite, the pull, and the fight to reel the catch in.
 /datum/fishing_session
@@ -100,6 +206,13 @@
 	var/obj/effect/abstract/fishing_bobber/bobber
 	/// The line drawn from the rod's tip to the bobber
 	var/obj/effect/abstract/fishing_line/line_visual
+	/// When the bobber was cast, and how long it takes to fly out to the water
+	var/cast_started = 0
+	var/cast_time = 0
+	/// Where the bobber starts its flight from, in pixels from where it lands, and how high it arcs on the way
+	var/cast_from_x = 0
+	var/cast_from_y = 0
+	var/cast_arc = 0
 	/// How far along the cast is, one of the FISHING_ stages
 	var/state = FISHING_WAITING
 	/// Timer for the next nibble or bite, or for the bite being missed
@@ -149,35 +262,89 @@
 		RegisterSignal(target, COMSIG_PARENT_QDELETING, PROC_REF(on_spot_gone))
 
 	user.visible_message(SPAN_NOTICE("[user] casts [user.p_their()] line into [spot.name]."), SPAN_NOTICE("You cast your line into [spot.name]."))
+	wait_for_bite()
+	fly_bobber()
+
+/**
+ * Throws the bobber out from the rod's tip in an arc, the line paying out behind it, and splashes it down at the end.
+ *
+ * bobber_offset() works out where it is on the way, and the line moves the bobber there along with its own end.
+ */
+/datum/fishing_session/proc/fly_bobber()
+	var/list/tip = rod.tip_offset(body)
+	cast_from_x = body.x * world.icon_size + tip[1] - (bobber.x * world.icon_size + 16)
+	cast_from_y = body.y * world.icon_size + tip[2] - (bobber.y * world.icon_size + 12)
+	var/tiles = get_dist(body, bobber)
+	cast_time = 4 + tiles * 1.2
+	cast_arc = 8 + tiles * 3
+	cast_started = world.time
+	// Hanging off the line while it flies, it only floats once it's down
+	bobber.icon_state = "bobber_dry"
+	bobber.pixel_x = cast_from_x
+	bobber.pixel_y = cast_from_y
+	line_visual.disturb()
+	addtimer(CALLBACK(src, PROC_REF(bobber_landed)), cast_time)
+
+/datum/fishing_session/proc/bobber_landed()
+	animate(bobber, pixel_x = 0, pixel_y = 0, time = 1)
+	if(state == FISHING_WAITING)
+		bobber.icon_state = bobber_state("")
 	if(spot.splash_sound)
 		playsound(bobber, spot.splash_sound, 40, TRUE)
 	splash()
-	wait_for_bite()
+	line_visual.disturb()
 
-/// How far the middle of the line hangs below a straight line, as a share of its length
-/datum/fishing_session/proc/line_sag()
+/// Is the bobber still flying out from the cast?
+/datum/fishing_session/proc/bobber_flying()
+	return world.time < cast_started + cast_time
+
+/// Where the line meets the bobber, in pixels from the bottom left of its tile, following it while it flies out
+/datum/fishing_session/proc/bobber_offset()
+	var/flown = cast_time ? (world.time - cast_started) / cast_time : 1
+	if(flown >= 1)
+		return list(16, 12)
+	// The same path as the animation: straight across, and up then down in two eased halves
+	var/offset_x = cast_from_x * (1 - flown)
+	var/top = cast_from_y / 2 + cast_arc
+	var/offset_y
+	if(flown < 0.5)
+		offset_y = cast_from_y + (top - cast_from_y) * sin(flown * 2 * 90)
+	else
+		offset_y = top * cos((flown - 0.5) * 2 * 90)
+	return list(16 + offset_x, 12 + offset_y)
+
+/// Is the line being moved all the time? While it's flying out or something is fighting on it
+/datum/fishing_session/proc/line_busy()
+	return state == FISHING_FIGHT || bobber_flying()
+
+/// How much longer than the gap to the bobber the line is, as a share of the gap. More hangs lower
+/datum/fishing_session/proc/line_slack()
+	// Paying out as it flies, so it trails nearly straight
+	if(bobber_flying())
+		return 0.02
+	// The angler winds in most of the slack once the bobber's down
 	switch(state)
 		if(FISHING_WAITING)
-			return 0.12
-		if(FISHING_BITE)
 			return 0.05
+		if(FISHING_BITE)
+			return 0.02
 		if(FISHING_FIGHT)
 			// Pulled straighter the harder it's strained
-			return 0.06 * (1 - tension / FISHING_MAX_TENSION)
+			return 0.03 * (1 - tension / FISHING_MAX_TENSION)
 	return 0
 
-/// How many pixels the middle of the line trembles, while something pulls hard on it
+/// How many pixels the line trembles each step, while something pulls hard on it
 /datum/fishing_session/proc/line_shake()
 	if(state != FISHING_FIGHT)
 		return 0
 	if(fish_state == FISHING_FISH_RUNNING)
-		return 1.5
-	return tension > 60 ? 1 : 0
+		return 0.8
+	return tension > 60 ? 0.4 : 0
 
 /datum/fishing_session/proc/on_body_turned(datum/source, old_dir, new_dir)
 	SIGNAL_HANDLER // COMSIG_ATOM_DIR_CHANGE
 	// The tip moves to the other side as they turn, once the turn has happened
-	addtimer(CALLBACK(line_visual, TYPE_PROC_REF(/obj/effect/abstract/fishing_line, redraw)), 0)
+	addtimer(CALLBACK(line_visual, TYPE_PROC_REF(/obj/effect/abstract/fishing_line, disturb)), 0)
 
 /// Sends a ripple out from the bobber, if it's floating on water
 /datum/fishing_session/proc/splash()
@@ -223,7 +390,7 @@
 	SIGNAL_HANDLER // COMSIG_MOVABLE_MOVED
 	// A couple of tiles of slack past the cast range, then the hook comes out
 	if(body.z == bobber.z && get_dist(body, bobber) <= rod.line.cast_range + 2)
-		line_visual.redraw()
+		line_visual.disturb()
 		return
 	to_chat(user, SPAN_WARNING("Your line pulls tight and the hook comes loose."))
 	qdel(src)
@@ -246,7 +413,7 @@
 	deltimer(next_timer)
 	state = FISHING_WAITING
 	bobber.icon_state = bobber_state("")
-	line_visual.redraw()
+	line_visual.disturb()
 	var/wait = rand(spot.bite_wait_min, spot.bite_wait_max)
 	if(rod.get_bait_kind())
 		wait *= FISHING_BAIT_WAIT_MULT
@@ -273,7 +440,7 @@
 		wait_for_bite()
 		return
 	state = FISHING_BITE
-	line_visual.redraw()
+	line_visual.disturb()
 	bobber.icon_state = bobber_state("_bite")
 	playsound(bobber, spot.splash_sound || 'sound/effects/pop.ogg', 60, TRUE)
 	splash()
@@ -412,7 +579,7 @@
 	if(distance <= 0)
 		land()
 		return PROCESS_KILL
-	line_visual.redraw()
+	line_visual.disturb()
 	SStgui.update_uis(rod)
 
 /datum/fishing_session/proc/snap_line()
