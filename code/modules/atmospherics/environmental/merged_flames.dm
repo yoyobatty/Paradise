@@ -3,6 +3,8 @@
 // one animated overlay and costs the client about what the old sprite did.
 //
 // A fire pushes up and out the way a real one does. Each burning tile looks at what is round it:
+// - fire on all four sides: a churning bed of flame under the low flames, one texture across the tiles with no seams,
+//   so the middle of a big fire burns as one sheet ("bed")
 // - fire behind it (north): low, fat flames that run into the fires round it ("inner")
 // - a wall or something solid behind it: flames that run up its face ("climb")
 // - open behind it: the back edge of the fire in the station's three-quarter view, tall tongues and smoke ("edge").
@@ -183,7 +185,7 @@
 	var/flame_size = 1
 	/// Whether we burn paler and hotter
 	var/flame_hot = FALSE
-	/// "inner", "edge" or "climb": what is behind us
+	/// "bed", "inner", "edge" or "climb": what is round us
 	var/flame_form = "edge"
 	/// -1 or 1 to lean our flames out to the west or east, where there is open air on that side only
 	var/flame_lean = 0
@@ -258,6 +260,8 @@
 	var/form = "edge"
 	if(flame_burning(behind))
 		form = "inner"
+		if(flame_burning(get_step(here, SOUTH)) && flame_burning(get_step(here, EAST)) && flame_burning(get_step(here, WEST)))
+			form = "bed"
 	else if(flame_blocked(behind))
 		form = "climb"
 	var/lean = 0
@@ -269,7 +273,7 @@
 		if(open_east != open_west)
 			lean = open_east ? 1 : -1
 	var/depth = 0
-	if(form != "inner")
+	if(form == "edge" || form == "climb")
 		var/turf/in_front = get_step(here, SOUTH)
 		while(depth < 3 && flame_burning(in_front))
 			depth++
@@ -316,9 +320,14 @@
 	flame_drawn_at = world.time
 	var/obj/effect/abstract/flame_layer/fresh = new(null)
 	// A deep fire's back edge is drawn bigger: as big as the burning tiles in front of it
-	var/size = (flame_form == "inner") ? flame_size : max(flame_size, flame_depth)
-	var/list/parts = list(flame_overlay(flame_form, size, flame_hot, flame_lean, loc))
-	if(flame_form != "inner" && size > 1)
+	var/size = (flame_form == "edge" || flame_form == "climb") ? max(flame_size, flame_depth) : flame_size
+	var/list/parts = list()
+	if(flame_form == "bed")
+		parts += flame_bed_overlay(size, flame_hot, loc)
+		parts += flame_overlay("inner", size, flame_hot, 0, loc)
+	else
+		parts += flame_overlay(flame_form, size, flame_hot, flame_lean, loc)
+	if((flame_form == "edge" || flame_form == "climb") && size > 1)
 		parts += flame_smoke_overlay(size, loc)
 	// Only a fire burning hard reaches the ceiling
 	if(flame_size == 3)
@@ -370,6 +379,18 @@
 	flames.appearance_flags = KEEP_APART | PIXEL_SCALE
 	made[key] = flames
 	return flames
+
+/// The bed of flame on a tile with fire all round it: the piece of a four by four tile texture that this turf shows,
+/// so beds next to each other join with no seam
+/proc/flame_bed_overlay(size, hot, turf/where)
+	var/static/list/made = list()
+	var/state = "bed[size][hot ? "h" : ""]-[where.x % 4][where.y % 4]"
+	if(made[state])
+		return made[state]
+	var/mutable_appearance/bed = mutable_appearance('icons/effects/flame_gas_bed.dmi', state, plane = FIRE_PLANE)
+	bed.appearance_flags = KEEP_APART | PIXEL_SCALE
+	made[state] = bed
+	return bed
 
 /// The flames rolling along the ceiling over a big fire
 /proc/flame_roll_overlay(hot, turf/where)
