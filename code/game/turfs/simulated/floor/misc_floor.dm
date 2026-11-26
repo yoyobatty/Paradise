@@ -101,6 +101,7 @@
 /turf/simulated/floor/beach/water
 	name = "water"
 	icon_state = "water"
+	plane = WATER_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	var/obj/machinery/poolcontroller/linkedcontroller = null
 	baseturf = /turf/simulated/floor/beach/water
@@ -111,13 +112,18 @@
 
 /turf/simulated/floor/beach/water/Initialize(mapload)
 	. = ..()
-	var/image/overlay_image = image('icons/misc/beach.dmi', icon_state = "water5", layer = ABOVE_MOB_LAYER)
+	// Light playing over the pool floor, unless a mapper gave this water a look of its own
+	if(icon_state == initial(icon_state))
+		overlays += image('icons/turf/floors/pool_water.dmi', icon_state = "caustics")
+	var/image/overlay_image = image('icons/turf/floors/pool_water.dmi', icon_state = "surface", layer = ABOVE_MOB_LAYER)
 	overlay_image.plane = GAME_PLANE
 	overlays += overlay_image
 	RegisterSignal(src, COMSIG_ATOM_INITIALIZED_ON, PROC_REF(InitializedOn))
+	make_reflective()
 
 /turf/simulated/floor/beach/water/Entered(atom/movable/AM, atom/OldLoc)
 	. = ..()
+	ripple_from(AM)
 	if(!linkedcontroller)
 		return
 	if(ismob(AM))

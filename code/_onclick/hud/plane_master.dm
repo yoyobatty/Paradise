@@ -22,6 +22,37 @@
 	plane = FLOOR_PLANE
 	appearance_flags = PLANE_MASTER
 
+/atom/movable/screen/plane_master/water_mask
+	name = "water mask plane master"
+	plane = WATER_MASK_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_MASK_RENDER_TARGET
+
+/atom/movable/screen/plane_master/water
+	name = "water plane master"
+	plane = WATER_PLANE
+	appearance_flags = PLANE_MASTER
+
+/atom/movable/screen/plane_master/water_reflection
+	name = "water reflection plane master"
+	plane = WATER_REFLECTION_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+
+/atom/movable/screen/plane_master/water_reflection/Initialize(mapload)
+	. = ..()
+	// Rows of the reflections slide left and right, like the water is moving. Done here and not on each reflection,
+	// a wave filter on a copy of a mob cuts off whatever is wider than one tile
+	add_filter("water_wobble", 1, wave_filter(x = 0, y = 12, size = 1, offset = 0, flags = WAVE_SIDEWAYS))
+	// A reflection only shows where there is water under it
+	add_filter("water_mask", 2, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+
+/atom/movable/screen/plane_master/water_reflection/update_filters()
+	. = ..()
+	// Filters are all made again whenever one is added or taken off, which stops the wobble
+	var/wobble = get_filter("water_wobble")
+	if(wobble)
+		animate(wobble, offset = 1, time = 3 SECONDS, loop = -1)
+
 /atom/movable/screen/plane_master/game_world
 	name = "game world plane master"
 	plane = GAME_PLANE

@@ -75,6 +75,8 @@
 /atom/movable/plane_master_controller/game
 	name = PLANE_MASTERS_GAME
 	controlled_planes = list(
+		WATER_PLANE,
+		WATER_REFLECTION_PLANE,
 		FLOOR_PLANE,
 		FLOOR_LIGHTING_LAMPS_SELFGLOW,
 		FLOOR_LIGHTING_LAMPS_PLANE,

@@ -9,6 +9,14 @@
 #define PLANE_SPACE -95
 #define PLANE_SPACE_PARALLAX -90
 
+/// Where there is water for things to be mirrored in. Never shown, only used to cut reflections to the water's shape
+#define WATER_MASK_PLANE -9
+#define WATER_MASK_RENDER_TARGET "*WATER_MASK_RENDER_TARGET"
+/// Water turfs. They are under the floor plane so reflections can be drawn between the water and what stands in it
+#define WATER_PLANE -8
+/// Reflections of mobs in water
+#define WATER_REFLECTION_PLANE -7
+
 #define FLOOR_PLANE -6
 #define FLOOR_OVERLAY_PLANE -5
 

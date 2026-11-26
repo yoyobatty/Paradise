@@ -72,6 +72,7 @@
 /turf/simulated/floor/beach/away/water
 	name = "Shallow Water"
 	icon_state = "seashallow"
+	plane = WATER_PLANE
 	water_overlay_image = "water_shallow"
 	var/obj/machinery/poolcontroller/linkedcontroller = null
 	baseturf = /turf/simulated/floor/beach/away/water
@@ -84,9 +85,11 @@
 /turf/simulated/floor/beach/away/water/Initialize(mapload)
 	. = ..()
 	RegisterSignal(src, COMSIG_ATOM_INITIALIZED_ON, PROC_REF(InitializedOn))
+	make_reflective()
 
 /turf/simulated/floor/beach/away/water/Entered(atom/movable/AM, atom/OldLoc)
 	. = ..()
+	ripple_from(AM)
 	if(!linkedcontroller)
 		return
 	if(ismob(AM))
