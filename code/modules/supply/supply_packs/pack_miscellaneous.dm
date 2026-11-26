@@ -262,6 +262,18 @@
 	cost = 100
 	containername = "arts and crafts crate"
 
+/datum/supply_packs/misc/fishing
+	name = "Fishing Supplies Crate"
+	contains = list(/obj/item/fishing_rod/telescopic,
+	/obj/item/fishing_rod/telescopic,
+	/obj/item/storage/fishing_tackle/full,
+	/obj/item/storage/bag/fish,
+	/obj/item/mounted/fish_plaque,
+	/obj/item/mounted/fish_plaque,
+	/obj/item/mounted/fishing_board)
+	cost = 150
+	containername = "fishing supplies crate"
+
 /datum/supply_packs/misc/cookware_crate
 	name = "Kitchen Cookware Crate"
 	cost = 100
