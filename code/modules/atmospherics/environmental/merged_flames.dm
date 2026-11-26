@@ -117,6 +117,9 @@
 	. = ..()
 	// Blurred first and cut after, so the light doesn't spread into what can't be seen either
 	add_filter("blur", 1, gauss_blur_filter(size = FLAME_GLOW_BLUR))
+	// Taken out from behind the flames, so it is light round them, not a blurred copy showing through them that makes
+	// them look out of focus
+	add_filter("behind", 5, alpha_mask_filter(render_source = FIRE_RENDER_TARGET, flags = MASK_INVERSE))
 	// It flickers, unevenly. On the alpha, not a filter, as rebuilding the filters would start it over.
 	animate(src, alpha = FLAME_GLOW_ALPHA + 20, time = 4, loop = -1, easing = SINE_EASING)
 	animate(alpha = FLAME_GLOW_ALPHA - 25, time = 3, easing = SINE_EASING)
