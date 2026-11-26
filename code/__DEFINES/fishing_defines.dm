@@ -3,6 +3,8 @@
 #define FISHING_LINE_HEATPROOF (1<<0)
 /// The line is long enough to reach the bottom of a chasm
 #define FISHING_LINE_LONG (1<<1)
+/// The line is steel, and reaches what lives in deep lava without burning through
+#define FISHING_LINE_MAGMA (1<<2)
 
 // Kinds of bait. Each fish likes some of these more than others
 #define FISHING_BAIT_MEAT "meat"

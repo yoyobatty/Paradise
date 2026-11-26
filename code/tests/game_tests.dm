@@ -42,6 +42,7 @@
 #include "test_map_templates.dm"
 #include "test_missing_icons.dm"
 #include "test_origin_tech.dm"
+#include "test_pool_water.dm"
 #include "test_purchase_reference_test.dm"
 #include "test_reagent_id_typos.dm"
 #include "test_spawn_humans.dm"
@@ -51,7 +52,6 @@
 #include "test_subsystem_init.dm"
 #include "test_subsystem_metric_sanity.dm"
 #include "test_timer_sanity.dm"
-#include "test_water_reflection.dm"
 #include "test_wears_collar.dm"
 #endif
 

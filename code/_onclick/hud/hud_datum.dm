@@ -58,6 +58,8 @@
 	var/list/inv_slots[ITEM_SLOT_AMOUNT]
 
 	var/list/atom/movable/screen/plane_master/plane_masters = list() // see "appearance_flags" in the ref, assoc list of "[plane]" = object
+	/// Are the water and lava effects on for this hud? A new hud starts with them on, see /datum/water_effects_watcher
+	var/water_effects_on = TRUE
 	///Assoc list of controller groups, associated with key string group name with value of the plane master controller ref
 	var/list/atom/movable/plane_master_controller/plane_master_controllers = list()
 	///UI for screentips that appear when you mouse over things

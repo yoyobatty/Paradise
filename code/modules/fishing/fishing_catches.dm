@@ -42,6 +42,8 @@ GLOBAL_LIST_INIT(fishing_catches, init_fishing_catches())
 	var/fights = TRUE
 	/// Rare catches get a louder message
 	var/rare = FALSE
+	/// How many come up at once, for stacks like ore
+	var/amount = 1
 
 /// Picks how long this one is, in cm. Most are small, a few are big.
 /datum/fishing_catch/proc/roll_length()
@@ -80,13 +82,13 @@ GLOBAL_LIST_INIT(fishing_catches, init_fishing_catches())
  * * session - The cast that caught it
  */
 /datum/fishing_catch/proc/land(mob/living/user, datum/fishing_session/session)
-	var/atom/movable/landed = new catch_type(user.drop_location())
+	var/turf/landing = get_turf(session.body)
+	var/atom/movable/landed = ispath(catch_type, /obj/item/stack) ? new catch_type(landing, amount) : new catch_type(landing)
 	if(max_length)
 		// The top third of the size range counts as a big one
 		var/big = size_factor(session.length_cm) >= 1.13
 		landed.AddComponent(/datum/component/caught_fish, session.length_cm, big, user.real_name, session.spot.name, fish_type)
-	if(isitem(landed))
-		user.put_in_hands(landed)
+	session.rod.receive_catch(landed, user)
 	return landed
 
 // MARK: Tank fish
@@ -310,7 +312,7 @@ GLOBAL_LIST_INIT(fishing_catches, init_fishing_catches())
 /datum/fishing_catch/creature
 
 /datum/fishing_catch/creature/land(mob/living/user, datum/fishing_session/session)
-	return new catch_type(user.drop_location())
+	return new catch_type(get_turf(session.body))
 
 /datum/fishing_catch/creature/mouse
 	name = "mouse"

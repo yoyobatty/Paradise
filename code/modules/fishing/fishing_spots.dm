@@ -3,6 +3,7 @@ GLOBAL_LIST_INIT(fishing_spots, list(
 	new /datum/fishing_spot/tank,
 	new /datum/fishing_spot/toilet,
 	new /datum/fishing_spot/plasma,
+	new /datum/fishing_spot/deep_lava,
 	new /datum/fishing_spot/lava,
 	new /datum/fishing_spot/chasm,
 	new /datum/fishing_spot/sea,
@@ -34,6 +35,10 @@ GLOBAL_LIST_INIT(fishing_spots, list(
 	var/splash_sound = 'sound/effects/slosh.ogg'
 	/// Is there a surface for the bobber to float on? Without one it hangs on the line
 	var/has_surface = TRUE
+	/// Something that sometimes comes up after the angler instead of taking the bait
+	var/mob/living/lurker_type
+	/// Percent chance of that, each time something would bite
+	var/lurker_chance = 0
 
 /datum/fishing_spot/proc/matches(atom/target)
 	return is_type_in_list(target, spot_types)
@@ -44,6 +49,8 @@ GLOBAL_LIST_INIT(fishing_spots, list(
 		return "[rod.line] would burn up in [name]. You need a heat-proof line."
 	if((required_line & FISHING_LINE_LONG) && !(rod.line.line_flags & FISHING_LINE_LONG))
 		return "[rod.line] is too short to reach the bottom of [name]."
+	if((required_line & FISHING_LINE_MAGMA) && !(rod.line.line_flags & FISHING_LINE_MAGMA))
+		return "[rod.line] would burn through long before it reached anything living in [name]. It takes an exosuit's steel line."
 
 /**
  * Picks what takes the hook.
@@ -150,6 +157,8 @@ GLOBAL_LIST_INIT(fishing_spots, list(
 	bite_wait_min = 8 SECONDS
 	bite_wait_max = 25 SECONDS
 	splash_sound = 'sound/effects/footstep/lava1.ogg'
+	lurker_type = /mob/living/basic/mining/magma_lurker
+	lurker_chance = 6
 	catches = list(
 		/datum/fishing_catch/ash_perch = 34,
 		/datum/fishing_catch/cinder_crab = 22,
@@ -159,6 +168,39 @@ GLOBAL_LIST_INIT(fishing_spots, list(
 		/datum/fishing_catch/junk/gold_ore = 5,
 		/datum/fishing_catch/junk/diamond_ore = 1,
 	)
+
+/**
+ * Lava with nothing but lava for two tiles all round. Out here live the biggest things in the lava, and the sunken
+ * loot of the necropolis, but only an exosuit's steel line reaches them, and a firefighter Ripley can wade out to it.
+ */
+/datum/fishing_spot/deep_lava
+	name = "deep lava"
+	spot_types = list(/turf/simulated/floor/lava)
+	required_line = FISHING_LINE_HEATPROOF | FISHING_LINE_MAGMA
+	bite_wait_min = 10 SECONDS
+	bite_wait_max = 30 SECONDS
+	splash_sound = 'sound/effects/footstep/lava1.ogg'
+	lurker_type = /mob/living/basic/mining/magma_lurker
+	lurker_chance = 18
+	catches = list(
+		/datum/fishing_catch/magma_eel = 26,
+		/datum/fishing_catch/lava_leviathan = 9,
+		/datum/fishing_catch/creature/magma_lurker = 8,
+		/datum/fishing_catch/junk/gold_ore_lode = 14,
+		/datum/fishing_catch/junk/diamond_cluster = 9,
+		/datum/fishing_catch/junk/bluespace_crystals = 7,
+		/datum/fishing_catch/junk/ashdrake_hide = 6,
+		/datum/fishing_catch/junk/slag = 10,
+		/datum/fishing_catch/junk/necropolis_chest = 3,
+	)
+
+/datum/fishing_spot/deep_lava/matches(atom/target)
+	if(!..())
+		return FALSE
+	for(var/turf/T as anything in RANGE_TURFS(2, target))
+		if(!istype(T, /turf/simulated/floor/lava) || istype(T, /turf/simulated/floor/lava/plasma) || istype(T, /turf/simulated/floor/lava/lava_land_surface/plasma))
+			return FALSE
+	return TRUE
 
 /datum/fishing_spot/chasm
 	name = "a chasm"

@@ -85,11 +85,19 @@
 /turf/simulated/floor/beach/away/water/Initialize(mapload)
 	. = ..()
 	RegisterSignal(src, COMSIG_ATOM_INITIALIZED_ON, PROC_REF(InitializedOn))
-	make_reflective()
+	// Not the reef stone, which is a kind of water turf too
+	if(is_reflective_water(src))
+		make_reflective()
+		add_water_effect_tile(src)
+
+/turf/simulated/floor/beach/away/water/Destroy()
+	if(is_reflective_water(src))
+		remove_water_effect_tile(src)
+	return ..()
 
 /turf/simulated/floor/beach/away/water/Entered(atom/movable/AM, atom/OldLoc)
 	. = ..()
-	ripple_from(AM)
+	ripple_from(AM, OldLoc)
 	if(!linkedcontroller)
 		return
 	if(ismob(AM))

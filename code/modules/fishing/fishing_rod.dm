@@ -60,6 +60,36 @@
 	else if(part == bait)
 		bait = null
 
+/// What the line comes out of when `user` fishes with this. Their own body, for a rod in the hand
+/obj/item/fishing_rod/proc/angler_body(mob/living/user)
+	return user
+
+/// Can `user` keep fishing with this? They have to be up and holding it
+/obj/item/fishing_rod/proc/can_keep_fishing(mob/living/user)
+	return !QDELETED(user) && !user.incapacitated() && user.is_holding(src)
+
+/**
+ * Where the line leaves the rod's tip, in pixels from the bottom left of the tile `body` is on.
+ *
+ * Follows the inhand sprites: the tip is out to the side of the hand holding it, a bit above the waist.
+ */
+/obj/item/fishing_rod/proc/tip_offset(atom/movable/body)
+	var/mob/holder = body
+	var/left_hand = istype(holder) && holder.l_hand == src
+	switch(body.dir)
+		if(NORTH)
+			return left_hand ? list(0.5, 20.5) : list(30.5, 20.5)
+		if(EAST)
+			return left_hand ? list(28.5, 20.5) : list(22.5, 19.5)
+		if(WEST)
+			return left_hand ? list(8.5, 19.5) : list(3.5, 20.5)
+	return left_hand ? list(29.5, 20.5) : list(1.5, 20.5)
+
+/// Hands something just reeled in to `user`
+/obj/item/fishing_rod/proc/receive_catch(atom/movable/landed, mob/living/user)
+	if(isitem(landed))
+		user.put_in_hands(landed)
+
 /// The kind of bait on the hook right now, or null for a bare hook
 /obj/item/fishing_rod/proc/get_bait_kind()
 	if(bait)
@@ -166,7 +196,7 @@
 /obj/item/fishing_rod/proc/cast(atom/target, datum/fishing_spot/spot, mob/living/user)
 	if(!can_cast(user))
 		return
-	var/turf/user_turf = get_turf(user)
+	var/turf/user_turf = get_turf(angler_body(user))
 	var/turf/landing = get_turf(target)
 	if(landing == user_turf)
 		to_chat(user, SPAN_WARNING("You can't cast at your own feet."))

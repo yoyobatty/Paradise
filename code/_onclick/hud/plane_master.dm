@@ -5,6 +5,29 @@
 	blend_mode = BLEND_OVERLAY
 	var/show_alpha = 255
 	var/hide_alpha = 0
+	/// Are this plane's filters part of the water and lava effects, which are off for players with none nearby?
+	var/water_effect = FALSE
+	/// Is the plane only drawn for those effects, so it's hidden too while they're off?
+	var/water_effect_only = FALSE
+	/// Is this a shown plane that's taken off the player's screen while the effects are off? Each plane master on
+	/// screen is a pass over the whole screen every frame, even with nothing on it
+	var/water_effect_removable = FALSE
+	/// Are the water and lava effects off for this player right now?
+	var/water_effects_off = FALSE
+
+// While the water and lava effects are off, nothing puts their filters back
+/atom/movable/screen/plane_master/update_filters()
+	if(water_effects_off)
+		filters = null
+		return
+	return ..()
+
+/// Turns this plane's part of the water and lava effects on or off, see /datum/water_effects_watcher
+/atom/movable/screen/plane_master/proc/set_water_effects(on)
+	water_effects_off = !on
+	update_filters()
+	if(water_effect_only)
+		alpha = on ? 255 : 0
 
 /atom/movable/screen/plane_master/proc/Show(override)
 	alpha = override || show_alpha
@@ -28,35 +51,210 @@
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	render_target = WATER_MASK_RENDER_TARGET
 
+/atom/movable/screen/plane_master/lava_glow
+	name = "lava glow plane master"
+	plane = LAVA_GLOW_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = LAVA_GLOW_RENDER_TARGET
+	water_effect = TRUE
+	water_effect_only = TRUE
+
+/atom/movable/screen/plane_master/lava_glow/Initialize(mapload)
+	. = ..()
+	// Spread out into a soft glow round the lava
+	add_filter("bloom_spread", 1, gauss_blur_filter(size = 10))
+	// Not over anything standing in or beside the lava, or it looks lost in a fog
+	add_filter("not_over_things", 2, alpha_mask_filter(render_source = GAME_PLANE_RENDER_TARGET, flags = MASK_INVERSE))
+
+/atom/movable/screen/plane_master/water_ripple
+	name = "water ripple plane master"
+	plane = WATER_RIPPLE_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_RIPPLE_RENDER_TARGET
+
+/atom/movable/screen/plane_master/water_mirror
+	name = "water mirror plane master"
+	plane = WATER_MIRROR_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_MIRROR_RENDER_TARGET
+
+/atom/movable/screen/plane_master/water_shimmer
+	name = "water shimmer plane master"
+	plane = WATER_SHIMMER_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_SHIMMER_RENDER_TARGET
+
+/atom/movable/screen/plane_master/pool_floor
+	name = "pool floor plane master"
+	plane = POOL_FLOOR_PLANE
+	appearance_flags = PLANE_MASTER
+	water_effect = TRUE
+	water_effect_removable = TRUE
+
+/atom/movable/screen/plane_master/pool_floor/Initialize(mapload)
+	. = ..()
+	// The tiles bend under the ripples, like a pool's floor seen through moving water
+	add_filter("ripples", 1, displacement_map_filter(render_source = WATER_RIPPLE_RENDER_TARGET, size = POOL_REFRACTION))
+
 /atom/movable/screen/plane_master/water
 	name = "water plane master"
 	plane = WATER_PLANE
 	appearance_flags = PLANE_MASTER
 
+/atom/movable/screen/plane_master/water_edge
+	name = "water edge plane master"
+	plane = WATER_EDGE_PLANE
+	appearance_flags = PLANE_MASTER
+
+/atom/movable/screen/plane_master/water_rays
+	name = "water rays plane master"
+	plane = WATER_RAYS_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	blend_mode = BLEND_ADD
+	water_effect = TRUE
+	water_effect_removable = TRUE
+	water_effect_only = TRUE
+
+/atom/movable/screen/plane_master/water_rays/Initialize(mapload)
+	. = ..()
+	// Shafts of light only show in the water
+	add_filter("water_mask", 1, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+
 /atom/movable/screen/plane_master/water_reflection
 	name = "water reflection plane master"
 	plane = WATER_REFLECTION_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	water_effect = TRUE
+	water_effect_removable = TRUE
+	water_effect_only = TRUE
 
 /atom/movable/screen/plane_master/water_reflection/Initialize(mapload)
 	. = ..()
-	// Rows of the reflections slide left and right, like the water is moving. Done here and not on each reflection,
-	// a wave filter on a copy of a mob cuts off whatever is wider than one tile
-	add_filter("water_wobble", 1, wave_filter(x = 0, y = 12, size = 1, offset = 0, flags = WAVE_SIDEWAYS))
+	// A copy of the world: walls, machines, items and mobs
+	add_filter("world", 1, layering_filter(render_source = GAME_PLANE_RENDER_TARGET))
+	// Lamps and lit screens, added on so they reflect as bright spots
+	add_filter("lamps", 2, layering_filter(render_source = LIGHTING_LAMPS_RENDER_TARGET, blend_mode = BLEND_ADD))
+	// A reflection is a little darker and bluer than the thing itself
+	add_filter("reflection_tone", 3, color_matrix_filter(list(0.78, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0.86, 0, 0, 0, 0, 0.62, 0.02, 0.04, 0.08, 0)))
+	// Every water tile moves its pixels so it shows the tile above it upside down
+	add_filter("mirror", 4, displacement_map_filter(render_source = WATER_MIRROR_RENDER_TARGET, size = POOL_MIRROR_REACH))
+	// Then the waves bend it
+	add_filter("ripples", 5, displacement_map_filter(render_source = WATER_RIPPLE_RENDER_TARGET, size = POOL_REFLECTION_RIPPLE))
 	// A reflection only shows where there is water under it
-	add_filter("water_mask", 2, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+	add_filter("water_mask", 6, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+	// And the ripples break it up as they pass
+	add_filter("water_shimmer", 7, alpha_mask_filter(render_source = WATER_SHIMMER_RENDER_TARGET))
+	// Bright things in it, like lamps, glow
+	add_filter("reflection_bloom", 8, bloom_filter(threshold = "#A0A0A0", size = 3, offset = 1, alpha = 170))
 
-/atom/movable/screen/plane_master/water_reflection/update_filters()
+/**
+ * Light and shade on the waves, worked out from the ripple map as a normal map.
+ *
+ * The ripple map says which way the surface tilts at each pixel. A colour matrix turns that into how much each pixel
+ * faces a light up and to the left, the same light the glints are drawn for. The shade plane darkens the sides facing
+ * away and the light plane brightens the sides facing it, so the waves, and every ring spreading from a step, stand
+ * out of the water. Both are under the lighting plane, so a dark room darkens them and a coloured lamp colours them.
+ */
+/atom/movable/screen/plane_master/water_relief_shade
+	name = "water relief shade plane master"
+	plane = WATER_RELIEF_SHADE_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	blend_mode = BLEND_MULTIPLY
+	water_effect = TRUE
+	water_effect_removable = TRUE
+	water_effect_only = TRUE
+
+/atom/movable/screen/plane_master/water_relief_shade/Initialize(mapload)
 	. = ..()
-	// Filters are all made again whenever one is added or taken off, which stops the wobble
-	var/wobble = get_filter("water_wobble")
-	if(wobble)
-		animate(wobble, offset = 1, time = 3 SECONDS, loop = -1)
+	add_filter("normals", 1, layering_filter(render_source = WATER_RIPPLE_RENDER_TARGET))
+	// 1 + 0.18 * (how much it faces the light). Sides facing it come out over white, which a multiply leaves alone.
+	// Blue darkens a little less, so the shaded sides go deeper blue rather than grey
+	add_filter("shading", 2, color_matrix_filter(list(-0.216, -0.216, -0.144, 0, -0.288, -0.288, -0.192, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1.252, 1.252, 1.168, 0)))
+	add_filter("water_mask", 3, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+
+/atom/movable/screen/plane_master/water_relief_light
+	name = "water relief light plane master"
+	plane = WATER_RELIEF_LIGHT_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	blend_mode = BLEND_ADD
+	water_effect = TRUE
+	water_effect_removable = TRUE
+	water_effect_only = TRUE
+	// The specular plane uses it to find the sides of the waves that catch the light
+	render_target = WATER_RELIEF_LIGHT_RENDER_TARGET
+
+/atom/movable/screen/plane_master/water_relief_light/Initialize(mapload)
+	. = ..()
+	add_filter("normals", 1, layering_filter(render_source = WATER_RIPPLE_RENDER_TARGET))
+	// Pale light, as strong as 0.18 * (how much it faces the light)
+	add_filter("shading", 2, color_matrix_filter(list(0, 0, 0, -0.216, 0, 0, 0, -0.288, 0, 0, 0, 0, 0, 0, 0, 0, 0.85, 0.97, 1, 0.252)))
+	add_filter("water_mask", 3, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+
+/**
+ * Glints of the light falling on the water, in its colour: bright where a lamp lights the water, none in the dark.
+ *
+ * Everything under the lighting plane is darkened by it, so nothing there can be brighter than the light on it. This
+ * plane is only read: the above lighting plane adds it on after the lighting, which lets a glint shine.
+ */
+/atom/movable/screen/plane_master/water_specular
+	name = "water specular plane master"
+	plane = WATER_SPECULAR_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_SPECULAR_RENDER_TARGET
+	water_effect = TRUE
+	water_effect_only = TRUE
+
+/atom/movable/screen/plane_master/water_specular/Initialize(mapload)
+	. = ..()
+	// The light falling on each pixel, with dim light taken off so only properly lit water glints
+	add_filter("light", 1, layering_filter(render_source = LIGHTING_PLANE_RENDER_TARGET))
+	add_filter("bright_only", 2, color_matrix_filter(list(1.4, 0, 0, 0, 0, 1.4, 0, 0, 0, 0, 1.4, 0, 0, 0, 0, 1, -0.35, -0.35, -0.35, 0)))
+	// Only on the sides of the waves that face the light, and only on water. 8 * face - 0.32 keeps it to the steepest
+	// part of each face, so glints are small and sharp instead of soft patches
+	add_filter("wave_faces", 3, alpha_mask_filter(render_source = WATER_RELIEF_LIGHT_RENDER_TARGET))
+	add_filter("strength", 4, color_matrix_filter(list(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 8, 0, 0, 0, -0.32)))
+	add_filter("water_mask", 5, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+	// Not over anything standing in or beside the water, it's drawn over the whole world
+	add_filter("not_over_things", 6, alpha_mask_filter(render_source = GAME_PLANE_RENDER_TARGET, flags = MASK_INVERSE))
+	// The brightest glow a little
+	add_filter("glint_bloom", 7, bloom_filter(threshold = "#D0D0D0", size = 2, offset = 0, alpha = 120))
+
+/// Things drawn over the lighting, like welding sparks and tracers. Water glints and the bloom of lava are added here too
+/atom/movable/screen/plane_master/above_lighting
+	name = "above lighting plane master"
+	plane = ABOVE_LIGHTING_PLANE
+	// Only a plane master, so these still take the client's colour like they did without one
+	appearance_flags = PLANE_MASTER
+	water_effect = TRUE
+	water_effect_removable = TRUE
+
+/atom/movable/screen/plane_master/above_lighting/Initialize(mapload)
+	. = ..()
+	add_filter("water_glints", 1, layering_filter(render_source = WATER_SPECULAR_RENDER_TARGET, blend_mode = BLEND_ADD))
+	// And lava blooming past its edges
+	add_filter("lava_bloom", 2, layering_filter(render_source = LAVA_GLOW_RENDER_TARGET, blend_mode = BLEND_ADD))
+
+/atom/movable/screen/plane_master/water_shine
+	name = "water shine plane master"
+	plane = WATER_SHINE_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	water_effect = TRUE
+	water_effect_removable = TRUE
+
+/atom/movable/screen/plane_master/water_shine/Initialize(mapload)
+	. = ..()
+	// Glints ride the waves, so a ring spreading across the water bends them too
+	add_filter("ripples", 1, displacement_map_filter(render_source = WATER_RIPPLE_RENDER_TARGET, size = POOL_REFRACTION))
+	// Ripples and glints only show over water
+	add_filter("water_mask", 2, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+	// And the brightest glints glow a little
+	add_filter("glint_bloom", 3, bloom_filter(threshold = "#F2F2F2", size = 1, offset = 0, alpha = 110))
 
 /atom/movable/screen/plane_master/game_world
 	name = "game world plane master"
 	plane = GAME_PLANE
 	appearance_flags = PLANE_MASTER
+	render_target = GAME_PLANE_RENDER_TARGET
 
 /atom/movable/screen/plane_master/game_world/backdrop(mob/mymob)
 	. = ..() //if you delete it so help me god
@@ -70,6 +268,8 @@
 	appearance_flags = PLANE_MASTER
 	blend_mode = BLEND_MULTIPLY
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	// Water reads it to glint with the light falling on it
+	render_target = LIGHTING_PLANE_RENDER_TARGET
 
 /atom/movable/screen/plane_master/lighting/backdrop(mob/mymob)
 	. = ..()

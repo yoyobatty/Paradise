@@ -100,3 +100,31 @@
 
 	// No lava left behind for the next test to stand beside
 	water.ChangeTurf(turf_before)
+
+/// Deep lava is only lava with lava two tiles all round, and only an exosuit's steel line can fish it
+/datum/game_test/room_test/fishing_deep_lava/Run()
+	var/turf/corner = bottom_left.loc
+	var/turf/deep = locate(corner.x + 2, corner.y + 2, corner.z)
+	var/list/lake = block(corner, locate(corner.x + 4, corner.y + 4, corner.z))
+	var/list/turfs_before = list()
+	for(var/turf/T as anything in lake)
+		turfs_before["[T.x],[T.y]"] = T.type
+		T.ChangeTurf(/turf/simulated/floor/lava)
+	TEST_ASSERT_EQUAL(get_fishing_spot(deep)?.type, /datum/fishing_spot/deep_lava, "lava with lava two tiles all round isn't deep lava")
+	TEST_ASSERT_EQUAL(get_fishing_spot(corner)?.type, /datum/fishing_spot/lava, "the corner of a lava lake is deep lava")
+	var/datum/fishing_spot/deep_spot = get_fishing_spot(deep)
+
+	var/obj/item/fishing_rod/hand_rod = allocate(/obj/item/fishing_rod)
+	QDEL_NULL(hand_rod.line)
+	hand_rod.line = new /obj/item/fishing_line/sinew(hand_rod)
+	TEST_ASSERT_NOTNULL(deep_spot.why_not(deep, hand_rod), "a sinew line can fish deep lava")
+	var/obj/item/mecha_parts/mecha_equipment/fishing_rod/mount = allocate(/obj/item/mecha_parts/mecha_equipment/fishing_rod)
+	TEST_ASSERT_NULL(deep_spot.why_not(deep, mount.rod), "an exosuit's steel line can't fish deep lava")
+	var/obj/mecha/working/ripley/firefighter/ripley = allocate(/obj/mecha/working/ripley/firefighter)
+	TEST_ASSERT(mount.can_attach(ripley), "the exosuit fishing rod doesn't fit a firefighter Ripley")
+	mount.attach(ripley)
+	TEST_ASSERT_EQUAL(mount.rod.angler_body(null), ripley, "the line doesn't come out of the exosuit")
+
+	for(var/turf/T as anything in lake)
+		T.ChangeTurf(turfs_before["[T.x],[T.y]"])
+

@@ -26,8 +26,36 @@
 	floor_tile = null
 	real_layer = PLATING_LAYER
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
+	/// The glow over the molten part of the sprite, see update_lava_glow()
+	var/list/lava_glow_overlays
 
 
+
+/turf/simulated/floor/lava/Initialize(mapload)
+	. = ..()
+	update_lava_glow()
+	add_water_effect_tile(src)
+
+/turf/simulated/floor/lava/Destroy()
+	remove_water_effect_tile(src)
+	return ..()
+
+/turf/simulated/floor/lava/set_smoothed_icon_state(new_junction)
+	. = ..()
+	update_lava_glow()
+
+/**
+ * Makes the molten part of the lava glow, to match the sprite it has now.
+ *
+ * On the emissive plane the lighting doesn't darken it, so lava is bright even in the dark. On the lava glow plane it
+ * is blurred and added over the lighting, so it blooms past its edges onto the rock and whoever stands near it.
+ * Both keep only the bright molten pixels, so the dark crust round the edges doesn't glow.
+ */
+/turf/simulated/floor/lava/proc/update_lava_glow()
+	if(lava_glow_overlays)
+		overlays -= lava_glow_overlays
+	lava_glow_overlays = list(get_lava_glow(icon, icon_state, EMISSIVE_PLANE), get_lava_glow(icon, icon_state, LAVA_GLOW_PLANE))
+	overlays += lava_glow_overlays
 
 /turf/simulated/floor/lava/ex_act()
 	return
@@ -325,3 +353,25 @@
 	. = ..()
 	if(SSmapping.lavaland_theme?.primary_turf_type)
 		ChangeTurf(SSmapping.lavaland_theme.primary_turf_type, ignore_air = TRUE)
+
+/**
+ * The bright molten part of a lava sprite on `plane`, made once and shared by every lava tile with that sprite.
+ *
+ * How bright each pixel is decides how much of it glows: 3.5 * (0.5 red + 0.4 green + 0.1 blue - 0.33). The dark
+ * crust comes out at nothing and the brightest molten rock at full. On the emissive plane it's white, on the lava
+ * glow plane it keeps a fifth of its own colour, so the bloom is a soft glow and doesn't wash the lava out.
+ */
+/proc/get_lava_glow(icon, icon_state, plane)
+	var/static/list/made = list()
+	var/key = "[icon]|[icon_state]|[plane]"
+	. = made[key]
+	if(.)
+		return
+	var/mutable_appearance/glow = mutable_appearance(icon, icon_state, plane = plane)
+	if(plane == EMISSIVE_PLANE)
+		glow.color = list(0, 0, 0, 1.75, 0, 0, 0, 1.4, 0, 0, 0, 0.35, 0, 0, 0, 0, 1, 1, 1, -1.155)
+	else
+		glow.color = list(0.2, 0, 0, 1.75, 0, 0.2, 0, 1.4, 0, 0, 0.2, 0.35, 0, 0, 0, 0, 0, 0, 0, -1.155)
+	made[key] = glow
+	return glow
+

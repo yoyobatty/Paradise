@@ -47,6 +47,8 @@
 	name = "beach"
 	desc = "The sandy seaside, waves crashing, the sun shining... It's a true paradise."
 	icon = 'icons/misc/beach.dmi'
+	// Pool water draws no edge against sand and coastline, the shore is already drawn there
+	smoothing_groups = list(SMOOTH_GROUP_BEACH)
 	footstep = FOOTSTEP_SAND
 	barefootstep = FOOTSTEP_SAND
 	clawfootstep = FOOTSTEP_SAND
@@ -101,7 +103,7 @@
 /turf/simulated/floor/beach/water
 	name = "water"
 	icon_state = "water"
-	plane = WATER_PLANE
+	plane = WATER_EDGE_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	var/obj/machinery/poolcontroller/linkedcontroller = null
 	baseturf = /turf/simulated/floor/beach/water
@@ -109,25 +111,78 @@
 	barefootstep = FOOTSTEP_WATER
 	clawfootstep = FOOTSTEP_WATER
 	heavyfootstep = FOOTSTEP_WATER
+	canSmoothWith = list(SMOOTH_GROUP_BEACH)
+	/// Which colours the pool is drawn in: "pool" for plain water, "deep" for water mapped as "seadeep".
+	/// Null for water a mapper gave any other look, which keeps its sprite and has no edges.
+	var/water_look
+	/// What the water's edge looks like where it meets land. Mappers can set it to "coping" (a swimming pool),
+	/// "deck" (a metal pool deck), "rock" or "sand". The pool's bottom goes with it: tiles, tiles, pebbles, sand.
+	var/edge_style = "coping"
+	/// Which of the edge style's three versions this tile draws, so a long edge doesn't repeat
+	var/edge_variant = 1
+	/// The surface and reflection mask for the edges the water has now, so they can be swapped when its edges change
+	var/list/pool_edge_overlays
+	/// The darkening for how far the tile is from dry land, swapped when land nearby changes
+	var/mutable_appearance/pool_depth_underlay
 
 /turf/simulated/floor/beach/water/Initialize(mapload)
+	// Set before the parent call, so the turf is queued to pick its edges
+	switch(icon_state)
+		if("water")
+			water_look = "pool"
+		if("seadeep")
+			water_look = "deep"
+	if(water_look)
+		if(!(edge_style in GLOB.pool_edge_floors))
+			edge_style = initial(edge_style)
+		edge_variant = pick_edge_variant()
+		smoothing_flags = SMOOTH_BITMASK
+		icon = 'icons/turf/floors/pool_water.dmi'
+		base_icon_state = "[edge_style][edge_variant]"
+		icon_state = "[base_icon_state]-255"
 	. = ..()
-	// Light playing over the pool floor, unless a mapper gave this water a look of its own
-	if(icon_state == initial(icon_state))
-		overlays += image('icons/turf/floors/pool_water.dmi', icon_state = "caustics")
-	var/image/overlay_image = image('icons/turf/floors/pool_water.dmi', icon_state = "surface", layer = ABOVE_MOB_LAYER)
-	overlay_image.plane = GAME_PLANE
-	overlays += overlay_image
 	RegisterSignal(src, COMSIG_ATOM_INITIALIZED_ON, PROC_REF(InitializedOn))
-	make_reflective()
+	add_water_effect_tile(src)
+	if(!water_look)
+		var/image/overlay_image = image('icons/misc/beach.dmi', icon_state = "water5", layer = ABOVE_MOB_LAYER)
+		overlay_image.plane = GAME_PLANE
+		overlays += overlay_image
+		make_reflective()
+		return
+	setup_pool_look()
+	make_reflective(FALSE)
+	// Water dug or built after the map loaded tells the water round it to redraw its edges and depth
+	if(!mapload)
+		resmooth_pool_around()
+		// And anyone already standing here is in it now
+		for(var/mob/living/wader in src)
+			make_waist_deep(wader)
+
+/turf/simulated/floor/beach/water/Destroy()
+	remove_water_effect_tile(src)
+	if(water_look)
+		resmooth_pool_around()
+	// Anyone standing here when the water goes isn't in it any more, though they haven't moved. Checked once the turf
+	// has changed
+	for(var/mob/living/wader in src)
+		var/datum/component/pool_submerged/submerged = wader.GetComponent(/datum/component/pool_submerged)
+		if(submerged)
+			addtimer(CALLBACK(submerged, TYPE_PROC_REF(/datum/component/pool_submerged, check_water)), 0)
+	return ..()
 
 /turf/simulated/floor/beach/water/Entered(atom/movable/AM, atom/OldLoc)
 	. = ..()
-	ripple_from(AM)
+	ripple_from(AM, OldLoc)
+	make_waist_deep(AM)
 	if(!linkedcontroller)
 		return
 	if(ismob(AM))
 		linkedcontroller.mobinpool += AM
+
+/// Makes a mob standing in a pool look waist deep in it
+/turf/simulated/floor/beach/water/proc/make_waist_deep(atom/movable/wader)
+	if(water_look && isliving(wader) && wader.loc == src && !HAS_TRAIT(wader, TRAIT_FLYING) && !wader.GetComponent(/datum/component/pool_submerged))
+		wader.AddComponent(/datum/component/pool_submerged, water_look)
 
 /turf/simulated/floor/beach/water/Exited(atom/movable/AM, direction)
 	. = ..()
@@ -136,7 +191,10 @@
 	if(ismob(AM))
 		linkedcontroller.mobinpool -= AM
 
-/turf/simulated/floor/beach/water/proc/InitializedOn(atom/A)
+/turf/simulated/floor/beach/water/proc/InitializedOn(datum/source, atom/A)
+	SIGNAL_HANDLER // COMSIG_ATOM_INITIALIZED_ON
+	// Made in the pool rather than walking in, so Entered() isn't called
+	make_waist_deep(A)
 	if(!linkedcontroller)
 		return
 	if(istype(A, /obj/effect/decal/cleanable)) // Better a typecheck than looping through thousands of turfs everyday

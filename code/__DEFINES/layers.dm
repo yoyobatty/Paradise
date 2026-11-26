@@ -9,13 +9,56 @@
 #define PLANE_SPACE -95
 #define PLANE_SPACE_PARALLAX -90
 
+/// The bright molten part of lava, in its own colours. Never shown here: blurred, and added over the lighting by the
+/// above lighting plane, so lava blooms past its edges
+#define LAVA_GLOW_PLANE -20
+#define LAVA_GLOW_RENDER_TARGET "*LAVA_GLOW_RENDER_TARGET"
+/// Which way the water's surface slopes, from its ripples and the rings of waves from anything touching it: a normal
+/// map. Never shown: the pool floor, the reflections and the glints are moved by it, so they bend under the waves, and
+/// the relief planes light the waves by it
+#define WATER_RIPPLE_PLANE -19
+#define WATER_RIPPLE_RENDER_TARGET "*WATER_RIPPLE_RENDER_TARGET"
+/// How many pixels the ripples bend the pool floor seen through them
+#define POOL_REFRACTION 3
+/// How many pixels they bend reflections. More than the floor, as in real water
+#define POOL_REFLECTION_RIPPLE 4
+/// How far to move each pixel of the world to make its reflection in the water below it. Never shown, the
+/// reflection plane reads it
+#define WATER_MIRROR_PLANE -18
+#define WATER_MIRROR_RENDER_TARGET "*WATER_MIRROR_RENDER_TARGET"
+/// How many pixels a mirror map can move a pixel each way. A tile mirrors the one above it, so up to 63
+#define POOL_MIRROR_REACH 64
+/// Where the ripples break reflections up. Never shown, the reflection plane reads it as a second mask
+#define WATER_SHIMMER_PLANE -17
+#define WATER_SHIMMER_RENDER_TARGET "*WATER_SHIMMER_RENDER_TARGET"
 /// Where there is water for things to be mirrored in. Never shown, only used to cut reflections to the water's shape
-#define WATER_MASK_PLANE -9
+#define WATER_MASK_PLANE -16
 #define WATER_MASK_RENDER_TARGET "*WATER_MASK_RENDER_TARGET"
-/// Water turfs. They are under the floor plane so reflections can be drawn between the water and what stands in it
-#define WATER_PLANE -8
-/// Reflections of mobs in water
-#define WATER_REFLECTION_PLANE -7
+/// The bottom of a pool, seen through the water
+#define POOL_FLOOR_PLANE -15
+/// Water turfs that are one flat sprite, like the beach away mission's sea
+#define WATER_PLANE -14
+/// Pool water turfs: the edge of the pool and the water's colour. All of these are under the floor plane so
+/// reflections can be drawn between the water and what stands in it
+#define WATER_EDGE_PLANE -13
+/// Shafts of light slanting down through the water, added on
+#define WATER_RAYS_PLANE -12
+/// Reflections in water: a mirrored copy of the world plane, cut to the water. Over the water's colour, so they're
+/// as clear as on real water
+#define WATER_REFLECTION_PLANE -11
+/// The sides of the waves facing away from the light, darkened. Made from the ripple map, nothing is drawn on it
+#define WATER_RELIEF_SHADE_PLANE -10
+/// The sides of the waves facing the light, brightened. Made from the ripple map, nothing is drawn on it
+#define WATER_RELIEF_LIGHT_PLANE -9
+#define WATER_RELIEF_LIGHT_RENDER_TARGET "WATER_RELIEF_LIGHT_RENDER_TARGET"
+/// Glints of whatever light falls on the water, on the sides of the waves facing up into it. Never shown here: the
+/// above lighting plane adds it after the lighting, so a glint can be brighter than the light on the water
+#define WATER_SPECULAR_PLANE -8
+#define WATER_SPECULAR_RENDER_TARGET "*WATER_SPECULAR_RENDER_TARGET"
+/// The ripples and glints of light on the water, on top of its colour so they shine
+#define WATER_SHINE_PLANE -7
+/// How many tiles from dry land pool water is at its darkest
+#define POOL_MAX_DEPTH 3
 
 #define FLOOR_PLANE -6
 #define FLOOR_OVERLAY_PLANE -5
@@ -26,6 +69,8 @@
 #define FLOOR_LIGHTING_LAMPS_RENDER_TARGET "*FLOOR_LIGHTING_LAMPS_RENDER_TARGET"
 #define ABOVE_GAME_PLANE -1.5
 #define GAME_PLANE -1
+/// The world plane's picture, for water to reflect. No * at the front, so the plane is still drawn as well
+#define GAME_PLANE_RENDER_TARGET "GAME_PLANE_RENDER_TARGET"
 #define BLACKNESS_PLANE 0 //To keep from conflicts with SEE_BLACKNESS internals
 
 #define AREA_PLANE 1
@@ -124,6 +169,8 @@
 #define COGBAR_PLANE 15
 
 #define LIGHTING_PLANE 16
+/// The light falling on everything, for water to glint with. No * at the front, so the plane is still drawn as well
+#define LIGHTING_PLANE_RENDER_TARGET "LIGHTING_PLANE_RENDER_TARGET"
 #define LIGHTING_LAYER 16
 
 #define LIGHTING_LAMPS_GLARE 17 // Light glare (optional setting)
