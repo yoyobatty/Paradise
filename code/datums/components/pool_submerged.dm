@@ -39,6 +39,10 @@
 	floor_shadow.vis_flags = VIS_INHERIT_ID
 	floor_shadow.plane = POOL_FLOOR_PLANE
 	owner.vis_contents += list(back_ring, front_ring, floor_shadow)
+	// The water rises and falls a little round them
+	for(var/obj/effect/abstract/waterline/ring in list(back_ring, front_ring))
+		animate(ring, pixel_y = 1, time = 1.6 SECONDS, loop = -1, easing = SINE_EASING)
+		animate(pixel_y = -1, time = 1.6 SECONDS, easing = SINE_EASING)
 	lying = owner.body_position == LYING_DOWN
 	set_look(look)
 

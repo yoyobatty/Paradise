@@ -1701,6 +1701,7 @@
 #include "code\game\turfs\simulated\floor\mineral_floors.dm"
 #include "code\game\turfs\simulated\floor\misc_floor.dm"
 #include "code\game\turfs\simulated\floor\plating.dm"
+#include "code\game\turfs\simulated\floor\pool_waves.dm"
 #include "code\game\turfs\simulated\floor\transparent.dm"
 #include "code\game\turfs\simulated\floor\water_surface.dm"
 #include "code\game\turfs\simulated\floor\plasteel\plasteel_floor.dm"

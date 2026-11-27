@@ -349,14 +349,17 @@
 /// Sends a ripple out from the bobber, if it's floating on water
 /datum/fishing_session/proc/splash()
 	var/turf/bobber_turf = get_turf(bobber)
+	var/turf/simulated/floor/beach/water = bobber_turf
 	if(is_reflective_water(bobber_turf))
 		new /obj/effect/temp_visual/water_ripple(bobber_turf)
 		// Something taking the hook throws water up too
 		if(state == FISHING_BITE)
 			new /obj/effect/temp_visual/water_splash(bobber_turf)
-			new /obj/effect/temp_visual/ripple_wave(bobber_turf)
+			water.make_wave_ring()
+			water.stir_water(0.1)
 		else
-			new /obj/effect/temp_visual/ripple_wave/small(bobber_turf)
+			water.make_wave_ring(TRUE)
+			water.stir_water(0.02)
 
 /// The bobber's icon state for a stage of the cast, floating or hanging depending on the spot
 /datum/fishing_session/proc/bobber_state(stage)

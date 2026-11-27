@@ -1,22 +1,35 @@
 /**
- * Makes an item lying in a pool look like it's under the water.
+ * Makes an item lying in a pool look like it's under the water, or floating on it.
  *
  * The water's colour is drawn over the item's own pixels, the same way it is over the legs of someone standing in
- * the pool. Pool water gives this to items that land in it, and it takes itself off when they're picked up or moved
- * out.
+ * the pool. A few things float instead, and bob up and down on the water. Pool water gives this to items that land
+ * in it, and it takes itself off when they're picked up or moved out.
  */
 /datum/component/pool_sunk
 	/// The colours of the pool the item is in, "pool" or "deep"
 	var/look
+	/// Does the item float on the water instead of lying under it?
+	var/floating = FALSE
 
-/datum/component/pool_sunk/Initialize(look)
+/datum/component/pool_sunk/Initialize(look, floating = FALSE)
 	if(!isitem(parent))
 		return COMPONENT_INCOMPATIBLE
-	set_look(look)
+	src.floating = floating
+	if(!floating)
+		set_look(look)
+		return
+	// Up and down with the water, at its own pace so two of them don't move as one
+	var/obj/item/floater = parent
+	var/bob = rand(14, 20)
+	animate(floater, pixel_z = 2, time = bob, loop = -1, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
+	animate(pixel_z = 0, time = bob, easing = SINE_EASING)
 
 /datum/component/pool_sunk/Destroy(force)
 	var/obj/item/sunk = parent
-	sunk.remove_filter("pool_sunk")
+	if(floating)
+		animate(sunk, pixel_z = 0, time = 2)
+	else
+		sunk.remove_filter("pool_sunk")
 	return ..()
 
 /datum/component/pool_sunk/RegisterWithParent()
@@ -42,5 +55,5 @@
 	if(!istype(pool) || !pool.water_look)
 		qdel(src)
 		return
-	if(pool.water_look != look)
+	if(pool.water_look != look && !floating)
 		set_look(pool.water_look)

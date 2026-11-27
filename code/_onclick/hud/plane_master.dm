@@ -223,10 +223,10 @@
 	// The light falling on each pixel, with dim light taken off so only properly lit water glints
 	add_filter("light", 1, layering_filter(render_source = LIGHTING_PLANE_RENDER_TARGET))
 	add_filter("bright_only", 2, color_matrix_filter(list(1.4, 0, 0, 0, 0, 1.4, 0, 0, 0, 0, 1.4, 0, 0, 0, 0, 1, -0.35, -0.35, -0.35, 0)))
-	// Only on the sides of the waves that face the light, and only on water. 8 * face - 0.32 keeps it to the steepest
-	// part of each face, so glints are small and sharp instead of soft patches
+	// Only on the sides of the waves that face the light, and only on water. 4 * face - 0.08 keeps it to the steeper
+	// part of each face: small glints on ripples, and no more than a sheen on the whole face of a big wave
 	add_filter("wave_faces", 3, alpha_mask_filter(render_source = WATER_RELIEF_LIGHT_RENDER_TARGET))
-	add_filter("strength", 4, color_matrix_filter(list(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 8, 0, 0, 0, -0.32)))
+	add_filter("strength", 4, color_matrix_filter(list(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 4, 0, 0, 0, -0.08)))
 	add_filter("water_mask", 5, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
 	// Not over anything standing in or beside the water, it's drawn over the whole world
 	add_filter("not_over_things", 6, alpha_mask_filter(render_source = GAME_PLANE_RENDER_TARGET, flags = MASK_INVERSE))
@@ -247,6 +247,56 @@
 	add_filter("water_glints", 1, layering_filter(render_source = WATER_SPECULAR_RENDER_TARGET, blend_mode = BLEND_ADD))
 	// And lava blooming past its edges
 	add_filter("lava_bloom", 2, layering_filter(render_source = LAVA_GLOW_RENDER_TARGET, blend_mode = BLEND_ADD))
+
+/atom/movable/screen/plane_master/water_edge_band
+	name = "water edge band plane master"
+	plane = WATER_EDGE_BAND_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_EDGE_BAND_RENDER_TARGET
+	water_effect = TRUE
+	water_effect_only = TRUE
+
+/atom/movable/screen/plane_master/water_edge_band/Initialize(mapload)
+	. = ..()
+	// Where the water is, spread out past its edges and turned inside out: that's a band along every edge of the
+	// water, strongest right at the edge and gone a few pixels in. 0.9 * (1 - how much water)
+	add_filter("water", 1, layering_filter(render_source = WATER_MASK_RENDER_TARGET))
+	add_filter("spread", 2, gauss_blur_filter(size = 4))
+	add_filter("edge_only", 3, color_matrix_filter(list(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.9, 1, 1, 1, 0.9)))
+
+/atom/movable/screen/plane_master/water_foam_drive
+	name = "water foam drive plane master"
+	plane = WATER_FOAM_DRIVE_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_FOAM_DRIVE_RENDER_TARGET
+	water_effect = TRUE
+	water_effect_only = TRUE
+
+/atom/movable/screen/plane_master/water_foam_drive/Initialize(mapload)
+	. = ..()
+	// White wherever a wave is steep and faces the light, and nothing where the water is flat: a calm pool has no
+	// foam on it, a rough one has whitecaps, and a strong swell carries a thin line of foam on each wave's face.
+	// 6.5 * (how much it faces the light) - 3
+	add_filter("normals", 1, layering_filter(render_source = WATER_RIPPLE_RENDER_TARGET))
+	add_filter("steep_faces", 2, color_matrix_filter(list(0, 0, 0, -7.8, 0, 0, 0, -10.4, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 6.1)))
+	// And the band along the water's edges, where it always laps a little
+	add_filter("edges", 3, layering_filter(render_source = WATER_EDGE_BAND_RENDER_TARGET))
+
+/// Foam: flecks of it are drawn all over the water, and only show where the foam drive plane lets them
+/atom/movable/screen/plane_master/water_foam
+	name = "water foam plane master"
+	plane = WATER_FOAM_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	water_effect = TRUE
+	water_effect_only = TRUE
+	water_effect_removable = TRUE
+
+/atom/movable/screen/plane_master/water_foam/Initialize(mapload)
+	. = ..()
+	// Foam rides the waves
+	add_filter("ripples", 1, displacement_map_filter(render_source = WATER_RIPPLE_RENDER_TARGET, size = POOL_REFRACTION))
+	add_filter("where_foam_is", 2, alpha_mask_filter(render_source = WATER_FOAM_DRIVE_RENDER_TARGET))
+	add_filter("water_mask", 3, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
 
 /atom/movable/screen/plane_master/water_shine
 	name = "water shine plane master"

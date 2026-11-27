@@ -18,6 +18,8 @@
 	var/srange = 5 //The range of the search for pool turfs, change this for bigger or smaller pools.
 	var/list/linkedmist = list() //Used to keep track of created mist
 	var/deep_water = FALSE		//set to 1 to drown even standing people
+	/// How hard the pool's wave machine is running, one of the POOL_WAVES_ settings
+	var/wave_setting = POOL_WAVES_OFF
 
 /obj/machinery/poolcontroller/invisible
 	invisibility = INVISIBILITY_MAXIMUM
@@ -215,10 +217,23 @@
 		set_temp(temp)
 
 
+/// Turns the wave machine of every pool this controls up, down or off
+/obj/machinery/poolcontroller/proc/set_waves(setting)
+	if(!(setting in list(POOL_WAVES_OFF, POOL_WAVES_GENTLE, POOL_WAVES_STRONG)))
+		return
+	wave_setting = setting
+	var/list/pools = list()
+	for(var/turf/simulated/floor/beach/water/water in linkedturfs)
+		if(water.waves)
+			pools |= water.waves
+	for(var/datum/pool_waves/pool as anything in pools)
+		pool.set_machine(setting)
+
 /obj/machinery/poolcontroller/ui_data(mob/user)
 	var/list/data = list()
 	data["currentTemp"] = temp_to_str(temperature)
 	data["emagged"] = emagged
+	data["waves"] = wave_setting
 
 	return data
 
@@ -230,6 +245,9 @@
 	switch(action)
 		if("setTemp")
 			set_temp_str(params["temp"])
+			return TRUE
+		if("setWaves")
+			set_waves(text2num(params["waves"]))
 			return TRUE
 
 	return FALSE

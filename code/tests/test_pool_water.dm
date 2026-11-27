@@ -29,7 +29,7 @@
 		states["[MA.icon_state] [MA.plane]"] = TRUE
 	var/quarter = "[top_left.x % 2][top_left.y % 2 ? 0 : 1]"
 	TEST_ASSERT(states["mirror_map [WATER_MIRROR_PLANE]"], "pool water has no mirror map, so it won't reflect anything")
-	TEST_ASSERT(states["ripple_map_[quarter] [WATER_RIPPLE_PLANE]"], "pool water has no ripple map, so nothing bends under its waves")
+	TEST_ASSERT(states["wave_flat [WATER_RIPPLE_PLANE]"], "pool water has no flat water for its waves to be drawn over")
 	TEST_ASSERT(states["reflection_breakup_[quarter] [WATER_SHIMMER_PLANE]"], "pool water has no shimmer mask")
 	TEST_ASSERT(states["rays_[top_left.x % 4][3 - top_left.y % 4] [WATER_RAYS_PLANE]"], "pool water has no shafts of light")
 	for(var/mutable_appearance/MA as anything in top_left.underlays)
@@ -45,6 +45,24 @@
 	TEST_ASSERT(!states["[top_left.base_icon_state]_lip-[top_left.smoothing_junction] [GAME_PLANE]"], "water with more water south has a near side over people")
 	// Its north corners touch land, its south ones are a tile from it
 	TEST_ASSERT_EQUAL(top_middle.pool_depth_underlay?.icon_state, "depth-0011", "the water in the middle of the pool has the wrong depth")
+
+	// The pool has one set of waves, in layers on every tile, and they follow what happens in it
+	var/datum/pool_waves/waves = top_left.waves
+	TEST_ASSERT_NOTNULL(waves, "pool water has no waves")
+	TEST_ASSERT_EQUAL(length(waves.tiles), 6, "the pool's tiles don't all share its waves")
+	TEST_ASSERT_EQUAL(top_middle.waves, waves, "two tiles of one pool have different waves")
+	TEST_ASSERT_EQUAL(length(top_left.vis_contents), 2, "a calm pool's tile doesn't show two layers of waves")
+	TEST_ASSERT_EQUAL(waves.energy, 0, "a pool nothing has touched isn't calm")
+	top_left.stir_water(0.2)
+	TEST_ASSERT_EQUAL(waves.energy, 0.2, "disturbing the water didn't stir the pool up")
+	waves.process(1 MINUTES)
+	TEST_ASSERT_EQUAL(waves.energy, 0, "a stirred up pool didn't settle")
+	waves.set_machine(POOL_WAVES_STRONG)
+	TEST_ASSERT_EQUAL(waves.swell_axis, "ew", "the swell doesn't run along a pool that's wider than it's tall")
+	TEST_ASSERT_EQUAL(length(top_left.vis_contents), 4, "the wave machine didn't add the swell and the one coming back")
+	waves.process(1 MINUTES)
+	TEST_ASSERT(waves.energy > 0.5, "a strong wave machine doesn't keep the pool rough")
+	waves.set_machine(POOL_WAVES_OFF)
 
 	// Things lying in the pool look sunk, and stop when they're taken out
 	var/obj/item/wrench/wrench = allocate(/obj/item/wrench, top_middle)
@@ -62,3 +80,4 @@
 
 	for(var/turf/T as anything in pool)
 		T.ChangeTurf(turfs_before[T])
+	TEST_ASSERT(QDELETED(waves), "a pool's waves outlived its last tile")

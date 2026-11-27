@@ -126,6 +126,8 @@
 	var/mutable_appearance/pool_depth_underlay
 	/// The light on the pool floor this tile has on now
 	var/mutable_appearance/pool_caustics
+	/// The waves of the pool this tile is part of: how rough it is and what its wave machine is doing
+	var/datum/pool_waves/waves
 
 /turf/simulated/floor/beach/water/Initialize(mapload)
 	// Set before the parent call, so the turf is queued to pick its edges
@@ -152,7 +154,8 @@
 		make_reflective()
 		return
 	setup_pool_look()
-	make_reflective(FALSE)
+	make_reflective(FALSE, FALSE)
+	join_pool_waves()
 	// Water dug or built after the map loaded tells the water round it to redraw its edges and depth
 	if(!mapload)
 		resmooth_pool_around()
@@ -164,6 +167,7 @@
 
 /turf/simulated/floor/beach/water/Destroy()
 	remove_water_effect_tile(src)
+	waves?.remove_tile(src)
 	if(water_look)
 		resmooth_pool_around()
 	// Anyone standing here when the water goes isn't in it any more, though they haven't moved. Checked once the turf
@@ -197,15 +201,20 @@
 	if(isitem(AM) && !AM.GetComponent(/datum/component/pool_sunk))
 		sink_item(AM, splash = TRUE)
 
+/// Things that float on a pool instead of sinking to the bottom of it
+GLOBAL_LIST_INIT(pool_floaters, typecacheof(list(/obj/item/beach_ball, /obj/item/bikehorn/rubberducky)))
+
 /// Makes an item that's landed in the pool look like it's lying under the water, with a small splash as it goes in
 /turf/simulated/floor/beach/water/proc/sink_item(obj/item/sinking, splash = FALSE)
 	if(!water_look || sinking.loc != src)
 		return
 	if(!sinking.GetComponent(/datum/component/pool_sunk))
-		sinking.AddComponent(/datum/component/pool_sunk, water_look)
+		// A few things float
+		sinking.AddComponent(/datum/component/pool_sunk, water_look, is_type_in_typecache(sinking, GLOB.pool_floaters))
 	if(splash)
+		stir_water(0.06)
 		new /obj/effect/temp_visual/water_splash/small(src)
-		new /obj/effect/temp_visual/ripple_wave/small(src)
+		make_wave_ring(TRUE)
 		playsound(src, 'sound/effects/slosh.ogg', 15, TRUE)
 
 /// Makes a mob standing in a pool look waist deep in it

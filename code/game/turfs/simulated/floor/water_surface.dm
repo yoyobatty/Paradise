@@ -9,19 +9,27 @@
  * Sets a water turf up to reflect the world. Called by the water turfs as they are made.
  *
  * The reflection plane copies the whole world plane. This tile's mirror map tells it to show the tile above this one
- * upside down here, and its mask and shimmer cut that copy to the water and break it up where the ripples are. Its
- * ripple map says which way the waves slope, which bends the reflection, the pool floor and the glints under them.
+ * upside down here, and its mask and shimmer cut that copy to the water and break it up where the ripples are. The
+ * waves on the ripple plane say which way the water slopes, which bends the reflection and the pool floor under them.
+ *
+ * Arguments:
+ * * whole_tile_mask - FALSE for water with edges, which puts its own mask on as it picks them
+ * * still_waves - FALSE for pool water, whose waves come and go with what happens in the pool (/datum/pool_waves)
  */
-/turf/simulated/floor/beach/proc/make_reflective(whole_tile_mask = TRUE)
-	// Water with edges puts its own mask on as it picks them
+/turf/simulated/floor/beach/proc/make_reflective(whole_tile_mask = TRUE, still_waves = TRUE)
 	if(whole_tile_mask)
 		overlays += get_pool_appearance("mask", WATER_MASK_PLANE)
 	overlays += get_pool_appearance("mirror_map", WATER_MIRROR_PLANE)
-	// These follow the ripples, which repeat every 2x2 tiles. Rows of the sprites count from the top, and y counts up,
+	// These follow the waves, which repeat every 2x2 tiles. Rows of the sprites count from the top, and y counts up,
 	// so odd y is the top row
 	var/quarter = "[x % 2][y % 2 ? 0 : 1]"
-	overlays += get_pool_appearance("ripple_map_[quarter]", WATER_RIPPLE_PLANE)
 	overlays += get_pool_appearance("reflection_breakup_[quarter]", WATER_SHIMMER_PLANE)
+	// Flat water for the waves to be drawn over
+	overlays += get_pool_appearance("wave_flat", WATER_RIPPLE_PLANE)
+	if(still_waves)
+		// Always the same gentle waves
+		overlays += get_pool_appearance("chop_[quarter]", WATER_RIPPLE_PLANE, alpha = 110)
+		overlays += get_pool_appearance("fine_[quarter]", WATER_RIPPLE_PLANE, alpha = 80)
 
 /// Pool edge styles, and the pool bottom drawn under each
 GLOBAL_LIST_INIT(pool_edge_floors, list(
@@ -68,9 +76,10 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	// with the depth, see update_depth()
 	var/list/light = GLOB.pool_caustic_colours[water_look]
 	overlays += get_pool_appearance("rays_[x % 4][3 - y % 4]", WATER_RAYS_PLANE, FLOAT_LAYER, light[1], light[2])
-	// Glints on the tops of the waves, which repeat every 2x2 tiles, and glints flashing here and there, every 4x4
-	overlays += get_pool_appearance("surface_ripple_[x % 2][y % 2 ? 0 : 1]", WATER_SHINE_PLANE)
+	// Glints flashing here and there, which repeat every 4x4 tiles
 	overlays += get_pool_appearance("sparkle_[x % 4][3 - y % 4]", WATER_SHINE_PLANE)
+	// Flecks of foam, which only show where the foam planes let them: at the water's edges and on steep waves
+	overlays += get_pool_appearance("foam_[x % 4][3 - y % 4]", WATER_FOAM_PLANE)
 	// On a tile here and there, a few bubbles come up now and then
 	if((x * 13 + y * 7) % 17 == 0)
 		overlays += get_pool_appearance("bubbles_[(x + y) % 3 + 1]", WATER_SHINE_PLANE)
@@ -150,23 +159,64 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 		if(W != src && W.water_look)
 			QUEUE_SMOOTH(W)
 
+/// Joins the waves of the pool this tile is part of: those of the water beside it, or new ones of its own
+/turf/simulated/floor/beach/water/proc/join_pool_waves()
+	var/datum/pool_waves/joined
+	for(var/direction in GLOB.cardinal)
+		var/turf/simulated/floor/beach/water/beside = get_step(src, direction)
+		if(!istype(beside) || !beside.waves)
+			continue
+		// This tile joins two pools into one
+		joined = joined ? joined.merge(beside.waves) : beside.waves
+	if(!joined)
+		joined = new
+	joined.add_tile(src)
+
+/// Something disturbed the water here. `amount` is how much, out of 1. Only pools get rougher for it
+/turf/simulated/floor/beach/proc/stir_water(amount)
+	return
+
+/turf/simulated/floor/beach/water/stir_water(amount)
+	waves?.stir(amount)
+
+/**
+ * Sends a ring of waves out from this tile.
+ *
+ * At the water's edge the ring bounces back. That's a second ring, starting as far the other side of the edge as
+ * this one starts from it: the part of it that reaches the water is exactly the first ring's reflection.
+ */
+/turf/simulated/floor/beach/proc/make_wave_ring(small = FALSE)
+	if(small)
+		new /obj/effect/temp_visual/ripple_wave/small(src)
+	else
+		new /obj/effect/temp_visual/ripple_wave(src)
+	for(var/direction in GLOB.cardinal)
+		var/turf/beside = get_step(src, direction)
+		if(!beside || is_reflective_water(beside))
+			continue
+		if(small)
+			new /obj/effect/temp_visual/ripple_wave/small/echo(beside)
+		else
+			new /obj/effect/temp_visual/ripple_wave/echo(beside)
+
 /// Spreads ripples out from where a mob stepped into the water, with a splash if it came in from dry land
 /turf/simulated/floor/beach/proc/ripple_from(atom/movable/splasher, atom/old_loc)
 	if(!isliving(splasher))
 		return
-	// Wading on through the water. Someone waist deep leaves a wake that carries the ring of waves too, so a step
-	// makes one object. Anyone else just sends out a small ring
+	// Wading on through the water. Someone waist deep leaves a wake, anyone else just sends out a small ring
 	if(!isturf(old_loc) || is_reflective_water(old_loc))
+		stir_water(0.03)
 		if(!splasher.GetComponent(/datum/component/pool_submerged))
 			new /obj/effect/temp_visual/ripple_wave/small(src)
 		return
 	// Stepping in from dry land: a ring round their waist, the far half behind them and the near half in front,
 	// a splash, and a big ring of waves out across the water
+	stir_water(0.2)
 	playsound(src, 'sound/effects/slosh.ogg', 30, TRUE)
 	new /obj/effect/temp_visual/water_ripple/waist(src)
 	new /obj/effect/temp_visual/water_ripple/waist/back(src)
 	new /obj/effect/temp_visual/water_splash(src)
-	new /obj/effect/temp_visual/ripple_wave(src)
+	make_wave_ring()
 
 /// A ring spreading out on water where something touched it.
 /obj/effect/temp_visual/water_ripple
@@ -200,6 +250,13 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /obj/effect/temp_visual/ripple_wave/small/Initialize(mapload)
 	. = ..()
 	transform = matrix(0.6, 0, 0, 0, 0.6, 0)
+
+/// A ring coming back off the water's edge, fainter than the one that hit it. See make_wave_ring()
+/obj/effect/temp_visual/ripple_wave/echo
+	alpha = 150
+
+/obj/effect/temp_visual/ripple_wave/small/echo
+	alpha = 150
 
 /// The half of a ripple round a mob's waist that's in front of it.
 /obj/effect/temp_visual/water_ripple/waist
@@ -238,27 +295,27 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /obj/effect/temp_visual/water_splash/proc/stop_spawning()
 	particles?.spawning = 0
 
-/// A V of foam left behind someone moving through the water, on the tile they left, and the small ring of waves the
-/// step sends out.
+/// The wake behind someone moving through the water, on the tile they left: a V of foam, and a V of waves on the
+/// hidden ripple plane that spreads and fades with it.
 /obj/effect/temp_visual/water_wake
 	icon = 'icons/turf/floors/pool_water.dmi'
 	icon_state = "wake"
 	// On the shine plane, so it's cut to the water and lies on top of it
 	plane = WATER_SHINE_PLANE
-	duration = 1.2 SECONDS
+	duration = 1.6 SECONDS
 	randomdir = FALSE
 
 /obj/effect/temp_visual/water_wake/Initialize(mapload, direction)
 	. = ..()
 	setDir(direction)
-	// The ring rides along as an overlay on the hidden ripple plane, rather than being an object of its own
-	var/static/mutable_appearance/ring
-	if(!ring)
-		ring = mutable_appearance('icons/effects/water_ripple_wave.dmi', "wave", plane = WATER_RIPPLE_PLANE)
-		ring.pixel_x = -32
-		ring.pixel_y = -32
-		ring.transform = matrix(0.6, 0, 0, 0, 0.6, 0)
-	overlays += ring
+	// The waves ride along as an overlay, rather than being an object of their own. It follows the way this faces
+	var/static/mutable_appearance/waves
+	if(!waves)
+		waves = mutable_appearance('icons/effects/water_ripple_wave.dmi', "wake", plane = WATER_RIPPLE_PLANE)
+		// The sprite is 3x3 tiles with this tile in the middle
+		waves.pixel_x = -32
+		waves.pixel_y = -32
+	overlays += waves
 	animate(src, alpha = 0, transform = matrix(1.25, 0, 0, 0, 1.25, 0), time = duration, easing = SINE_EASING | EASE_OUT)
 
 /// Wet footprints left by someone who's just climbed out of the water. They dry up.
