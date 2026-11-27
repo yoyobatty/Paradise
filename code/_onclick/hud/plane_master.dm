@@ -74,6 +74,9 @@
 // The wide glow swells and fades slowly, like heat. Making the filters again stops that, so it's started again here
 /atom/movable/screen/plane_master/lava_glow/update_filters()
 	. = ..()
+	// With the effects off it has no filters to look for
+	if(water_effects_off)
+		return
 	var/wide_glow = get_filter("bloom_wide")
 	if(!wide_glow)
 		return

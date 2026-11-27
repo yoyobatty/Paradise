@@ -115,3 +115,19 @@
 	for(var/turf/T as anything in pool)
 		T.ChangeTurf(turfs_before[T])
 	TEST_ASSERT(QDELETED(waves), "a pool's waves outlived its last tile")
+
+	// The water and lava effects go off for a player with none nearby, and come back on
+	for(var/master_type in subtypesof(/atom/movable/screen/plane_master))
+		var/atom/movable/screen/plane_master/master = new master_type
+		if(master.water_effect)
+			var/filters_on = length(master.filters)
+			master.set_water_effects(FALSE)
+			TEST_ASSERT_EQUAL(length(master.filters), 0, "[master_type] kept its filters with the water effects off")
+			master.set_water_effects(TRUE)
+			TEST_ASSERT_EQUAL(length(master.filters), filters_on, "[master_type] didn't get its filters back with the water effects on again")
+		qdel(master)
+	var/atom/movable/screen/plane_master/game_world/world_master = new
+	TEST_ASSERT_NOTNULL(world_master.get_filter("water_refraction"), "the world plane isn't bent by the water's waves")
+	world_master.set_water_refraction(FALSE)
+	TEST_ASSERT_NULL(world_master.get_filter("water_refraction"), "the world plane is still bent by waves with the water effects off")
+	qdel(world_master)
