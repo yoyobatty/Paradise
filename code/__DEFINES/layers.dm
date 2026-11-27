@@ -9,11 +9,10 @@
 #define PLANE_SPACE -95
 #define PLANE_SPACE_PARALLAX -90
 
-/// The bright molten part of lava, in its own colours. Never shown here: blurred, and added over the lighting by the
-/// above lighting plane master, so lava blooms past its edges
+/// Hidden plane with lava's molten pixels, blurred into a glow and drawn over the lighting
 #define LAVA_GLOW_PLANE -23
 #define LAVA_GLOW_RENDER_TARGET "*LAVA_GLOW_RENDER_TARGET"
-/// How strong lava's wide glow is at its faintest and its strongest, as it breathes, out of 255
+/// Alpha range of lava's wide glow as it pulses (0-255)
 #define LAVA_GLOW_WIDE_LOW 90
 #define LAVA_GLOW_WIDE_HIGH 150
 
@@ -26,8 +25,7 @@
 #define FLOOR_LIGHTING_LAMPS_RENDER_TARGET "*FLOOR_LIGHTING_LAMPS_RENDER_TARGET"
 #define ABOVE_GAME_PLANE -1.5
 #define GAME_PLANE -1
-/// The world plane copied, while lava is near, so lava's bloom can keep off things standing in or beside it. Starting
-/// with no star, the plane is still drawn as well
+/// Render target for the game world plane, so lava's bloom can skip mobs and objects. No * so the plane still draws
 #define GAME_PLANE_RENDER_TARGET "GAME_PLANE_RENDER_TARGET"
 #define BLACKNESS_PLANE 0 //To keep from conflicts with SEE_BLACKNESS internals
 

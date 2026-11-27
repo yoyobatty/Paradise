@@ -1,6 +1,6 @@
-/// How many different heat hazes there are, so neighbouring tiles don't ripple in step
+/// Number of heat haze variants, so tiles next to each other don't ripple in sync
 #define LAVA_HAZE_KINDS 4
-/// How many tiles across a chunk of the map is, for finding lava near a player
+/// Size of a map chunk in tiles, for checking if a player is near lava
 #define LAVA_EFFECT_CHUNK 16
 
 /**
@@ -31,9 +31,9 @@
 	floor_tile = null
 	real_layer = PLATING_LAYER
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
-	/// Does the air over it ripple with the heat? See get_lava_heat_haze()
+	/// Does this lava get a heat haze? See get_lava_heat_haze()
 	var/hazy = TRUE
-	/// The glow over the molten part of the sprite, see update_lava_glow()
+	/// Glow overlays for the current sprite, see update_lava_glow()
 	var/list/lava_glow_overlays
 
 /turf/simulated/floor/lava/Initialize(mapload)
@@ -51,13 +51,7 @@
 	. = ..()
 	update_lava_glow()
 
-/**
- * Makes the molten part of the lava glow, to match the sprite it has now.
- *
- * On the emissive plane the lighting doesn't darken it, so molten lava shines at full brightness even in the dark. On
- * the lava glow plane it blooms, and the halo is added over the lighting, round its edges onto the crust and the floor.
- * Both keep only the molten pixels, so the dark crust round the edges doesn't glow.
- */
+/// Swaps in the emissive and bloom overlays for the current sprite, so only its molten parts glow
 /turf/simulated/floor/lava/proc/update_lava_glow()
 	if(lava_glow_overlays)
 		cut_overlay(lava_glow_overlays)
@@ -364,12 +358,10 @@
 		ChangeTurf(SSmapping.lavaland_theme.primary_turf_type, ignore_air = TRUE)
 
 /**
- * The heat haze over lava, `kind` 0 to LAVA_HAZE_KINDS - 1, made once and shared.
+ * Returns the heat haze overlay for `kind`, shared by every lava tile.
  *
- * Heat distortion, not fumes: ripples rising off the lava, half a tile wider than the tile each side and two tiles
- * above it, so a lake's tiles overlap into one haze. It's drawn where the game's own warp reads it (red pushes
- * sideways, green up and down, mid grey not at all) and never seen itself: the lava and whatever is over and behind it
- * ripple a pixel or two, mostly sideways, as hot air does.
+ * It goes on the gravity pulse plane, which the game already uses to warp the screen. It's never seen itself, it just
+ * makes the lava and whatever is behind it ripple a pixel or two.
  */
 /proc/get_lava_heat_haze(kind)
 	var/static/list/made = list()
@@ -382,11 +374,10 @@
 	made["[kind]"] = .
 
 /**
- * The bright molten part of a lava sprite on `plane`, made once and shared by every lava tile with that sprite.
+ * Returns the glow overlay for a lava sprite on `plane`, shared by every tile with that sprite.
  *
- * How bright each pixel is decides how much of it glows: 6 * (0.5 red + 0.4 green + 0.1 blue - 0.24). The grey crust
- * comes out at nothing, the dull red of cooling rock at a little, and the molten rock at full. On the emissive plane
- * it's white, on the lava glow plane it keeps its own colour for the bloom.
+ * The colour matrix sets alpha from brightness, so the grey crust doesn't glow and the molten rock glows fully.
+ * White on the emissive plane, its own colours on the lava glow plane.
  */
 /proc/get_lava_glow(icon, icon_state, plane)
 	var/static/list/made = list()
@@ -404,20 +395,20 @@
 
 // MARK: Bloom only near lava
 
-/// Chunks of the map with lava in them, "z:x:y" = how many lava tiles
+/// Lava tile count per map chunk, keyed "z:x:y"
 GLOBAL_LIST_EMPTY(lava_effect_chunks)
 GLOBAL_DATUM(lava_effects_watcher, /datum/lava_effects_watcher)
 
 /proc/lava_effect_chunk_key(turf/T)
 	return "[T.z]:[round(T.x / LAVA_EFFECT_CHUNK)]:[round(T.y / LAVA_EFFECT_CHUNK)]"
 
-/// A tile of lava was made, so players near it get lava's bloom
+/// Counts a new lava tile in its chunk
 /proc/add_lava_effect_tile(turf/T)
 	GLOB.lava_effect_chunks[lava_effect_chunk_key(T)] += 1
 	if(!GLOB.lava_effects_watcher)
 		GLOB.lava_effects_watcher = new
 
-/// A tile of lava is gone
+/// Takes a lava tile out of its chunk's count
 /proc/remove_lava_effect_tile(turf/T)
 	var/key = lava_effect_chunk_key(T)
 	var/left = GLOB.lava_effect_chunks[key] - 1
@@ -426,7 +417,7 @@ GLOBAL_DATUM(lava_effects_watcher, /datum/lava_effects_watcher)
 	else
 		GLOB.lava_effect_chunks -= key
 
-/// Is there lava in the chunk `T` is in, or one next to it? That reaches past a player's screen
+/// Is there lava in `T`'s chunk or the chunks around it? Reaches a bit past the player's screen
 /proc/lava_effects_near(turf/T)
 	var/cx = round(T.x / LAVA_EFFECT_CHUNK)
 	var/cy = round(T.y / LAVA_EFFECT_CHUNK)
@@ -437,11 +428,10 @@ GLOBAL_DATUM(lava_effects_watcher, /datum/lava_effects_watcher)
 	return FALSE
 
 /**
- * Turns lava's bloom on for players with lava nearby, and off for everyone else.
+ * Turns lava's bloom on for players near lava and off for everyone else.
  *
- * The bloom is a few passes over the whole screen every frame, whether there's lava on screen or not, and so is its
- * plane master over the lighting. Most players are nowhere near lava, so for them it's off and that plane master is
- * off the screen. A chunk next to the player's counts as near, so it's back on before any lava comes into view.
+ * The bloom costs a few full screen passes every frame even with no lava on screen, so players away from lava don't
+ * get it. Checking the chunks around the player turns it on before any lava comes into view.
  */
 /datum/lava_effects_watcher
 
@@ -469,12 +459,12 @@ GLOBAL_DATUM(lava_effects_watcher, /datum/lava_effects_watcher)
 			mymob?.client?.screen |= master
 	if(!on)
 		remove_lava_planes()
-	// The world is only copied for the bloom to keep off things standing in the lava
+	// Only copy the game world plane while the bloom needs it
 	var/atom/movable/screen/plane_master/world_master = plane_masters["[GAME_PLANE]"]
 	if(world_master)
 		world_master.render_target = on ? GAME_PLANE_RENDER_TARGET : null
 
-/// Takes lava's plane masters off the player's screen, while there's no lava nearby
+/// Takes lava's plane masters off the player's screen
 /datum/hud/proc/remove_lava_planes()
 	var/client/viewer = mymob?.client
 	if(!viewer)

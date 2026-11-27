@@ -6,7 +6,7 @@
 
 /datum/hud
 	var/mob/mymob
-	/// Is lava's bloom on for this hud? It starts off, see /datum/lava_effects_watcher
+	/// Is lava's bloom on for this hud? Starts off, /datum/lava_effects_watcher turns it on near lava
 	var/lava_effects_on = FALSE
 
 	/// Used for the HUD toggle (F12)
