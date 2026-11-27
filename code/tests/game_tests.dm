@@ -34,6 +34,7 @@
 #include "test_elements.dm"
 #include "test_emotes.dm"
 #include "test_ensure_subtree_operational_datum.dm"
+#include "test_fishing.dm"
 #include "test_floor_icons.dm"
 #include "test_init_sanity.dm"
 #include "test_job_selection.dm"
