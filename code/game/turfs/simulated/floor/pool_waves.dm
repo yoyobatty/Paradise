@@ -188,6 +188,12 @@
 		add_swell()
 	update_layers(2 SECONDS)
 	START_PROCESSING(SSprocessing, src)
+	// Things floating on the pool ride higher on bigger waves
+	for(var/datum/component/pool_sunk/afloat as anything in GLOB.pool_things_afloat)
+		var/atom/movable/thing = afloat.parent
+		var/turf/simulated/floor/beach/water/under = thing.loc
+		if(istype(under) && under.waves == src)
+			afloat.bob()
 
 /// Gives the tiles the swell's layers, running the way the pool is longer
 /datum/pool_waves/proc/add_swell()

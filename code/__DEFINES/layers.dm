@@ -9,6 +9,11 @@
 #define PLANE_SPACE -95
 #define PLANE_SPACE_PARALLAX -90
 
+/// How much the waves bend each pixel of the world: the ripple map where something is under the water, a swimmer's
+/// legs or a thing on the bottom, and flat everywhere else. Drawn on it is where those things are. Never shown, the
+/// world plane is moved by it
+#define WATER_REFRACT_PLANE -24
+#define WATER_REFRACT_RENDER_TARGET "*WATER_REFRACT_RENDER_TARGET"
 /// The bright molten part of lava, in its own colours. Never shown here: blurred, and added over the lighting by the
 /// above lighting plane, so lava blooms past its edges
 #define LAVA_GLOW_PLANE -23
@@ -21,7 +26,7 @@
 /// foam are moved by it, so they bend under the waves, and the relief planes light the waves by it
 #define WATER_RIPPLE_PLANE -22
 #define WATER_RIPPLE_RENDER_TARGET "*WATER_RIPPLE_RENDER_TARGET"
-/// How many pixels the ripples bend the pool floor seen through them
+/// How many pixels the ripples bend the pool floor, and anything else under the water, seen through them
 #define POOL_REFRACTION 3
 /// How many pixels they bend reflections. More than the floor, as in real water
 #define POOL_REFLECTION_RIPPLE 4

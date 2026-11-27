@@ -64,12 +64,41 @@
 	TEST_ASSERT(waves.energy > 0.5, "a strong wave machine doesn't keep the pool rough")
 	waves.set_machine(POOL_WAVES_OFF)
 
-	// Things lying in the pool look sunk, and stop when they're taken out
+	// Things lying in the pool look sunk and bend under the waves, and stop when they're taken out
 	var/obj/item/wrench/wrench = allocate(/obj/item/wrench, top_middle)
-	TEST_ASSERT_NOTNULL(wrench.GetComponent(/datum/component/pool_sunk), "an item made in the pool doesn't look sunk")
+	var/datum/component/pool_sunk/sunk = wrench.GetComponent(/datum/component/pool_sunk)
+	TEST_ASSERT_NOTNULL(sunk, "an item made in the pool doesn't look sunk")
+	TEST_ASSERT_NOTNULL(wrench.get_filter("pool_sunk"), "an item in the pool has no water drawn over it")
+	TEST_ASSERT_EQUAL(sunk.refraction?.plane, WATER_REFRACT_PLANE, "the waves don't bend an item on the pool's bottom")
+	TEST_ASSERT(sunk.refraction in wrench.vis_contents, "where the waves bend a sunk item isn't drawn with it")
 	wrench.forceMove(origin)
 	TEST_ASSERT_NULL(wrench.GetComponent(/datum/component/pool_sunk), "an item taken out of the pool still looks sunk")
 	TEST_ASSERT_NULL(wrench.get_filter("pool_sunk"), "an item taken out of the pool still has the water drawn over it")
+	TEST_ASSERT_EQUAL(length(wrench.vis_contents), 0, "an item taken out of the pool still has the water's parts drawn with it")
+	TEST_ASSERT_EQUAL(wrench.pixel_z, 0, "an item taken out of the pool is still drawn as low as on its bottom")
+
+	// A beach ball floats: a ring of water round it and only its underside under the water
+	var/obj/item/beach_ball/ball = allocate(/obj/item/beach_ball, top_middle)
+	var/datum/component/pool_sunk/afloat = ball.GetComponent(/datum/component/pool_sunk)
+	TEST_ASSERT(afloat?.floating, "a beach ball in the pool doesn't float")
+	TEST_ASSERT_NULL(ball.get_filter("pool_sunk"), "a floating beach ball has the water drawn over all of it")
+	TEST_ASSERT_NOTNULL(ball.get_filter("pool_afloat"), "a floating beach ball has no water drawn over its underside")
+	TEST_ASSERT_EQUAL(length(afloat.rings), 2, "a floating beach ball has no ring of water round it")
+	TEST_ASSERT(afloat in GLOB.pool_things_afloat, "a floating beach ball isn't known to the waves that should lift it")
+	TEST_ASSERT_EQUAL(afloat.float_line["size"], "large", "the water's sprites for a beach ball aren't the size of its sprite")
+	// Hitting the water from the air makes a splash and a ring where it went in
+	var/obj/item/wrench/dropped = allocate(/obj/item/wrench, origin)
+	dropped.forceMove(top_left)
+	TEST_ASSERT_NOTNULL(locate(/obj/effect/temp_visual/water_ripple/item) in top_left, "an item dropped into the pool made no ring")
+	TEST_ASSERT_NOTNULL(locate(/obj/effect/temp_visual/sink_bubbles) in top_left, "an item going under sent up no bubbles")
+	// A mob standing in the pool has its legs bent by the waves
+	var/mob/living/carbon/human/swimmer = allocate(/mob/living/carbon/human, top_left)
+	var/datum/component/pool_submerged/waist_deep = swimmer.GetComponent(/datum/component/pool_submerged)
+	TEST_ASSERT_EQUAL(waist_deep?.refraction?.icon_state, "refract_legs", "the waves don't bend the legs of someone standing in the pool")
+	swimmer.forceMove(origin)
+	ball.forceMove(origin)
+	TEST_ASSERT(!(afloat in GLOB.pool_things_afloat), "a beach ball taken out of the pool is still afloat")
+	dropped.forceMove(origin)
 
 	// Filling in a corner gives the water next to it an edge
 	var/turf/corner = locate(origin.x + 3, origin.y, origin.z)

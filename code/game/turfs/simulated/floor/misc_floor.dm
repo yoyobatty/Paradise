@@ -204,18 +204,34 @@
 /// Things that float on a pool instead of sinking to the bottom of it
 GLOBAL_LIST_INIT(pool_floaters, typecacheof(list(/obj/item/beach_ball, /obj/item/bikehorn/rubberducky)))
 
-/// Makes an item that's landed in the pool look like it's lying under the water, with a small splash as it goes in
+/**
+ * Puts an item that's in the pool under the water, or afloat on it.
+ *
+ * With `splash` it has just hit the water from the air or the bank: it throws up droplets, sends rings of waves out
+ * from where it went in, and goes under or bobs up. Otherwise it was already in the water and only gets the look.
+ */
 /turf/simulated/floor/beach/water/proc/sink_item(obj/item/sinking, splash = FALSE)
 	if(!water_look || sinking.loc != src)
 		return
-	if(!sinking.GetComponent(/datum/component/pool_sunk))
+	var/datum/component/pool_sunk/in_water = sinking.GetComponent(/datum/component/pool_sunk)
+	if(!in_water)
 		// A few things float
-		sinking.AddComponent(/datum/component/pool_sunk, water_look, is_type_in_typecache(sinking, GLOB.pool_floaters))
-	if(splash)
-		stir_water(0.06)
-		new /obj/effect/temp_visual/water_splash/small(src)
-		make_wave_ring(TRUE)
-		playsound(src, 'sound/effects/slosh.ogg', 15, TRUE)
+		in_water = sinking.AddComponent(/datum/component/pool_sunk, water_look, is_type_in_typecache(sinking, GLOB.pool_floaters), splash)
+	if(!splash)
+		return
+	// Where it meets the water, from the middle of the tile. Bigger things make more of a splash
+	var/list/meets = in_water.meets_water_at()
+	var/big = sinking.w_class >= WEIGHT_CLASS_BULKY
+	stir_water(big ? 0.12 : 0.06)
+	var/splash_type = big ? /obj/effect/temp_visual/water_splash : /obj/effect/temp_visual/water_splash/small
+	var/ring_type = big ? /obj/effect/temp_visual/water_ripple/item/big : /obj/effect/temp_visual/water_ripple/item
+	for(var/obj/effect/temp_visual/effect as anything in list(new splash_type(src), new ring_type(src)))
+		effect.pixel_x += meets[1]
+		effect.pixel_y += meets[2]
+	make_wave_ring(!big, meets[1], meets[2])
+	// A second, smaller ring follows the first
+	addtimer(CALLBACK(src, TYPE_PROC_REF(/turf/simulated/floor/beach, make_wave_ring), TRUE, meets[1], meets[2]), 0.35 SECONDS)
+	playsound(src, 'sound/effects/slosh.ogg', big ? 30 : 15, TRUE)
 
 /// Makes a mob standing in a pool look waist deep in it
 /turf/simulated/floor/beach/water/proc/make_waist_deep(atom/movable/wader)

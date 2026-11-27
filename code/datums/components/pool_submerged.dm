@@ -1,15 +1,11 @@
 /// How far the squash map can move a row of a mob's legs, in pixels. The map is drawn for this
 #define POOL_LEG_SQUASH 4
-/// How far the ripple running down a mob's legs moves them left and right, in pixels
-#define POOL_LEG_WAVE 1.2
-/// How long one wave takes to run down the legs
-#define POOL_LEG_WAVE_TIME (1.6 SECONDS)
 
 /**
  * Makes a mob standing in a pool look waist deep.
  *
- * Water is drawn over the mob's own pixels from the waist down, its legs look shorter through the water with ripples
- * running down them, and a ring of water sits round its waist, half behind it and half in front. A mob lying down in
+ * Water is drawn over the mob's own pixels from the waist down, its legs look shorter through the water and bend
+ * under the waves, and a ring of water sits round its waist, half behind it and half in front. A mob lying down in
  * the pool is under the water from head to toe instead. Pool water gives this to mobs that walk in, and it takes
  * itself off when they walk out.
  */
@@ -22,6 +18,8 @@
 	var/obj/effect/abstract/waterline/front_ring
 	/// Their shadow on the pool floor
 	var/obj/effect/abstract/waterline/floor_shadow
+	/// Where the waves bend them, on the refraction plane: more the further down their legs, as deeper water does
+	var/obj/effect/abstract/waterline/refraction
 	/// Is the mob lying down in the water? Then all of it is under, not only its legs
 	var/lying = FALSE
 
@@ -38,7 +36,10 @@
 	floor_shadow = new(null, "swimmer_shadow")
 	floor_shadow.vis_flags = VIS_INHERIT_ID
 	floor_shadow.plane = POOL_FLOOR_PLANE
-	owner.vis_contents += list(back_ring, front_ring, floor_shadow)
+	refraction = new(null, "refract_legs")
+	refraction.vis_flags = VIS_INHERIT_ID
+	refraction.plane = WATER_REFRACT_PLANE
+	owner.vis_contents += list(back_ring, front_ring, floor_shadow, refraction)
 	// The water rises and falls a little round them
 	for(var/obj/effect/abstract/waterline/ring in list(back_ring, front_ring))
 		animate(ring, pixel_y = 1, time = 1.6 SECONDS, loop = -1, easing = SINE_EASING)
@@ -48,11 +49,12 @@
 
 /datum/component/pool_submerged/Destroy(force)
 	var/mob/living/owner = parent
-	owner.vis_contents -= list(back_ring, front_ring, floor_shadow)
+	owner.vis_contents -= list(back_ring, front_ring, floor_shadow, refraction)
 	QDEL_NULL(back_ring)
 	QDEL_NULL(front_ring)
 	QDEL_NULL(floor_shadow)
-	owner.remove_filter(list("pool_submerged", "pool_legs_squash", "pool_legs_wave_sin", "pool_legs_wave_cos"))
+	QDEL_NULL(refraction)
+	owner.remove_filter(list("pool_submerged", "pool_legs_squash"))
 	return ..()
 
 /datum/component/pool_submerged/proc/on_resting(datum/source, now_lying)
@@ -74,30 +76,17 @@
 	// No ring round the waist of someone lying under the water
 	back_ring.alpha = lying ? 0 : 255
 	front_ring.alpha = lying ? 0 : 255
+	// The waves bend all of someone lying under the water, and only the legs of someone standing in it
+	refraction.icon_state = lying ? "refract_all" : "refract_legs"
 	if(lying)
-		// All of them is under, and there are no legs standing in it to ripple
-		owner.remove_filter(list("pool_legs_squash", "pool_legs_wave_sin", "pool_legs_wave_cos"))
-		owner.add_filter("pool_submerged", 20, layering_filter(icon = icon('icons/turf/floors/pool_water.dmi', "sunk_[look]"), blend_mode = BLEND_INSET_OVERLAY))
+		// All of them is under, and there are no legs standing in it to look shorter
+		owner.remove_filter("pool_legs_squash")
+		owner.add_filter("pool_submerged", 20, layering_filter(icon = get_pool_filter_icon("sunk_[look]"), blend_mode = BLEND_INSET_OVERLAY))
 		return
 	// Drawn over the mob's own pixels only, so the tile round it isn't tinted twice
-	owner.add_filter("pool_submerged", 20, layering_filter(icon = icon('icons/turf/floors/pool_water.dmi', "submerged_[look]"), blend_mode = BLEND_INSET_OVERLAY))
-	// Legs look a little shorter through the water. These maps leave the mob alone above its waist
-	owner.add_filter("pool_legs_squash", 21, displacement_map_filter(icon = icon('icons/turf/floors/pool_water.dmi', "submerged_squash"), size = POOL_LEG_SQUASH))
-	// Two waves down the legs, a quarter of a wave apart. Swaying them in turn adds up to one ripple running down the
-	// legs, where swaying one alone would bend the whole leg back and forth
-	owner.add_filter("pool_legs_wave_sin", 22, displacement_map_filter(icon = icon('icons/turf/floors/pool_water.dmi', "submerged_wave_sin"), size = POOL_LEG_WAVE))
-	owner.add_filter("pool_legs_wave_cos", 23, displacement_map_filter(icon = icon('icons/turf/floors/pool_water.dmi', "submerged_wave_cos"), size = 0))
-	// Adding a filter makes them all again, which stops the waves, so they're started after all of them are on.
-	// One goes like cos and the other like -sin, which together give sin(row - time): a wave moving down
-	var/quarter = POOL_LEG_WAVE_TIME / 4
-	animate(owner.get_filter("pool_legs_wave_sin"), size = 0, time = quarter, loop = -1, easing = SINE_EASING | EASE_IN)
-	animate(size = -POOL_LEG_WAVE, time = quarter, easing = SINE_EASING | EASE_OUT)
-	animate(size = 0, time = quarter, easing = SINE_EASING | EASE_IN)
-	animate(size = POOL_LEG_WAVE, time = quarter, easing = SINE_EASING | EASE_OUT)
-	animate(owner.get_filter("pool_legs_wave_cos"), size = -POOL_LEG_WAVE, time = quarter, loop = -1, easing = SINE_EASING | EASE_OUT)
-	animate(size = 0, time = quarter, easing = SINE_EASING | EASE_IN)
-	animate(size = POOL_LEG_WAVE, time = quarter, easing = SINE_EASING | EASE_OUT)
-	animate(size = 0, time = quarter, easing = SINE_EASING | EASE_IN)
+	owner.add_filter("pool_submerged", 20, layering_filter(icon = get_pool_filter_icon("submerged_[look]"), blend_mode = BLEND_INSET_OVERLAY))
+	// Legs look a little shorter through the water. The map leaves the mob alone above its waist
+	owner.add_filter("pool_legs_squash", 21, displacement_map_filter(icon = get_pool_filter_icon("submerged_squash"), size = POOL_LEG_SQUASH))
 
 /datum/component/pool_submerged/proc/on_moved(atom/movable/source, atom/old_loc, direction)
 	SIGNAL_HANDLER // COMSIG_MOVABLE_MOVED
@@ -139,5 +128,3 @@
 	icon_state = state
 
 #undef POOL_LEG_SQUASH
-#undef POOL_LEG_WAVE
-#undef POOL_LEG_WAVE_TIME

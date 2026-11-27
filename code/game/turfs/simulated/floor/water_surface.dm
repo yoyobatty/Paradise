@@ -65,6 +65,13 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 		made[key] = appearance
 		. = appearance
 
+/// One state of the pool sprites as an icon for a filter, made once
+/proc/get_pool_filter_icon(state)
+	var/static/list/made = list()
+	. = made[state]
+	if(!.)
+		. = made[state] = icon('icons/turf/floors/pool_water.dmi', state)
+
 /// Picks one of the three versions of the edge for this tile. The same place always gets the same one.
 /turf/simulated/floor/beach/water/proc/pick_edge_variant()
 	return (x * 7 + y * 11) % 5 % 3 + 1
@@ -179,25 +186,46 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /turf/simulated/floor/beach/water/stir_water(amount)
 	waves?.stir(amount)
 
+/// How long a ring of waves takes to cross a tile
+#define WAVE_RING_TILE_TIME (0.9 SECONDS)
+
 /**
  * Sends a ring of waves out from this tile.
  *
  * At the water's edge the ring bounces back. That's a second ring, starting as far the other side of the edge as
  * this one starts from it: the part of it that reaches the water is exactly the first ring's reflection.
+ * Anything floating nearby rides the ring as it passes.
+ *
+ * Arguments:
+ * * small - A smaller ring, from a step, a bobber or a small thing landing
+ * * offset_x - How many pixels right of the tile's middle the ring starts
+ * * offset_y - And how many pixels up
  */
-/turf/simulated/floor/beach/proc/make_wave_ring(small = FALSE)
-	if(small)
-		new /obj/effect/temp_visual/ripple_wave/small(src)
-	else
-		new /obj/effect/temp_visual/ripple_wave(src)
+/turf/simulated/floor/beach/proc/make_wave_ring(small = FALSE, offset_x = 0, offset_y = 0)
+	var/ring_type = small ? /obj/effect/temp_visual/ripple_wave/small : /obj/effect/temp_visual/ripple_wave
+	var/echo_type = small ? /obj/effect/temp_visual/ripple_wave/small/echo : /obj/effect/temp_visual/ripple_wave/echo
+	var/obj/effect/temp_visual/ripple_wave/ring = new ring_type(src)
+	ring.pixel_x += offset_x
+	ring.pixel_y += offset_y
 	for(var/direction in GLOB.cardinal)
 		var/turf/beside = get_step(src, direction)
 		if(!beside || is_reflective_water(beside))
 			continue
-		if(small)
-			new /obj/effect/temp_visual/ripple_wave/small/echo(beside)
-		else
-			new /obj/effect/temp_visual/ripple_wave/echo(beside)
+		// As far from the edge on that side as the ring is on this one
+		var/obj/effect/temp_visual/ripple_wave/echo = new echo_type(beside)
+		echo.pixel_x += (direction & (EAST | WEST)) ? -offset_x : offset_x
+		echo.pixel_y += (direction & (NORTH | SOUTH)) ? -offset_y : offset_y
+	var/reach = small ? 1 : 2
+	for(var/datum/component/pool_sunk/afloat as anything in GLOB.pool_things_afloat)
+		var/atom/movable/thing = afloat.parent
+		if(thing.z != z || !isturf(thing.loc))
+			continue
+		var/away = get_dist(src, thing)
+		// Whatever made the ring is busy landing
+		if(away >= 1 && away <= reach)
+			addtimer(CALLBACK(afloat, TYPE_PROC_REF(/datum/component/pool_sunk, ride_wave)), away * WAVE_RING_TILE_TIME)
+
+#undef WAVE_RING_TILE_TIME
 
 /// Spreads ripples out from where a mob stepped into the water, with a splash if it came in from dry land
 /turf/simulated/floor/beach/proc/ripple_from(atom/movable/splasher, atom/old_loc)
@@ -227,6 +255,8 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	randomdir = FALSE
 	// Around the feet, not the middle, of whoever made it
 	pixel_y = -6
+	/// How big it has grown by the time it's gone, 1 is a tile across
+	var/final_scale = 1.15
 
 /**
  * A ring of waves spreading out from where something touched the water.
@@ -257,6 +287,25 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 
 /obj/effect/temp_visual/ripple_wave/small/echo
 	alpha = 150
+
+/// The ring from a thing landing in the water: smaller, and lying on the water round where it went in.
+/obj/effect/temp_visual/water_ripple/item
+	// On the shine plane, so it's cut to the water and the thing that made it is drawn over it
+	plane = WATER_SHINE_PLANE
+	pixel_y = 0
+	final_scale = 0.75
+
+/// From something big
+/obj/effect/temp_visual/water_ripple/item/big
+	final_scale = 1.1
+
+/// Bubbles coming up where something has just sunk.
+/obj/effect/temp_visual/sink_bubbles
+	icon = 'icons/turf/floors/pool_water.dmi'
+	icon_state = "sink_bubbles"
+	plane = WATER_SHINE_PLANE
+	duration = 1.7 SECONDS
+	randomdir = FALSE
 
 /// The half of a ripple round a mob's waist that's in front of it.
 /obj/effect/temp_visual/water_ripple/waist
@@ -334,7 +383,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /obj/effect/temp_visual/water_ripple/Initialize(mapload)
 	. = ..()
 	transform = matrix(0.3, 0, 0, 0, 0.3, 0)
-	animate(src, transform = matrix(1.15, 0, 0, 0, 1.15, 0), alpha = 0, time = duration, easing = SINE_EASING | EASE_OUT)
+	animate(src, transform = matrix(final_scale, 0, 0, 0, final_scale, 0), alpha = 0, time = duration, easing = SINE_EASING | EASE_OUT)
 
 // MARK: Effects only near water
 
@@ -411,10 +460,11 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 			mymob?.client?.screen |= master
 	if(!on)
 		remove_water_planes()
-	// The world and the light on it are only copied for the water to use
-	var/atom/movable/screen/plane_master/world_master = plane_masters["[GAME_PLANE]"]
+	// The world and the light on it are only copied for the water to use, and the world only bent by its waves
+	var/atom/movable/screen/plane_master/game_world/world_master = plane_masters["[GAME_PLANE]"]
 	if(world_master)
 		world_master.render_target = on ? GAME_PLANE_RENDER_TARGET : null
+		world_master.set_water_refraction(on)
 	var/atom/movable/screen/plane_master/lighting_master = plane_masters["[LIGHTING_PLANE]"]
 	if(lighting_master)
 		lighting_master.render_target = on ? LIGHTING_PLANE_RENDER_TARGET : null

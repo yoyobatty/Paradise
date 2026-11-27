@@ -86,6 +86,30 @@
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	render_target = WATER_RIPPLE_RENDER_TARGET
 
+/**
+ * How much the waves bend each pixel of the world plane: refraction for whatever is under the water.
+ *
+ * Things under the water draw where they are on this plane: a swimmer from the waist down, a thing lying on the bottom,
+ * the underside of a floating one. There the plane comes out as the ripple map, and everywhere else as nothing, which
+ * bends nothing. The world plane is moved by it, so legs and sunk things bend under each wave the way the pool floor
+ * does, and nothing above the water is touched. The reflection plane reads it too: what's under the water isn't
+ * mirrored on top of it.
+ */
+/atom/movable/screen/plane_master/water_refract
+	name = "water refraction plane master"
+	plane = WATER_REFRACT_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_REFRACT_RENDER_TARGET
+	water_effect = TRUE
+	water_effect_only = TRUE
+
+/atom/movable/screen/plane_master/water_refract/Initialize(mapload)
+	. = ..()
+	// Only in the water. The pool's near side is drawn over a swimmer's legs, and it isn't under the water
+	add_filter("water_mask", 1, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
+	// The ripple map, kept only where those things are
+	add_filter("waves", 2, layering_filter(render_source = WATER_RIPPLE_RENDER_TARGET, blend_mode = BLEND_INSET_OVERLAY))
+
 /atom/movable/screen/plane_master/water_mirror
 	name = "water mirror plane master"
 	plane = WATER_MIRROR_PLANE
@@ -148,6 +172,8 @@
 	add_filter("world", 1, layering_filter(render_source = GAME_PLANE_RENDER_TARGET))
 	// Lamps and lit screens, added on so they reflect as bright spots
 	add_filter("lamps", 2, layering_filter(render_source = LIGHTING_LAMPS_RENDER_TARGET, blend_mode = BLEND_ADD))
+	// What's under the water isn't mirrored on top of it: a thing on the bottom, or a swimmer's legs
+	add_filter("not_underwater", 2.5, alpha_mask_filter(render_source = WATER_REFRACT_RENDER_TARGET, flags = MASK_INVERSE))
 	// A reflection is a little darker and bluer than the thing itself
 	add_filter("reflection_tone", 3, color_matrix_filter(list(0.78, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0.86, 0, 0, 0, 0, 0.62, 0.02, 0.04, 0.08, 0)))
 	// Every water tile moves its pixels so it shows the tile above it upside down
@@ -319,12 +345,27 @@
 	plane = GAME_PLANE
 	appearance_flags = PLANE_MASTER
 	render_target = GAME_PLANE_RENDER_TARGET
+	/// Do the waves bend what's under the water? Off for players with no water nearby, see /datum/water_effects_watcher
+	var/water_refraction = TRUE
+
+/atom/movable/screen/plane_master/game_world/Initialize(mapload)
+	. = ..()
+	set_water_refraction(water_refraction)
 
 /atom/movable/screen/plane_master/game_world/backdrop(mob/mymob)
 	. = ..() //if you delete it so help me god
 	clear_filters()
 	if(istype(mymob) && mymob.client && mymob.client.prefs && (mymob.client.prefs.toggles & PREFTOGGLE_AMBIENT_OCCLUSION))
 		add_filter("AO", 1, drop_shadow_filter(x = 0, y = -2, size = 4, color = "#04080FAA"))
+	set_water_refraction(water_refraction)
+
+/// Has the waves bend whatever is under the water, or stops them. Before the shadows, so those follow the bent shapes
+/atom/movable/screen/plane_master/game_world/proc/set_water_refraction(on)
+	water_refraction = on
+	if(on)
+		add_filter("water_refraction", 0, displacement_map_filter(render_source = WATER_REFRACT_RENDER_TARGET, size = POOL_REFRACTION))
+	else
+		remove_filter("water_refraction")
 
 /atom/movable/screen/plane_master/lighting
 	name = "lighting plane master"
