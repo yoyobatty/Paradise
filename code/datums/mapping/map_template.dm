@@ -23,7 +23,18 @@
 	if(bounds)
 		width = bounds[MAP_MAXX] // Assumes all templates are rectangular, have a single Z level, and begin at 1,1,1
 		height = bounds[MAP_MAXY]
+		// preload_size: a RandomOrientation map rolls a new turn when loaded, so reserve room for either way round
+		if(width != height && map_may_rotate(path))
+			width = max(width, height)
+			height = width
 	return bounds
+
+/// Whether the mapmanip config next to this .dmm can turn the map 90 degrees when it loads
+/proc/map_may_rotate(path)
+	var/config_path = "[copytext("[path]", 1, -4)].jsonc"
+	if(!fexists(config_path))
+		return FALSE
+	return findtext(wrap_file2text(config_path), "RandomOrientation") != 0
 
 /datum/map_template/proc/load(turf/T, centered = 0)
 	var/turf/placement = T
