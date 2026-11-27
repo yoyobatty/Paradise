@@ -157,7 +157,7 @@ GLOBAL_LIST_INIT(fishing_spots, list(
 	bite_wait_min = 8 SECONDS
 	bite_wait_max = 25 SECONDS
 	splash_sound = 'sound/effects/footstep/lava1.ogg'
-	lurker_type = /mob/living/basic/mining/magma_lurker
+	lurker_type = /mob/living/basic/mining/lava_golem
 	lurker_chance = 6
 	catches = list(
 		/datum/fishing_catch/ash_perch = 34,
@@ -180,12 +180,12 @@ GLOBAL_LIST_INIT(fishing_spots, list(
 	bite_wait_min = 10 SECONDS
 	bite_wait_max = 30 SECONDS
 	splash_sound = 'sound/effects/footstep/lava1.ogg'
-	lurker_type = /mob/living/basic/mining/magma_lurker
+	lurker_type = /mob/living/basic/mining/lava_golem
 	lurker_chance = 18
 	catches = list(
 		/datum/fishing_catch/magma_eel = 26,
 		/datum/fishing_catch/lava_leviathan = 9,
-		/datum/fishing_catch/creature/magma_lurker = 8,
+		/datum/fishing_catch/creature/lava_golem = 8,
 		/datum/fishing_catch/junk/gold_ore_lode = 14,
 		/datum/fishing_catch/junk/diamond_cluster = 9,
 		/datum/fishing_catch/junk/bluespace_crystals = 7,

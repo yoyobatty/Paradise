@@ -1,3 +1,6 @@
+/// How many different heat hazes there are, so neighbouring tiles don't ripple in step
+#define LAVA_HAZE_KINDS 4
+
 /**
  * Lava turf, burns things that are on it.
  * Currently a subtype of floor so that footsteps work on it.
@@ -26,8 +29,10 @@
 	floor_tile = null
 	real_layer = PLATING_LAYER
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
-	/// The glow over the molten part of the sprite, see update_lava_glow()
+	/// The glow over the molten part of the sprite and the haze rising off it, see update_lava_glow()
 	var/list/lava_glow_overlays
+	/// Does the air over it ripple with the heat?
+	var/hazy = TRUE
 
 
 
@@ -55,6 +60,8 @@
 	if(lava_glow_overlays)
 		overlays -= lava_glow_overlays
 	lava_glow_overlays = list(get_lava_glow(icon, icon_state, EMISSIVE_PLANE), get_lava_glow(icon, icon_state, LAVA_GLOW_PLANE))
+	if(hazy)
+		lava_glow_overlays += get_lava_heat_haze((x * 7 + y * 13) % LAVA_HAZE_KINDS)
 	overlays += lava_glow_overlays
 
 /turf/simulated/floor/lava/ex_act()
@@ -223,6 +230,7 @@
 	icon_state = "liquidplasma-255"
 	base_icon_state = "liquidplasma"
 	baseturf = /turf/simulated/floor/lava/lava_land_surface/plasma
+	hazy = FALSE
 
 	light_range = 3
 	light_color = LIGHT_COLOR_PINK
@@ -330,6 +338,7 @@
 	icon_state = "liquidplasma-255"
 	base_icon_state = "liquidplasma"
 	baseturf = /turf/simulated/floor/lava/plasma
+	hazy = FALSE
 	light_range = 3
 	light_color = LIGHT_COLOR_PINK
 
@@ -375,3 +384,22 @@
 	made[key] = glow
 	return glow
 
+/**
+ * The heat haze over lava, `kind` 0 to LAVA_HAZE_KINDS - 1, made once and shared.
+ *
+ * Heat distortion, not fumes: ripples rising off the lava, half a tile wider than the tile each side and a tile and a
+ * half above it, so a lake's tiles overlap into one haze. It's drawn where the game's own warp reads it (red pushes
+ * sideways, green up and down, mid grey not at all) and never seen itself: the lava and whatever is over and behind it
+ * ripple a pixel or two, mostly sideways, as hot air does.
+ */
+/proc/get_lava_heat_haze(kind)
+	var/static/list/made = list()
+	. = made["[kind]"]
+	if(.)
+		return
+	var/mutable_appearance/shimmer = mutable_appearance('icons/effects/lava_haze.dmi', "shimmer-[kind]", plane = GRAVITY_PULSE_PLANE, appearance_flags = KEEP_APART | RESET_COLOR)
+	shimmer.pixel_x = -16
+	. = shimmer
+	made["[kind]"] = .
+
+#undef LAVA_HAZE_KINDS
