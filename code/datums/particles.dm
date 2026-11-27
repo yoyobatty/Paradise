@@ -2,6 +2,45 @@
 	MARK: Impact debris + smoke
 */
 
+/*
+	MARK: Water
+*/
+
+/// Droplets thrown up when something goes into the water. One burst: the effect stops spawning after its first tick.
+/particles/water_splash
+	icon = 'icons/turf/floors/pool_water.dmi'
+	icon_state = "droplet"
+	width = 96
+	height = 96
+	count = 16
+	spawning = 16
+	lifespan = 0.7 SECONDS
+	fade = 0.3 SECONDS
+	position = generator(GEN_BOX, list(-6, -6), list(6, -2))
+	velocity = generator(GEN_BOX, list(-16, 26), list(16, 46))
+	gravity = list(0, -90)
+
+/// A few droplets from something small landing in the water.
+/particles/water_splash/small
+	count = 6
+	spawning = 6
+	position = generator(GEN_BOX, list(-3, -5), list(3, -2))
+	velocity = generator(GEN_BOX, list(-10, 18), list(10, 32))
+
+/// Drips falling off someone who's just climbed out of the water.
+/particles/water_drip
+	icon = 'icons/turf/floors/pool_water.dmi'
+	icon_state = "drip"
+	width = 64
+	height = 64
+	count = 6
+	spawning = 0.25
+	lifespan = 0.5 SECONDS
+	fade = 0.2 SECONDS
+	position = generator(GEN_BOX, list(-6, -6), list(6, 6))
+	velocity = list(0, -12)
+	gravity = list(0, -60)
+
 /particles/debris
 	icon = 'icons/effects/particles/generic_particles.dmi'
 	width = 500

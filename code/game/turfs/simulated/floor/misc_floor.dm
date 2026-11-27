@@ -47,6 +47,8 @@
 	name = "beach"
 	desc = "The sandy seaside, waves crashing, the sun shining... It's a true paradise."
 	icon = 'icons/misc/beach.dmi'
+	// Pool water draws no edge against sand and coastline, the shore is already drawn there
+	smoothing_groups = list(SMOOTH_GROUP_BEACH)
 	footstep = FOOTSTEP_SAND
 	barefootstep = FOOTSTEP_SAND
 	clawfootstep = FOOTSTEP_SAND
@@ -101,6 +103,7 @@
 /turf/simulated/floor/beach/water
 	name = "water"
 	icon_state = "water"
+	plane = WATER_EDGE_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	var/obj/machinery/poolcontroller/linkedcontroller = null
 	baseturf = /turf/simulated/floor/beach/water
@@ -108,20 +111,132 @@
 	barefootstep = FOOTSTEP_WATER
 	clawfootstep = FOOTSTEP_WATER
 	heavyfootstep = FOOTSTEP_WATER
+	canSmoothWith = list(SMOOTH_GROUP_BEACH)
+	/// Which colours the pool is drawn in: "pool" for plain water, "deep" for water mapped as "seadeep".
+	/// Null for water a mapper gave any other look, which keeps its sprite and has no edges.
+	var/water_look
+	/// What the water's edge looks like where it meets land. Mappers can set it to "coping" (a swimming pool),
+	/// "deck" (a metal pool deck), "rock" or "sand". The pool's bottom goes with it: tiles, tiles, pebbles, sand.
+	var/edge_style = "coping"
+	/// Which of the edge style's three versions this tile draws, so a long edge doesn't repeat
+	var/edge_variant = 1
+	/// The surface and reflection mask for the edges the water has now, so they can be swapped when its edges change
+	var/list/pool_edge_overlays
+	/// The darkening for how far the tile is from dry land, swapped when land nearby changes
+	var/mutable_appearance/pool_depth_underlay
+	/// The light on the pool floor this tile has on now
+	var/mutable_appearance/pool_caustics
+	/// The waves of the pool this tile is part of: how rough it is and what its wave machine is doing
+	var/datum/pool_waves/waves
 
 /turf/simulated/floor/beach/water/Initialize(mapload)
+	// Set before the parent call, so the turf is queued to pick its edges
+	switch(icon_state)
+		if("water")
+			water_look = "pool"
+		if("seadeep")
+			water_look = "deep"
+	if(water_look)
+		if(!(edge_style in GLOB.pool_edge_floors))
+			edge_style = initial(edge_style)
+		edge_variant = pick_edge_variant()
+		smoothing_flags = SMOOTH_BITMASK
+		icon = 'icons/turf/floors/pool_water.dmi'
+		base_icon_state = "[edge_style][edge_variant]"
+		icon_state = "[base_icon_state]-255"
 	. = ..()
-	var/image/overlay_image = image('icons/misc/beach.dmi', icon_state = "water5", layer = ABOVE_MOB_LAYER)
-	overlay_image.plane = GAME_PLANE
-	overlays += overlay_image
 	RegisterSignal(src, COMSIG_ATOM_INITIALIZED_ON, PROC_REF(InitializedOn))
+	add_water_effect_tile(src)
+	if(!water_look)
+		var/image/overlay_image = image('icons/misc/beach.dmi', icon_state = "water5", layer = ABOVE_MOB_LAYER)
+		overlay_image.plane = GAME_PLANE
+		overlays += overlay_image
+		make_reflective()
+		return
+	setup_pool_look()
+	make_reflective(FALSE, FALSE)
+	join_pool_waves()
+	// Water dug or built after the map loaded tells the water round it to redraw its edges and depth
+	if(!mapload)
+		resmooth_pool_around()
+		// And anyone already standing here is in it now, and anything lying here is under it
+		for(var/mob/living/wader in src)
+			make_waist_deep(wader)
+		for(var/obj/item/sinking in src)
+			sink_item(sinking)
+
+/turf/simulated/floor/beach/water/Destroy()
+	remove_water_effect_tile(src)
+	waves?.remove_tile(src)
+	if(water_look)
+		resmooth_pool_around()
+	// Anyone standing here when the water goes isn't in it any more, though they haven't moved. Checked once the turf
+	// has changed
+	for(var/mob/living/wader in src)
+		var/datum/component/pool_submerged/submerged = wader.GetComponent(/datum/component/pool_submerged)
+		if(submerged)
+			addtimer(CALLBACK(submerged, TYPE_PROC_REF(/datum/component/pool_submerged, check_water)), 0)
+	for(var/obj/item/sinking in src)
+		var/datum/component/pool_sunk/sunk = sinking.GetComponent(/datum/component/pool_sunk)
+		if(sunk)
+			addtimer(CALLBACK(sunk, TYPE_PROC_REF(/datum/component/pool_sunk, check_water)), 0)
+	return ..()
 
 /turf/simulated/floor/beach/water/Entered(atom/movable/AM, atom/OldLoc)
 	. = ..()
+	ripple_from(AM, OldLoc)
+	make_waist_deep(AM)
+	// Something thrown is only flying over until it lands, see hitby()
+	if(isitem(AM) && !AM.throwing)
+		sink_item(AM, splash = !isnull(OldLoc) && !is_reflective_water(OldLoc))
 	if(!linkedcontroller)
 		return
 	if(ismob(AM))
 		linkedcontroller.mobinpool += AM
+
+// Where a thrown thing comes down
+/turf/simulated/floor/beach/water/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum)
+	. = ..()
+	// A throw can report where it landed twice, so only what isn't sunk yet
+	if(isitem(AM) && !AM.GetComponent(/datum/component/pool_sunk))
+		sink_item(AM, splash = TRUE)
+
+/// Things that float on a pool instead of sinking to the bottom of it
+GLOBAL_LIST_INIT(pool_floaters, typecacheof(list(/obj/item/beach_ball, /obj/item/bikehorn/rubberducky)))
+
+/**
+ * Puts an item that's in the pool under the water, or afloat on it.
+ *
+ * With `splash` it has just hit the water from the air or the bank: it throws up droplets, sends rings of waves out
+ * from where it went in, and goes under or bobs up. Otherwise it was already in the water and only gets the look.
+ */
+/turf/simulated/floor/beach/water/proc/sink_item(obj/item/sinking, splash = FALSE)
+	if(!water_look || sinking.loc != src)
+		return
+	var/datum/component/pool_sunk/in_water = sinking.GetComponent(/datum/component/pool_sunk)
+	if(!in_water)
+		// A few things float
+		in_water = sinking.AddComponent(/datum/component/pool_sunk, water_look, is_type_in_typecache(sinking, GLOB.pool_floaters), splash)
+	if(!splash)
+		return
+	// Where it meets the water, from the middle of the tile. Bigger things make more of a splash
+	var/list/meets = in_water.meets_water_at()
+	var/big = sinking.w_class >= WEIGHT_CLASS_BULKY
+	stir_water(big ? 0.12 : 0.06)
+	var/splash_type = big ? /obj/effect/temp_visual/water_splash : /obj/effect/temp_visual/water_splash/small
+	var/ring_type = big ? /obj/effect/temp_visual/water_ripple/item/big : /obj/effect/temp_visual/water_ripple/item
+	for(var/obj/effect/temp_visual/effect as anything in list(new splash_type(src), new ring_type(src)))
+		effect.pixel_x += meets[1]
+		effect.pixel_y += meets[2]
+	make_wave_ring(!big, meets[1], meets[2])
+	// A second, smaller ring follows the first
+	addtimer(CALLBACK(src, TYPE_PROC_REF(/turf/simulated/floor/beach, make_wave_ring), TRUE, meets[1], meets[2]), 0.35 SECONDS)
+	playsound(src, 'sound/effects/slosh.ogg', big ? 30 : 15, TRUE)
+
+/// Makes a mob standing in a pool look waist deep in it
+/turf/simulated/floor/beach/water/proc/make_waist_deep(atom/movable/wader)
+	if(water_look && isliving(wader) && wader.loc == src && !HAS_TRAIT(wader, TRAIT_FLYING) && !wader.GetComponent(/datum/component/pool_submerged))
+		wader.AddComponent(/datum/component/pool_submerged, water_look)
 
 /turf/simulated/floor/beach/water/Exited(atom/movable/AM, direction)
 	. = ..()
@@ -130,7 +245,12 @@
 	if(ismob(AM))
 		linkedcontroller.mobinpool -= AM
 
-/turf/simulated/floor/beach/water/proc/InitializedOn(atom/A)
+/turf/simulated/floor/beach/water/proc/InitializedOn(datum/source, atom/A)
+	SIGNAL_HANDLER // COMSIG_ATOM_INITIALIZED_ON
+	// Made in the pool rather than walking in, so Entered() isn't called
+	make_waist_deep(A)
+	if(isitem(A))
+		sink_item(A)
 	if(!linkedcontroller)
 		return
 	if(istype(A, /obj/effect/decal/cleanable)) // Better a typecheck than looping through thousands of turfs everyday

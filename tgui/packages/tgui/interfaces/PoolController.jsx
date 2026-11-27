@@ -42,9 +42,15 @@ const TempButton = (properties) => {
   );
 };
 
+const WAVES = [
+  { setting: 0, label: 'Off', icon: 'fa fa-ban' },
+  { setting: 1, label: 'Gentle', icon: 'fa fa-water' },
+  { setting: 2, label: 'Strong', icon: 'fa fa-water' },
+];
+
 export const PoolController = (properties) => {
-  const { data } = useBackend();
-  const { emagged, currentTemp } = data;
+  const { data, act } = useBackend();
+  const { emagged, currentTemp, waves } = data;
   const { label: currentLabel, color: currentColor } = TEMPS[currentTemp] || TEMPS.normal;
 
   const visibleTempKeys = [];
@@ -55,7 +61,7 @@ export const PoolController = (properties) => {
   }
 
   return (
-    <Window width={350} height={285}>
+    <Window width={350} height={420}>
       <Window.Content>
         <Stack fill vertical>
           <Section title="Status">
@@ -68,10 +74,26 @@ export const PoolController = (properties) => {
               </LabeledList.Item>
             </LabeledList>
           </Section>
-          <Section fill title="Temperature Selection">
+          <Section title="Temperature Selection">
             <Stack.Item>
               {visibleTempKeys.map((tempKey) => (
                 <TempButton fluid key={tempKey} tempKey={tempKey} />
+              ))}
+            </Stack.Item>
+          </Section>
+          <Section fill title="Wave Machine">
+            <Stack.Item>
+              {WAVES.map(({ setting, label, icon }) => (
+                <Button
+                  fluid
+                  key={setting}
+                  color="transparent"
+                  selected={setting === waves}
+                  onClick={() => act('setWaves', { waves: setting })}
+                >
+                  <Icon name={icon} />
+                  {label}
+                </Button>
               ))}
             </Stack.Item>
           </Section>

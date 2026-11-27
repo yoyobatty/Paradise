@@ -9,6 +9,91 @@
 #define PLANE_SPACE -95
 #define PLANE_SPACE_PARALLAX -90
 
+/// The reflections of the things standing or floating in water themselves, each upside down about its own waterline.
+/// Never shown: the reflection plane adds them to the world it has mirrored
+#define WATER_SELF_REFLECTION_PLANE -26
+#define WATER_SELF_REFLECTION_RENDER_TARGET "*WATER_SELF_REFLECTION_RENDER_TARGET"
+/// Where the things standing, floating or lying in water are. Never shown: the reflection plane leaves them out of
+/// the world it mirrors, because they have reflections of their own
+#define WATER_UNMIRRORED_PLANE -25
+#define WATER_UNMIRRORED_RENDER_TARGET "*WATER_UNMIRRORED_RENDER_TARGET"
+/// How much the waves bend each pixel of the world: the ripple map where something is under the water, a swimmer's
+/// legs or a thing on the bottom, and flat everywhere else. Drawn on it is where those things are. Never shown, the
+/// world plane is moved by it
+#define WATER_REFRACT_PLANE -24
+#define WATER_REFRACT_RENDER_TARGET "*WATER_REFRACT_RENDER_TARGET"
+/// The bright molten part of lava, in its own colours. Never shown here: blurred, and added over the lighting by the
+/// above lighting plane, so lava blooms past its edges
+#define LAVA_GLOW_PLANE -23
+#define LAVA_GLOW_RENDER_TARGET "*LAVA_GLOW_RENDER_TARGET"
+/// How strong lava's wide glow is at its faintest and its strongest, as it breathes, out of 255
+#define LAVA_GLOW_WIDE_LOW 90
+#define LAVA_GLOW_WIDE_HIGH 150
+/// Which way the water's surface slopes: a normal map, made of a pool's layers of waves, the rings of waves from
+/// anything touching it and the wakes of anyone moving through it. Never shown: the pool floor, the reflections and the
+/// foam are moved by it, so they bend under the waves, and the relief planes light the waves by it
+#define WATER_RIPPLE_PLANE -22
+#define WATER_RIPPLE_RENDER_TARGET "*WATER_RIPPLE_RENDER_TARGET"
+/// How many pixels the ripples bend the pool floor, and anything else under the water, seen through them
+#define POOL_REFRACTION 3
+/// How many pixels they bend reflections. More than the floor, as in real water
+#define POOL_REFLECTION_RIPPLE 4
+/// How far to move each pixel of the world to make its reflection in the water below it. Never shown, the
+/// reflection plane reads it
+#define WATER_MIRROR_PLANE -21
+#define WATER_MIRROR_RENDER_TARGET "*WATER_MIRROR_RENDER_TARGET"
+/// How many pixels a mirror map can move a pixel each way. A tile mirrors the one above it, so up to 63
+#define POOL_MIRROR_REACH 64
+/// How much of a mirror the water is at each pixel, worked out from the ripple map: a wave's side sloping away from the
+/// viewer reflects, one sloping toward them is seen through. Nothing is drawn on it, and it's never shown: the
+/// reflection plane reads it as a second mask
+#define WATER_FRESNEL_PLANE -20
+#define WATER_FRESNEL_RENDER_TARGET "*WATER_FRESNEL_RENDER_TARGET"
+/// Where there is water for things to be mirrored in. Never shown, only used to cut reflections to the water's shape
+#define WATER_MASK_PLANE -19
+#define WATER_MASK_RENDER_TARGET "*WATER_MASK_RENDER_TARGET"
+/// A band along every edge of the water, strongest at the edge. Made from the water mask, nothing is drawn on it, and
+/// never shown: it's where there is always a little foam
+#define WATER_EDGE_BAND_PLANE -18
+#define WATER_EDGE_BAND_RENDER_TARGET "*WATER_EDGE_BAND_RENDER_TARGET"
+/// Where foam shows: the steep faces of waves, and the band along the water's edges. Made from the ripple plane and
+/// the edge band, nothing is drawn on it, and never shown
+#define WATER_FOAM_DRIVE_PLANE -17
+#define WATER_FOAM_DRIVE_RENDER_TARGET "*WATER_FOAM_DRIVE_RENDER_TARGET"
+/// The bottom of a pool, seen through the water
+#define POOL_FLOOR_PLANE -16
+/// Water turfs that are one flat sprite, like the beach away mission's sea
+#define WATER_PLANE -15
+/// Pool water turfs: the edge of the pool and the water's colour. All of these are under the floor plane so
+/// reflections can be drawn between the water and what stands in it
+#define WATER_EDGE_PLANE -14
+/// Shafts of light slanting down through the water, added on
+#define WATER_RAYS_PLANE -13
+/// Reflections in water: a mirrored copy of the world plane, cut to the water. Over the water's colour, so they're
+/// as clear as on real water
+#define WATER_REFLECTION_PLANE -12
+/// No * at the front, so the plane is still drawn as well. The water over plane reads it
+#define WATER_REFLECTION_RENDER_TARGET "WATER_REFLECTION_RENDER_TARGET"
+/// The sides of the waves facing away from the light, darkened. Made from the ripple map, nothing is drawn on it
+#define WATER_RELIEF_SHADE_PLANE -11
+/// The sides of the waves facing the light, brightened. Made from the ripple map, nothing is drawn on it
+#define WATER_RELIEF_LIGHT_PLANE -10
+#define WATER_RELIEF_LIGHT_RENDER_TARGET "WATER_RELIEF_LIGHT_RENDER_TARGET"
+/// Glints of whatever light falls on the water, on the sides of the waves facing up into it. Never shown here: the
+/// above lighting plane adds it after the lighting, so a glint can be brighter than the light on the water
+#define WATER_SPECULAR_PLANE -9
+#define WATER_SPECULAR_RENDER_TARGET "*WATER_SPECULAR_RENDER_TARGET"
+/// Flecks of foam on the water, cut to where the foam drive plane says there is any
+#define WATER_FOAM_PLANE -8
+/// The glints of light on the water and the wakes on it, on top of its colour so they shine
+#define WATER_SHINE_PLANE -7
+// How hard a pool's wave machine is running
+#define POOL_WAVES_OFF 0
+#define POOL_WAVES_GENTLE 1
+#define POOL_WAVES_STRONG 2
+/// How many tiles from dry land pool water is at its darkest
+#define POOL_MAX_DEPTH 3
+
 #define FLOOR_PLANE -6
 #define FLOOR_OVERLAY_PLANE -5
 
@@ -18,9 +103,14 @@
 #define FLOOR_LIGHTING_LAMPS_RENDER_TARGET "*FLOOR_LIGHTING_LAMPS_RENDER_TARGET"
 #define ABOVE_GAME_PLANE -1.5
 #define GAME_PLANE -1
+/// The world plane's picture, for water to reflect. No * at the front, so the plane is still drawn as well
+#define GAME_PLANE_RENDER_TARGET "GAME_PLANE_RENDER_TARGET"
 #define BLACKNESS_PLANE 0 //To keep from conflicts with SEE_BLACKNESS internals
 
 #define AREA_PLANE 1
+/// The water's reflections again, over what's under the water: a swimmer's legs or a thing on the bottom. Those are on
+/// the world plane, over every water plane, and the surface with its reflections is above them
+#define WATER_OVER_PLANE 2
 
 #define SPACE_LAYER 1.5
 #define GRASS_UNDER_LAYER 1.6
@@ -116,6 +206,8 @@
 #define COGBAR_PLANE 15
 
 #define LIGHTING_PLANE 16
+/// The light falling on everything, for water to glint with. No * at the front, so the plane is still drawn as well
+#define LIGHTING_PLANE_RENDER_TARGET "LIGHTING_PLANE_RENDER_TARGET"
 #define LIGHTING_LAYER 16
 
 #define LIGHTING_LAMPS_GLARE 17 // Light glare (optional setting)
