@@ -2,11 +2,11 @@
 
 /// How long a lava golem can stay out of the lava before it has to go back in
 #define LAVA_GOLEM_LAND_TIME (12 SECONDS)
-/// How many steps it cools through out of the lava, from fresh out to set hard enough that it has to go back
+/// How many cooling steps it goes through out of the lava before it has to go back
 #define LAVA_GOLEM_COOL_STEPS 6
-/// How much quicker it heats up again in the lava than it cooled out of it
+/// How many times faster it heats back up in the lava than it cools on land
 #define LAVA_GOLEM_REHEAT 3
-/// How long past LAVA_GOLEM_LAND_TIME it lasts if it can't get back, before it starts to crack apart
+/// How long past LAVA_GOLEM_LAND_TIME it lasts if it can't get back, before it starts cracking apart
 #define LAVA_GOLEM_SET_TIME (10 SECONDS)
 /// How far it looks for lava to go back to
 #define LAVA_GOLEM_HOME_RANGE 8
@@ -14,16 +14,9 @@
 #define BB_LAVA_GOLEM_HOME "BB_lava_golem_home"
 
 /**
- * A hulking thing of black rock held together by the molten lava in its cracks.
+ * Rock golem that lives in lava. It comes out to fight, cools on land and has to go back in to heat up again.
  *
- * It lives in the lava, wading in it up to its waist, and comes out after whatever disturbs it. Out of the lava it
- * cools: the glow in its cracks dulls and it drips less, and after a while it has to go back in and heat up again
- * before it can come out. If it can't get back it sets solid and cracks apart. On land it drips molten rock that
- * cools on the floor.
- *
- * Its molten parts glow in the dark and bloom: two copies of its sprite in its vis_contents keep only those pixels,
- * worked out from their colours by a colour matrix. Each look it plays once (climbing out, sinking in, a step) is
- * flicked on all three.
+ * Its glow is two copies of its sprite in vis_contents (emissive and bloom), so every flick is done on all three.
  */
 /mob/living/basic/mining/lava_golem
 	name = "lava golem"
@@ -56,17 +49,17 @@
 	var/in_lava = FALSE
 	/// How far it has cooled out of the lava, 0 to LAVA_GOLEM_COOL_STEPS
 	var/cooled = 0
-	/// Which cooling step its look shows
+	/// Cooling step its look currently shows
 	var/shown_cool_step = -1
 	/// When it last came out of the lava
 	var/left_lava_at = 0
-	/// Has it cooled so far that it's going back to the lava? Stays set until it has heated up again
+	/// Has it cooled too much and is heading back to the lava? Stays set until it's heated up again
 	var/must_go_back = FALSE
-	/// Has it started cracking apart out of the lava?
+	/// Has it started cracking apart from being out too long?
 	var/cracking = FALSE
-	/// Its molten parts in white on the emissive plane, so the lighting doesn't darken them
+	/// Emissive copy of its molten parts, so the lighting doesn't darken them
 	var/obj/effect/abstract/lava_golem_glow/emissive_copy
-	/// Its molten parts in their own colours on the lava glow plane, which blooms
+	/// Copy of its molten parts on the lava glow plane, for the bloom
 	var/obj/effect/abstract/lava_golem_glow/bloom/bloom_copy
 
 /mob/living/basic/mining/lava_golem/Initialize(mapload)
@@ -77,13 +70,12 @@
 	vis_contents += list(emissive_copy, bloom_copy)
 	in_lava = islava(loc)
 	if(in_lava)
-		// Coming up out of the lava. A flick here would be lost, no client knows it yet: this look plays once
-		// from when each viewer first sees it and stays on its last frame, which is the start of wading
+		// flick() is lost on a new atom, so play the emerge state once and switch to wading after
 		show_look("golem_emerge")
 		addtimer(CALLBACK(src, PROC_REF(finish_emerging)), 1 SECONDS)
 		playsound(src, 'sound/effects/bubbles2.ogg', 60, TRUE)
 	else
-		// Hauled out on a line: it starts cooling at once
+		// Hauled out onto land, so it starts cooling right away
 		show_look("golem")
 		left_lava_at = world.time
 		START_PROCESSING(SSprocessing, src)
@@ -100,7 +92,7 @@
 	if(stat != DEAD && icon_state == "golem_emerge")
 		show_look(in_lava ? "golem_wade" : "golem")
 
-/// Shows a look on it and its glowing copies, playing `once` first if given
+/// Sets its icon state and its glow copies', flicking `once` first if given
 /mob/living/basic/mining/lava_golem/proc/show_look(look, once)
 	icon_state = look
 	icon_living = look
@@ -111,7 +103,7 @@
 		flick(once, emissive_copy)
 		flick(once, bloom_copy)
 
-// Not out of the lava again until it has heated back up
+// Can't leave the lava again until it has heated back up
 /mob/living/basic/mining/lava_golem/Move(atom/newloc, direct = 0, glide_size_override = 0, update_dir = TRUE)
 	if(in_lava && cooled > 0 && !client && isturf(newloc) && !islava(newloc))
 		return FALSE
@@ -131,7 +123,7 @@
 		show_look("golem", "golem_rise")
 		if(islava(old_loc))
 			new /obj/effect/temp_visual/lava_disturb(old_loc)
-		// The lava it drags out with it oozes onto the floor from the lava's edge
+		// Lava it drags out spills onto the floor
 		new /obj/effect/decal/cleanable/lava_ember/spill(loc, 3, movement_dir)
 		playsound(src, 'sound/effects/fire_sizzle.ogg', 40, TRUE)
 		left_lava_at = world.time
@@ -140,18 +132,18 @@
 		flick("golem_walk", src)
 		flick("golem_walk", emissive_copy)
 		flick("golem_walk", bloom_copy)
-		// It leaves drips of molten rock where it walked, fewer as it cools
+		// Drips where it walked, less the more it has cooled
 		if(isturf(old_loc) && !islava(old_loc) && prob(100 - 70 * cooled / LAVA_GOLEM_COOL_STEPS))
 			new /obj/effect/decal/cleanable/lava_ember(old_loc, drip_heat())
 
-/// How hot its drips are, 3 fresh out of the lava to 1 nearly set
+/// Heat of its drips, 3 fresh out of the lava down to 1 nearly cooled
 /mob/living/basic/mining/lava_golem/proc/drip_heat()
 	return clamp(3 - round(cooled * 3 / LAVA_GOLEM_COOL_STEPS), 1, 3)
 
 /mob/living/basic/mining/lava_golem/process()
 	if(stat == DEAD)
 		return PROCESS_KILL
-	// Processing passes its wait in tenths of a second, not seconds
+	// SSprocessing passes its wait in deciseconds, not seconds
 	var/seconds_per_tick = SSprocessing.wait / (1 SECONDS)
 	var/step_per_second = LAVA_GOLEM_COOL_STEPS / (LAVA_GOLEM_LAND_TIME / (1 SECONDS))
 	if(in_lava)
@@ -165,10 +157,10 @@
 		cooled = min(LAVA_GOLEM_COOL_STEPS, cooled + step_per_second * seconds_per_tick)
 		if(cooled >= LAVA_GOLEM_COOL_STEPS)
 			must_go_back = TRUE
-		// Drips while it stands about too
+		// Drips while standing still too
 		if(SPT_PROB(30 * (1 - cooled / LAVA_GOLEM_COOL_STEPS), seconds_per_tick) && isturf(loc))
 			new /obj/effect/decal/cleanable/lava_ember(loc, drip_heat())
-		// Couldn't get back in time: it sets solid and cracks apart
+		// Couldn't get back in time, so it cracks apart
 		if(world.time - left_lava_at > LAVA_GOLEM_LAND_TIME + LAVA_GOLEM_SET_TIME)
 			if(!cracking)
 				cracking = TRUE
@@ -176,14 +168,14 @@
 			adjustBruteLoss(12 * seconds_per_tick)
 	update_heat()
 
-/// Dulls its molten parts and their glow as it cools, and brings them back as it heats up
+/// Dims its molten parts and glow to match how cooled it is
 /mob/living/basic/mining/lava_golem/proc/update_heat()
 	var/step = round(cooled)
 	if(step == shown_cool_step || stat == DEAD)
 		return
 	shown_cool_step = step
 	var/heat = 1 - step / LAVA_GOLEM_COOL_STEPS
-	// Molten colours go towards a dull dark red and the whole of it a little darker; grey rock barely changes
+	// Shifts molten orange towards dull red, grey rock barely changes
 	if(step)
 		var/k = 0.8 * (1 - heat)
 		var/k2 = 0.7 * (1 - heat)
@@ -207,7 +199,7 @@
 	emissive_copy.set_strength(0.6)
 	bloom_copy.set_strength(0.6)
 	set_light(2, 0.6, LIGHT_COLOR_LAVA)
-	// The last of its glow fades as the heap cools
+	// The heap stops glowing after a while
 	addtimer(CALLBACK(src, PROC_REF(cool_heap)), 20 SECONDS)
 
 /mob/living/basic/mining/lava_golem/proc/cool_heap()
@@ -223,7 +215,7 @@
 	show_look(in_lava ? "golem_wade" : "golem")
 	update_heat()
 
-/// The nearest lava it can wade into, or null
+/// Returns the closest lava turf it can walk into, or null
 /mob/living/basic/mining/lava_golem/proc/nearest_lava()
 	var/best_dist = INFINITY
 	for(var/turf/T as anything in RANGE_TURFS(LAVA_GOLEM_HOME_RANGE, src))
@@ -234,12 +226,7 @@
 			best_dist = dist
 			. = T
 
-/**
- * A copy of a lava golem's sprite showing only its molten parts.
- *
- * How molten a pixel is comes from its colour: 3 x (red - blue) - 0.4. Molten rock is far redder than blue, the grey
- * rock isn't, and the dull red of heated rock comes out in between. This copy is white, on the emissive plane.
- */
+/// Copy of a lava golem's sprite showing only the molten pixels, picked out by colour. White, on the emissive plane
 /obj/effect/abstract/lava_golem_glow
 	icon = 'icons/mob/lava_golem.dmi'
 	icon_state = "golem_wade"
@@ -248,25 +235,25 @@
 	vis_flags = VIS_INHERIT_DIR | VIS_INHERIT_ID
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 
-/// How strongly it glows, 0 to 1. Set in its colour matrix: while an atom's colour is a matrix, its alpha is ignored
+/// Sets how strongly it glows, 0 to 1. Goes in the colour matrix, since alpha is ignored while color is a matrix
 /obj/effect/abstract/lava_golem_glow/proc/set_strength(strength)
 	color = lava_golem_glow_matrix(strength, TRUE)
 
-/// The same in the golem's own colours, on the lava glow plane, which blooms
+/// Same copy in the golem's own colours, on the lava glow plane for the bloom
 /obj/effect/abstract/lava_golem_glow/bloom
 	plane = LAVA_GLOW_PLANE
 
 /obj/effect/abstract/lava_golem_glow/bloom/set_strength(strength)
 	color = lava_golem_glow_matrix(strength, FALSE)
 
-/// The colour matrix that keeps the molten pixels of a lava golem's sprites, white or in their own colours
+/// Colour matrix that keeps only the molten pixels: alpha is 3 * (red - blue) - 0.4
 /proc/lava_golem_glow_matrix(strength, white)
 	var/a = 3 * strength
 	if(white)
 		return list(0, 0, 0, a, 0, 0, 0, 0, 0, 0, 0, -a, 0, 0, 0, 0, 1, 1, 1, -0.4 * strength)
 	return list(1, 0, 0, a, 0, 1, 0, 0, 0, 0, 1, -a, 0, 0, 0, 0, 0, 0, 0, -0.4 * strength)
 
-/// The molten pixels of a lava golem sprite on the emissive plane, as an overlay, for its drips and what it leaves on the lava
+/// Emissive overlay of a sprite's molten pixels, for the golem's drips and lava splashes
 /proc/lava_golem_emissive(icon, icon_state, strength)
 	var/mutable_appearance/glow = mutable_appearance(icon, icon_state, plane = EMISSIVE_PLANE, appearance_flags = KEEP_APART | RESET_COLOR)
 	glow.color = lava_golem_glow_matrix(strength, TRUE)
@@ -287,7 +274,7 @@
 		/datum/ai_planning_subtree/lava_golem_go_back/nothing_to_fight,
 	)
 
-/// Back to the lava when it has cooled too far
+/// Goes back to the lava once it has cooled too much
 /datum/ai_planning_subtree/lava_golem_go_back
 
 /datum/ai_planning_subtree/lava_golem_go_back/select_behaviors(datum/ai_controller/controller, seconds_per_tick)
@@ -306,13 +293,13 @@
 /datum/ai_planning_subtree/lava_golem_go_back/proc/should_go_back(mob/living/basic/mining/lava_golem/golem, datum/ai_controller/controller)
 	return golem.must_go_back
 
-/// And when there's nothing out of the lava left to fight
+/// Also goes back when it has nothing left to fight
 /datum/ai_planning_subtree/lava_golem_go_back/nothing_to_fight
 
 /datum/ai_planning_subtree/lava_golem_go_back/nothing_to_fight/should_go_back(mob/living/basic/mining/lava_golem/golem, datum/ai_controller/controller)
 	return !controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET]
 
-/// It wanders about in the lava, not out of it
+/// Only wanders around inside the lava
 /datum/idle_behavior/idle_random_walk/lava_golem
 	walk_chance = 15
 
@@ -336,28 +323,25 @@
 	bait_likes = list(FISHING_BAIT_MEAT = 3)
 	rare = TRUE
 
-/// How long a drip of molten rock from a lava golem takes to cool each step, from molten to a black crust
+/// How long a lava golem drip takes to cool one step
 #define LAVA_EMBER_COOL_STEP (6 SECONDS)
 
-/**
- * A splash of molten rock dripped by a lava golem. It cools in steps, its glow dulling, until it's a black crust.
- * A fresh drip on a tile that already has one heats that one up again.
- */
+/// Molten rock dripped by a lava golem, cools to a black crust. A new drip on the same tile heats the old one back up
 /obj/effect/decal/cleanable/lava_ember
 	name = "molten rock"
 	desc = "A splash of molten rock, glowing as it cools into a black crust."
 	icon = 'icons/effects/lava_embers.dmi'
 	icon_state = "ember0-3"
 	base_icon_state = "ember"
-	/// 3 molten to 0 a cold crust
+	/// 3 is molten, 0 is a cold crust
 	var/heat = 3
-	/// Which of the splash shapes it is
+	/// Which splash shape it uses
 	var/shape = 0
-	/// Its glow in the dark while it's hot
+	/// Emissive glow while it's hot
 	var/mutable_appearance/glow
-	/// The timer that cools it a step
+	/// Timer for the next cooling step
 	var/cool_timer
-	/// How long it takes to cool a step
+	/// Time per cooling step
 	var/cool_step = LAVA_EMBER_COOL_STEP
 
 /obj/effect/decal/cleanable/lava_ember/Initialize(mapload, new_heat = 3)
@@ -368,7 +352,7 @@
 	place()
 	set_heat(heat)
 
-/// Picks its shape and where on the tile it lies
+/// Picks its shape and offset on the tile
 /obj/effect/decal/cleanable/lava_ember/proc/place()
 	shape = rand(0, 2)
 	pixel_x = rand(-6, 6)
@@ -407,10 +391,7 @@
 		set_light(0)
 	cool_timer = addtimer(CALLBACK(src, PROC_REF(set_heat), heat - 1), cool_step, TIMER_STOPPABLE)
 
-/**
- * Lava dragged out onto the floor by a lava golem climbing out: a thick tongue oozing in from the edge it came out
- * over, cooling slower than a drip as there's more of it. Faces the way the golem went.
- */
+/// Lava a golem drags onto the floor climbing out. Faces the way it went, cools slower than a drip
 /obj/effect/decal/cleanable/lava_ember/spill
 	name = "spilled lava"
 	desc = "Lava dragged out onto the floor, glowing as it cools into a black crust."
@@ -425,10 +406,7 @@
 /obj/effect/decal/cleanable/lava_ember/spill/place()
 	shape = rand(0, 1)
 
-/**
- * What a lava golem leaves on the lava where it climbs out: lava is thick, so no rings. A bright hole the lava
- * closes slowly over, its heaped rim slumping back and crusting, a few heavy globs falling back in, a puff of smoke.
- */
+/// Disturbed lava where a golem climbs out: a bright hole slowly closing over, globs falling back, a puff of smoke
 /obj/effect/temp_visual/lava_disturb
 	name = "lava"
 	icon = 'icons/mob/lava_golem.dmi'
@@ -440,7 +418,7 @@
 	plane = FLOOR_PLANE
 	layer = ABOVE_NORMAL_TURF_LAYER
 
-/// Where it wades in: globs thrown up that land with a plop, and a lumpy heap shoved up round it that settles
+/// Where a golem wades in: globs thrown up and a heap of lava that settles
 /obj/effect/temp_visual/lava_disturb/wade_in
 	icon_state = "lava_in"
 	duration = 1.4 SECONDS
