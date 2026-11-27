@@ -20,3 +20,6 @@
 
 /// The angle the baked Lavaland sprites are lit from, degrees counter-clockwise from screen east (upper left)
 #define SKY_PLANET_BAKE_ANGLE 135
+
+/// How long weather art in the sky takes to fade in or out
+#define SKY_WEATHER_FADE (30 SECONDS)

@@ -71,9 +71,15 @@
 
 		domutcheck(human, MUTCHK_FORCED)
 
+/datum/weather/rad_storm/start()
+	. = ..()
+	if(stage == WEATHER_MAIN_STAGE)
+		SSparallax.rad_storm_sky(TRUE)
+
 /datum/weather/rad_storm/end()
 	if(..())
 		return
+	SSparallax.rad_storm_sky(FALSE)
 
 	status_alarm(FALSE)
 	if(!pre_maint_all_access)

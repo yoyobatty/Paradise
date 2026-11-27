@@ -33,6 +33,15 @@
 	/// Amount of burn damage we receive if we aren't immune
 	var/burn_damage = 4
 
+/datum/weather/ash_storm/start()
+	. = ..()
+	if(stage == WEATHER_MAIN_STAGE)
+		SSparallax.lavaland_ash_storm(TRUE)
+
+/datum/weather/ash_storm/end()
+	. = ..()
+	SSparallax.lavaland_ash_storm(FALSE)
+
 /datum/weather/ash_storm/update_eligible_areas()
 	. = ..()
 	sound_ao.output_atoms = outside_areas

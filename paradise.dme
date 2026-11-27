@@ -315,6 +315,7 @@
 #include "code\_onclick\hud\sky.dm"
 #include "code\_onclick\hud\sky_events.dm"
 #include "code\_onclick\hud\sky_themes.dm"
+#include "code\_onclick\hud\sky_weather.dm"
 #include "code\_onclick\hud\slime_hud.dm"
 #include "code\controllers\controller.dm"
 #include "code\controllers\failsafe.dm"

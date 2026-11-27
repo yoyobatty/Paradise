@@ -35,6 +35,7 @@
 
 /datum/event/aurora_caelus/start()
 	addtimer(CALLBACK(src, PROC_REF(start_music)), 5 SECONDS)
+	SSparallax.aurora_caelus_sky(TRUE)
 
 /datum/event/aurora_caelus/tick()
 	. = ..()
@@ -44,6 +45,7 @@
 
 /datum/event/aurora_caelus/end()
 	. = ..()
+	SSparallax.aurora_caelus_sky(FALSE)
 	if(aurora_progress)
 		fade_back(1)
 	GLOB.major_announcement.Announce("The Aurora Caelus event is now ending. Starlight conditions will slowly return to normal. When this has concluded, please return to your workplace and continue work as normal. \n\nHave a pleasant shift, [station_name()], and thank you for watching with us.",

@@ -46,6 +46,7 @@
 
 /atom/movable/screen/sky_art/piece/Destroy()
 	SSparallax.flyby?.vis_contents -= src
+	SSparallax.near_weather?.vis_contents -= src
 	return ..()
 
 /// Where a piece goes: its middle at x, y from the middle of the screen, turned to heading
@@ -800,9 +801,7 @@
 	M.Turn(-SKY_PLANET_BAKE_ANGLE)
 	M.Translate(SKY_EVENT_MIDDLE + SKY_LAVALAND_SHIFT_X, SKY_EVENT_MIDDLE + SKY_LAVALAND_SHIFT_Y)
 	aurora.transform = M
-	for(var/client/C as anything in GLOB.clients)
-		for(var/atom/movable/screen/parallax_layer/body/planet/L in C.parallax_layers_cached)
-			L.vis_contents |= aurora
+	add_planet_art(aurora)
 	animate(aurora, alpha = 170, time = fade, easing = SINE_EASING)
 	animate(alpha = 120, time = 600, easing = SINE_EASING)
 	animate(alpha = 255, time = 50) // the substorm: the whole oval lights up at once
@@ -816,14 +815,12 @@
 /datum/controller/subsystem/parallax/proc/end_aurora()
 	if(!aurora)
 		return
-	for(var/client/C as anything in GLOB.clients)
-		for(var/atom/movable/screen/parallax_layer/body/planet/L in C.parallax_layers_cached)
-			L.vis_contents -= aurora
+	remove_planet_art(aurora)
 	QDEL_NULL(aurora)
 
-/// Lavaland carries the aurora while it's up, for late arrivals too
+/// Lavaland carries its aurora and ash storm while they're up, for late arrivals too
 /atom/movable/screen/parallax_layer/body/planet/set_quality(quality)
-	vis_contents = SSparallax.aurora ? carry(list(SSparallax.aurora)) : list()
+	vis_contents = carry(SSparallax.planet_art.Copy())
 
 
 /datum/controller/subsystem/parallax/fire(resumed = 0)
