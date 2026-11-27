@@ -80,9 +80,19 @@ impl TileGrid {
         self.grid.len()
     }
 
-    fn coord_to_index(&self, coord: &Coord3) -> usize {
+    fn coord_to_index(&self, coord: &Coord3) -> Option<usize> {
+        // coord_to_index: off-grid coords are None, so they can't wrap onto another row
+        if coord.x < 1
+            || coord.y < 1
+            || coord.z < 1
+            || coord.x > self.size.x
+            || coord.y > self.size.y
+            || coord.z > self.size.z
+        {
+            return None;
+        }
         let coord = Coord3::new(coord.x - 1, coord.y - 1, coord.z - 1);
-        ((coord.x) + (coord.y * self.size.x) + (coord.z * self.size.x * self.size.y)) as usize
+        Some(((coord.x) + (coord.y * self.size.x) + (coord.z * self.size.x * self.size.y)) as usize)
     }
 
     fn index_to_coord(&self, index: usize) -> Coord3 {
@@ -95,12 +105,12 @@ impl TileGrid {
     }
 
     pub fn get_mut(&mut self, coord: &Coord3) -> Option<&mut Tile> {
-        let index = self.coord_to_index(coord);
+        let index = self.coord_to_index(coord)?;
         self.grid.get_mut(index)
     }
 
     pub fn get(&self, coord: &Coord3) -> Option<&Tile> {
-        self.grid.get(self.coord_to_index(coord))
+        self.grid.get(self.coord_to_index(coord)?)
     }
 
     pub fn insert(&mut self, coord: &Coord3, tile: Tile) {

@@ -39,7 +39,7 @@ pub fn insert_submap(
 
                 // get dst tile
                 let tile_dst = dst_map.grid.get_mut(&coord_dst).wrap_err(format!(
-                    "cannot insert submap tile; coord out of bounds; x: {x}; y: {y};"
+                    "cannot insert submap tile; coord out of bounds: {coord_dst}"
                 ))?;
 
                 // remove area and turf from dst tile
