@@ -57,6 +57,12 @@
 	var/flame_drawn_at = 0
 	/// TRUE when our flames should change but were drawn too lately
 	var/flame_dirty = FALSE
+	/// -1 or 1 when a wind blows our flames west or east, 0 when none does
+	var/flame_wind = 0
+	/// Whether that wind is strong enough to stream our flames out sideways, not just lean them
+	var/flame_blown = FALSE
+	/// The sideways push of the wind on our turf, evened out over a couple of seconds
+	var/flame_draft = 0
 
 /obj/effect/hotspot/proc/update_visuals(fuel_burnt)
 	// Only the light takes the heat's colour. The flames have theirs drawn in, and changing ours would send every

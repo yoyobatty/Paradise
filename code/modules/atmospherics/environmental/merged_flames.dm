@@ -22,6 +22,8 @@
 // floors and people ripple above it at no extra drawing cost. Both are cut down to where the lighting is not pitch black: being over the
 // lighting, they would show behind walls and in the dark round a fire, where the lighting hides everything else. A
 // burning tile is lit by its own fire, so its flames stay. Viewers who see in the dark see them all.
+// A fire that catches leaps up in a short burst; one that goes out leaves embers that cool and wink out, and a wisp
+// of smoke. A wind leans the flames its way, and a strong one streams them out sideways.
 // A slow noise scrolling up the screen pushes the whole picture about, so a
 // big fire surges as one. The glow and the surge are both whole-screen passes, so players can turn them off.
 
@@ -44,7 +46,23 @@
 /// How long a new look takes to fade in over the old one
 #define FLAME_FADE (0.5 SECONDS)
 /// How long the flames of a fire that went out take to die down
-#define FLAME_DIE (1 SECONDS)
+#define FLAME_DIE (0.6 SECONDS)
+/// How long the embers a fire leaves glow for. Their animation plays once and ends empty a little before this.
+#define FLAME_EMBERS (2.6 SECONDS)
+/// How long the burst of a fire catching lasts
+#define FLAME_FLARE (1 SECONDS)
+/// How much of the newest wind goes into a fire's evened-out draft each update, so a gust doesn't swing the flames
+#define FLAME_WIND_SMOOTHING 0.25
+/// How hard the evened-out sideways draft must push to lean the flames, and how weak it gets before they stand up
+/// again. The push is the wind times how full the air is, as for the turf's own wind effect, so thin air barely moves
+/// them. A burning room makes drafts of its own, pushing out from the hottest part: measured on a big plasma fire, half
+/// its tiles push under 4 to 7 and one in ten over 16 to 26. So a fire mostly stands up, its edges lean out, and only
+/// the strongest drafts or a real wind stream the flames out.
+#define FLAME_WIND_LEAN 12
+#define FLAME_WIND_LEAN_END 8
+/// The same for streaming them out sideways
+#define FLAME_WIND_BLOWN 28
+#define FLAME_WIND_BLOWN_END 20
 
 // MARK: The planes
 
@@ -333,14 +351,35 @@
 		for(var/obj/effect/hotspot/fire in behind)
 			fire.look_round()
 
-/// Called on every update: draws a change that had to wait, and now and then looks round again, as walls and things
-/// can come and go without telling us
+/// Called on every update: draws a change that had to wait, feels the wind, and now and then looks round again, as
+/// walls and things can come and go without telling us
 /obj/effect/hotspot/proc/flames_tick()
 	flame_updates++
 	if(flame_updates % FLAME_LOOK_ROUND_EVERY == 0)
 		look_round()
+	feel_wind()
 	if(flame_dirty && world.time >= flame_drawn_at + FLAME_REDRAW_GAP)
 		update_flames()
+
+/// Leans our flames with the wind on our turf, if there is one, from what the air already told the turf this tick
+/obj/effect/hotspot/proc/feel_wind()
+	var/turf/simulated/here = loc
+	var/push = 0
+	if(istype(here) && here.wind_tick == SSair.milla_tick)
+		push = here.wind_x * here.wind_moles / MOLES_CELLSTANDARD
+	flame_draft += (push - flame_draft) * FLAME_WIND_SMOOTHING
+	var/strength = abs(flame_draft)
+	var/wind = 0
+	var/blown = FALSE
+	// Each look is left again well short of the push it was reached at, so a gusty wind doesn't flick between them
+	if(strength > FLAME_WIND_LEAN || (flame_wind && strength > FLAME_WIND_LEAN_END))
+		wind = flame_draft > 0 ? 1 : -1
+		blown = strength > FLAME_WIND_BLOWN || (flame_blown && strength > FLAME_WIND_BLOWN_END)
+	if(wind == flame_wind && blown == flame_blown)
+		return
+	flame_wind = wind
+	flame_blown = blown
+	update_flames()
 
 /obj/effect/hotspot/proc/update_flames()
 	if(!isturf(loc))
@@ -351,6 +390,12 @@
 		return
 	flame_dirty = FALSE
 	flame_drawn_at = world.time
+	// A fire that just caught leaps up, unless it is a tile that went out a moment ago and is still glowing
+	if(!flame_layer && !(locate(/obj/effect/abstract/flame_layer/embers) in loc))
+		var/obj/effect/abstract/flame_layer/flare = new(loc)
+		flare.layer = MASSIVE_OBJ_LAYER + (world.maxy - flare.y) / 10000 + 0.00001
+		flare.add_overlay(flame_flare_overlay(loc))
+		QDEL_IN(flare, FLAME_FLARE)
 	var/obj/effect/abstract/flame_layer/fresh = new(loc)
 	// Rows nearer the viewer draw over the rows behind, as their flames rise in front of those
 	fresh.layer = MASSIVE_OBJ_LAYER + (world.maxy - fresh.y) / 10000
@@ -358,11 +403,14 @@
 	var/size = (flame_form == "edge" || flame_form == "climb") ? max(flame_size, flame_depth) : flame_size
 	// Every burning tile draws its piece of the bed's texture; only the tiles deep in the fire say where it shows
 	var/list/parts = list(flame_bed_overlay(loc))
+	// Up a wall they keep to the wall; elsewhere a wind leans them its way over the way they lean into open air
 	if(flame_form == "bed")
 		parts += flame_bed_mask_overlay(size)
-		parts += flame_overlay("inner", size, flame_hot, 0, loc)
-	else
+		parts += flame_overlay("inner", size, flame_hot, flame_wind, loc, flame_blown)
+	else if(flame_form == "climb")
 		parts += flame_overlay(flame_form, size, flame_hot, flame_lean, loc)
+	else
+		parts += flame_overlay(flame_form, size, flame_hot, flame_wind || flame_lean, loc, flame_blown)
 	if((flame_form == "edge" || flame_form == "climb") && size > 1)
 		parts += flame_smoke_overlay(size, loc)
 	if(size > 1)
@@ -375,7 +423,7 @@
 		QDEL_IN(flame_layer, FLAME_FADE)
 	flame_layer = fresh
 
-/// Leaves our flames on the turf to die down, as we go out
+/// Leaves our flames on the turf to die down, as we go out, and embers and a wisp of smoke after them
 /obj/effect/hotspot/proc/flames_die()
 	if(!flame_layer)
 		return
@@ -383,6 +431,18 @@
 	flame_layer = null
 	animate(dying, alpha = 0, time = FLAME_DIE)
 	QDEL_IN(dying, FLAME_DIE)
+	if(!isturf(loc))
+		return
+	var/obj/effect/abstract/flame_layer/embers/left = new(loc)
+	left.layer = dying.layer
+	var/list/parts = list(flame_embers_overlay(flame_size))
+	if(flame_size > 1)
+		parts += flame_wisp_overlay(loc)
+	left.add_overlay(parts)
+	QDEL_IN(left, FLAME_EMBERS)
+
+/// What a fire that went out leaves on its turf for a moment
+/obj/effect/abstract/flame_layer/embers
 
 /// Which of the fires a turf shows, 0 to FLAME_KINDS * 2 - 1, the top half mirrored.
 /// Not x and y times numbers mod a power of two, which repeat every few tiles in a lattice you can see.
@@ -391,18 +451,24 @@
 
 // The parts below take their layer's see-through-ness, so they fade with it
 
-/proc/flame_overlay(form, size, hot, lean, turf/where)
+/proc/flame_overlay(form, size, hot, lean, turf/where, blown = FALSE)
 	var/static/list/made = list()
 	var/kind = flame_kind(where)
-	var/key = "[form][size][hot][lean]-[kind]"
+	var/key = "[form][size][hot][lean][blown]-[kind]"
 	if(made[key])
 		return made[key]
 	var/static/list/sheets = list("inner" = 'icons/effects/flame_gas_inner.dmi', "edge" = 'icons/effects/flame_gas.dmi', "climb" = 'icons/effects/flame_gas_climb.dmi')
-	// A big fire's inner flames run along the ceiling, so they have a wider sheet of their own
-	var/rolling = (form == "inner" && size == 3)
-	var/mutable_appearance/flames = mutable_appearance(rolling ? 'icons/effects/flame_gas_inner3.dmi' : sheets[form], "[form][size][hot ? "h" : ""]-[kind % FLAME_KINDS][lean ? "r" : ""]", plane = FIRE_PLANE)
+	var/mutable_appearance/flames
+	if(blown)
+		// Flames streaming out in a strong wind have a wide sheet of their own, 128 across with the tile in the middle
+		flames = mutable_appearance('icons/effects/flame_gas_blown.dmi', "[form][size][hot ? "h" : ""]-[kind % FLAME_KINDS]w", plane = FIRE_PLANE)
+		flames.pixel_x = -48
+	else
+		// A big fire's inner flames run along the ceiling, so they have a wider sheet of their own
+		var/rolling = (form == "inner" && size == 3)
+		flames = mutable_appearance(rolling ? 'icons/effects/flame_gas_inner3.dmi' : sheets[form], "[form][size][hot ? "h" : ""]-[kind % FLAME_KINDS][lean ? "r" : ""]", plane = FIRE_PLANE)
+		flames.pixel_x = rolling ? -32 : -16
 	// Every sheet has the tile in the middle across, 16 pixels up from its bottom
-	flames.pixel_x = rolling ? -32 : -16
 	flames.pixel_y = -16
 	// Leaning flames are drawn leaning east; mirrored they lean west. The others are mirrored for half the turfs.
 	if(lean ? (lean < 0) : (kind >= FLAME_KINDS))
@@ -451,6 +517,48 @@
 	made[key] = heat
 	return heat
 
+/// The burst of a fire catching, played once
+/proc/flame_flare_overlay(turf/where)
+	var/static/list/made = list()
+	var/kind = flame_kind(where)
+	if(made["[kind]"])
+		return made["[kind]"]
+	var/mutable_appearance/flare = mutable_appearance('icons/effects/flame_ignite.dmi', "ignite-[kind % FLAME_KINDS]", plane = FIRE_PLANE)
+	flare.pixel_x = -16
+	flare.pixel_y = -16
+	if(kind >= FLAME_KINDS)
+		flare.transform = matrix(-1, 0, 0, 0, 1, 0)
+	flare.appearance_flags = KEEP_APART | PIXEL_SCALE
+	made["[kind]"] = flare
+	return flare
+
+/// The embers a fire leaves, cooling and winking out once
+/proc/flame_embers_overlay(size)
+	var/static/list/made = list()
+	if(made["[size]"])
+		return made["[size]"]
+	var/mutable_appearance/embers = mutable_appearance('icons/effects/flame_embers.dmi', "embers[size]", plane = FIRE_PLANE)
+	embers.pixel_x = -16
+	embers.pixel_y = -16
+	embers.appearance_flags = KEEP_APART | PIXEL_SCALE
+	made["[size]"] = embers
+	return embers
+
+/// The last wisp of smoke off a fire going out, played once. Drawn on the game like the smoke, so the room's light falls on it.
+/proc/flame_wisp_overlay(turf/where)
+	var/static/list/made = list()
+	var/kind = flame_kind(where)
+	if(made["[kind]"])
+		return made["[kind]"]
+	var/mutable_appearance/wisp = mutable_appearance('icons/effects/flame_smoke.dmi', "wisp-[kind % FLAME_KINDS]", MASSIVE_OBJ_LAYER + 0.1, GAME_PLANE)
+	wisp.pixel_x = -16
+	wisp.pixel_y = -16
+	if(kind >= FLAME_KINDS)
+		wisp.transform = matrix(-1, 0, 0, 0, 1, 0)
+	wisp.appearance_flags = KEEP_APART | PIXEL_SCALE
+	made["[kind]"] = wisp
+	return wisp
+
 /// The smoke over the back edge of a fire. It is drawn on the game, under the lighting, so it is as dark as the room and lit by the fire.
 /proc/flame_smoke_overlay(size, turf/where)
 	var/static/list/made = list()
@@ -478,3 +586,10 @@
 #undef FLAME_REDRAW_GAP
 #undef FLAME_FADE
 #undef FLAME_DIE
+#undef FLAME_EMBERS
+#undef FLAME_FLARE
+#undef FLAME_WIND_SMOOTHING
+#undef FLAME_WIND_LEAN
+#undef FLAME_WIND_LEAN_END
+#undef FLAME_WIND_BLOWN
+#undef FLAME_WIND_BLOWN_END
