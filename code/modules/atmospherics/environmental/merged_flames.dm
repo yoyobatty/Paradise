@@ -1,33 +1,29 @@
-// Fires drawn as burning gas: thin see-through flames that sway, pinch off and rise away, joining up with the fires
-// round them. The animations are worked out ahead of time (tools/shift_bench/make_gas_fire.py, local), so a fire is
-// one animated overlay and costs the client about what the old sprite did.
+// Fires drawn as a room fire: big ragged tongues of flame that rise, break into wisps and join their neighbours'.
+// The flames are sprites baked from a small fire simulation (the classic demo fire: heat rises, drifts and cools), so a
+// burning tile is one animated look and nothing is sent per frame.
 //
-// A fire pushes up and out the way a real one does. Each burning tile looks at what is round it:
-// - fire on all four sides: a churning bed of flame under the low flames, so the middle of a big fire burns as one
-//   sheet ("bed"). Every burning tile draws its piece of one texture on a hidden plane, and the tiles deep in a fire
-//   draw soft blobs on another; the fire plane shows the texture through the blobs, so the bed has no seams and fades
-//   out softly where the fire thins.
-// - fire behind it (north): low, fat flames that run into the fires round it ("inner")
+// Each burning tile looks at what is round it:
+// - fire behind it (north): flames that run into the fire behind ("inner"). With fire on all four sides it also shows
+//   its piece of a bed of flame ("bed"): every burning tile draws its piece of one texture on a hidden plane, and the
+//   tiles deep in a fire draw soft blobs on another; the fire plane shows the texture through the blobs, so the bed has
+//   no seams and fades out softly where the fire thins.
 // - a wall or something solid behind it: flames that run up its face ("climb")
-// - open behind it: the back edge of the fire in the station's three-quarter view, tall tongues and smoke ("edge").
-//   The deeper the fire in front of it, the bigger it is drawn, so a big fire has a wall of flame along its back.
-// - open air to one side only: its flames lean out into it.
-// - a big fire: its flames reach the ceiling and spread across it, each one flame that rises, turns over and runs on.
-//   The station's three-quarter view has no ceiling to see, but it would be a little under a tile up the screen. They
-//   spread every way across it, so the rows of a big fire join into one rolling sheet.
+// - open behind it: the back edge of the fire in the station's three-quarter view, the tallest flames, with smoke
+//   ("edge"). The deeper the fire in front of it, the bigger it is drawn, so a big fire has a wall of flame at its back.
+// - open air to one side only: its flames lean out into it. A wind leans them its way, and a strong one streams them out.
+// A fire's size follows how much it burns or how hot it is, whichever is bigger, and above 5000 K it burns paler.
+// A fire that catches leaps up in a short burst; one that goes out leaves embers that cool and wink out, and a wisp of
+// smoke. Its light is warm firelight, further and brighter for bigger flames.
 // Fires are drawn on a plane of their own. That picture is laid over the lit game, and a blurred copy of it is added
 // round it as the light the flames throw; it flickers. No bloom: BYOND's bloom drew a hard orange outline round the
-// flames.
-// The hot air over a middling or big fire shimmers: soft blobs on the plane the game's own warp reads, so walls,
-// floors and people ripple above it at no extra drawing cost. Both are cut down to where the lighting is not pitch black: being over the
-// lighting, they would show behind walls and in the dark round a fire, where the lighting hides everything else. A
-// burning tile is lit by its own fire, so its flames stay. Viewers who see in the dark see them all.
-// A fire that catches leaps up in a short burst; one that goes out leaves embers that cool and wink out, and a wisp
-// of smoke. A wind leans the flames its way, and a strong one streams them out sideways.
-// A slow noise scrolling up the screen pushes the whole picture about, so a
-// big fire surges as one. The glow and the surge are both whole-screen passes, so players can turn them off.
+// flames. The hot air over a middling or big fire shimmers: soft blobs on the plane the game's own warp reads, so walls,
+// floors and people ripple above it at no extra drawing cost. Both are cut down to where the lighting is not pitch
+// black: being over the lighting, they would show behind walls and in the dark round a fire, where the lighting hides
+// everything else. A burning tile is lit by its own fire, so its flames stay. Viewers who see in the dark see them all.
+// A slow noise scrolling up the screen pushes the whole picture about, so a big fire surges as one. The glow and the
+// surge are both whole-screen passes, so players can turn them off (Fancy fire).
 
-/// How many different fires of each form and size there are. A turf always shows the same one, mirrored for half of them.
+/// How many different kinds of smoke and heat shimmer there are. A turf always shows the same one, mirrored for half of them.
 #define FLAME_KINDS 3
 /// How many different flame shapes the simulated flames have, the same way
 #define FLAME_SHAPES 5
@@ -36,7 +32,7 @@
 #define FLAME_MID_HEAT_END 800
 #define FLAME_BIG_HEAT 2200
 #define FLAME_BIG_HEAT_END 1800
-/// A fire burns paler with a blue root above this, and goes back below FLAME_HOT_END. The gap stops a fire flicking between the two.
+/// A fire burns paler and whiter above this, and goes back below FLAME_HOT_END. The gap stops a fire flicking between the two.
 #define FLAME_HOT_START 5000
 #define FLAME_HOT_END 4500
 /// How far the light round the flames is blurred, and how strong it is (0 to 255)
@@ -145,8 +141,8 @@
 	// Taken out from behind the flames, so it is light round them, not a blurred copy showing through them that makes
 	// them look out of focus
 	add_filter("behind", 5, alpha_mask_filter(render_source = FIRE_RENDER_TARGET, flags = MASK_INVERSE))
-	// It flickers, unevenly. On the alpha, not a filter, as rebuilding the filters would start it over.
-	// Firelight pulses: the walls and floor round a fire brighten and dim with it
+	// Firelight pulses: the walls and floor round a fire brighten and dim with it, unevenly. On the alpha, not a
+	// filter, as rebuilding the filters would start it over.
 	animate(src, alpha = FLAME_GLOW_ALPHA + 40, time = 3, loop = -1, easing = SINE_EASING)
 	animate(alpha = FLAME_GLOW_ALPHA - 50, time = 4, easing = SINE_EASING)
 	animate(alpha = FLAME_GLOW_ALPHA + 25, time = 2, easing = SINE_EASING)
@@ -486,8 +482,8 @@
 	var/key = "[form][size][hot][lean][blown]-[kind]"
 	if(made[key])
 		return made[key]
-	// The flames come from a small fire simulation, one sheet a size (they differ in height): see
-	// tools/shift_bench/make_room_fire.py. Leaning ones lean east, streaming ones stream east in a strong wind.
+	// Baked from a small fire simulation, one sheet a size, as they differ in height. Leaning ones lean east,
+	// streaming ones stream east in a strong wind.
 	var/static/list/sheets = list('icons/effects/flame_room1.dmi', 'icons/effects/flame_room2.dmi', 'icons/effects/flame_room3.dmi')
 	var/mutable_appearance/flames = mutable_appearance(sheets[size], "[form]-[kind % FLAME_SHAPES][blown ? "w" : (lean ? "r" : "")]", plane = FIRE_PLANE)
 	// Every sheet is 96 across with the tile in the middle, and the tile's middle 24 up from its bottom
