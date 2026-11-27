@@ -527,16 +527,16 @@
 	made[key] = heat
 	return heat
 
-/// The burst of a fire catching, played once
+/// The burst of a fire catching, played once: from the same fire simulation as the flames, on the big sheet
 /proc/flame_flare_overlay(turf/where)
 	var/static/list/made = list()
-	var/kind = flame_kind(where)
+	var/kind = flame_shape(where)
 	if(made["[kind]"])
 		return made["[kind]"]
-	var/mutable_appearance/flare = mutable_appearance('icons/effects/flame_ignite.dmi', "ignite-[kind % FLAME_KINDS]", plane = FIRE_PLANE)
-	flare.pixel_x = -16
-	flare.pixel_y = -16
-	if(kind >= FLAME_KINDS)
+	var/mutable_appearance/flare = mutable_appearance('icons/effects/flame_room3.dmi', "ignite-[kind % FLAME_SHAPES]", plane = FIRE_PLANE)
+	flare.pixel_x = -32
+	flare.pixel_y = -8
+	if(kind >= FLAME_SHAPES)
 		flare.transform = matrix(-1, 0, 0, 0, 1, 0)
 	flare.appearance_flags = KEEP_APART | PIXEL_SCALE
 	made["[kind]"] = flare
