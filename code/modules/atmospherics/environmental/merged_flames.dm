@@ -29,6 +29,13 @@
 
 /// How many different fires of each form and size there are. A turf always shows the same one, mirrored for half of them.
 #define FLAME_KINDS 3
+/// How many different flame shapes the simulated flames have, the same way
+#define FLAME_SHAPES 5
+/// How hot a fire must be for middling and big flames, and how cool it gets before they drop back
+#define FLAME_MID_HEAT 1000
+#define FLAME_MID_HEAT_END 800
+#define FLAME_BIG_HEAT 2200
+#define FLAME_BIG_HEAT_END 1800
 /// A fire burns paler with a blue root above this, and goes back below FLAME_HOT_END. The gap stops a fire flicking between the two.
 #define FLAME_HOT_START 5000
 #define FLAME_HOT_END 4500
@@ -270,15 +277,14 @@
 	// Not TILE_BOUND: the flames reach over the tiles round their own, and show while any of those are on screen
 	appearance_flags = PIXEL_SCALE
 
-/// Sets our size from how much fuel we burnt. A size is only left again well past the line it was reached at, so a
-/// fire burning right on a line doesn't flick between two sizes.
+/// Sets our size from how much fuel we burnt or how hot we are, whichever makes us bigger. The air spreads a fire's
+/// burning thin: most tiles of a room well alight burn under a hundredth of a mole a tick, but burn at 1000 to 5000 K.
+/// A size is only left again well past the line it was reached at, so a fire right on a line doesn't flick between two.
 /obj/effect/hotspot/proc/set_flame_fuel(fuel)
-	// Most tiles of a real fire burn only a little each tick, so the bigger flames come early: a room well alight
-	// stands tall, not a scatter of small fires
 	var/size = 1
-	if(fuel > 0.25 || (flame_size == 3 && fuel > 0.15))
+	if(fuel > 0.25 || temperature > FLAME_BIG_HEAT || (flame_size == 3 && (fuel > 0.15 || temperature > FLAME_BIG_HEAT_END)))
 		size = 3
-	else if(fuel > 0.03 || (flame_size >= 2 && fuel > 0.02))
+	else if(fuel > 0.03 || temperature > FLAME_MID_HEAT || (flame_size >= 2 && (fuel > 0.02 || temperature > FLAME_MID_HEAT_END)))
 		size = 2
 	set_flame_size(size)
 
@@ -446,6 +452,11 @@
 /// What a fire that went out leaves on its turf for a moment
 /obj/effect/abstract/flame_layer/embers
 
+/// Which of the flame shapes a turf shows, 0 to FLAME_SHAPES * 2 - 1, the top half mirrored. Its own mix of x and y,
+/// so it doesn't line up with flame_kind()'s.
+/proc/flame_shape(turf/where)
+	return ((where.x * 7919 + where.y * 4271) % 1013 * 5 + where.x * where.y * 3) % (FLAME_SHAPES * 2)
+
 /// Which of the fires a turf shows, 0 to FLAME_KINDS * 2 - 1, the top half mirrored.
 /// Not x and y times numbers mod a power of two, which repeat every few tiles in a lattice you can see.
 /proc/flame_kind(turf/where)
@@ -455,19 +466,19 @@
 
 /proc/flame_overlay(form, size, hot, lean, turf/where, blown = FALSE)
 	var/static/list/made = list()
-	var/kind = flame_kind(where)
+	var/kind = flame_shape(where)
 	var/key = "[form][size][hot][lean][blown]-[kind]"
 	if(made[key])
 		return made[key]
 	// The flames come from a small fire simulation, one sheet a size (they differ in height): see
 	// tools/shift_bench/make_room_fire.py. Leaning ones lean east, streaming ones stream east in a strong wind.
 	var/static/list/sheets = list('icons/effects/flame_room1.dmi', 'icons/effects/flame_room2.dmi', 'icons/effects/flame_room3.dmi')
-	var/mutable_appearance/flames = mutable_appearance(sheets[size], "[form]-[kind % FLAME_KINDS][blown ? "w" : (lean ? "r" : "")]", plane = FIRE_PLANE)
+	var/mutable_appearance/flames = mutable_appearance(sheets[size], "[form]-[kind % FLAME_SHAPES][blown ? "w" : (lean ? "r" : "")]", plane = FIRE_PLANE)
 	// Every sheet is 96 across with the tile in the middle, and the tile's middle 24 up from its bottom
 	flames.pixel_x = -32
 	flames.pixel_y = -8
 	// Leaning flames are drawn leaning east; mirrored they lean west. The others are mirrored for half the turfs.
-	if(lean ? (lean < 0) : (kind >= FLAME_KINDS))
+	if(lean ? (lean < 0) : (kind >= FLAME_SHAPES))
 		flames.transform = matrix(-1, 0, 0, 0, 1, 0)
 	// A hot fire burns paler: more yellow-white, its cool tips orange rather than red
 	if(hot)
@@ -585,6 +596,11 @@
 #undef FLAME_REDRAW_GAP
 #undef FLAME_FADE
 #undef FLAME_DIE
+#undef FLAME_SHAPES
+#undef FLAME_MID_HEAT
+#undef FLAME_MID_HEAT_END
+#undef FLAME_BIG_HEAT
+#undef FLAME_BIG_HEAT_END
 #undef FLAME_EMBERS
 #undef FLAME_FLARE
 #undef FLAME_WIND_SMOOTHING
