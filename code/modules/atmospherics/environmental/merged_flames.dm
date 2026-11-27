@@ -273,10 +273,12 @@
 /// Sets our size from how much fuel we burnt. A size is only left again well past the line it was reached at, so a
 /// fire burning right on a line doesn't flick between two sizes.
 /obj/effect/hotspot/proc/set_flame_fuel(fuel)
+	// Most tiles of a real fire burn only a little each tick, so the bigger flames come early: a room well alight
+	// stands tall, not a scatter of small fires
 	var/size = 1
-	if(fuel > 1 || (flame_size == 3 && fuel > 0.6))
+	if(fuel > 0.25 || (flame_size == 3 && fuel > 0.15))
 		size = 3
-	else if(fuel > 0.1 || (flame_size >= 2 && fuel > 0.06))
+	else if(fuel > 0.03 || (flame_size >= 2 && fuel > 0.02))
 		size = 2
 	set_flame_size(size)
 
@@ -457,22 +459,19 @@
 	var/key = "[form][size][hot][lean][blown]-[kind]"
 	if(made[key])
 		return made[key]
-	var/static/list/sheets = list("inner" = 'icons/effects/flame_gas_inner.dmi', "edge" = 'icons/effects/flame_gas.dmi', "climb" = 'icons/effects/flame_gas_climb.dmi')
-	var/mutable_appearance/flames
-	if(blown)
-		// Flames streaming out in a strong wind have a wide sheet of their own, 128 across with the tile in the middle
-		flames = mutable_appearance('icons/effects/flame_gas_blown.dmi', "[form][size][hot ? "h" : ""]-[kind % FLAME_KINDS]w", plane = FIRE_PLANE)
-		flames.pixel_x = -48
-	else
-		// A big fire's inner flames run along the ceiling, so they have a wider sheet of their own
-		var/rolling = (form == "inner" && size == 3)
-		flames = mutable_appearance(rolling ? 'icons/effects/flame_gas_inner3.dmi' : sheets[form], "[form][size][hot ? "h" : ""]-[kind % FLAME_KINDS][lean ? "r" : ""]", plane = FIRE_PLANE)
-		flames.pixel_x = rolling ? -32 : -16
-	// Every sheet has the tile in the middle across, 16 pixels up from its bottom
-	flames.pixel_y = -16
+	// The flames come from a small fire simulation, one sheet a size (they differ in height): see
+	// tools/shift_bench/make_room_fire.py. Leaning ones lean east, streaming ones stream east in a strong wind.
+	var/static/list/sheets = list('icons/effects/flame_room1.dmi', 'icons/effects/flame_room2.dmi', 'icons/effects/flame_room3.dmi')
+	var/mutable_appearance/flames = mutable_appearance(sheets[size], "[form]-[kind % FLAME_KINDS][blown ? "w" : (lean ? "r" : "")]", plane = FIRE_PLANE)
+	// Every sheet is 96 across with the tile in the middle, and the tile's middle 24 up from its bottom
+	flames.pixel_x = -32
+	flames.pixel_y = -8
 	// Leaning flames are drawn leaning east; mirrored they lean west. The others are mirrored for half the turfs.
 	if(lean ? (lean < 0) : (kind >= FLAME_KINDS))
 		flames.transform = matrix(-1, 0, 0, 0, 1, 0)
+	// A hot fire burns paler: more yellow-white, its cool tips orange rather than red
+	if(hot)
+		flames.color = list(1, 0, 0, 0, 0.8, 0, 0, 0, 0.65, 0, 0.2, 0.3)
 	flames.appearance_flags = KEEP_APART | PIXEL_SCALE
 	made[key] = flames
 	return flames
