@@ -55,6 +55,7 @@
 		far_thing.setup(index)
 		. += far_thing
 	. += new /atom/movable/screen/parallax_layer/body/planet
+	. += new /atom/movable/screen/parallax_layer/flybys
 	if(asteroids)
 		. += new /atom/movable/screen/parallax_layer/asteroids
 	. += new /atom/movable/screen/parallax_layer/dust

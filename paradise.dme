@@ -313,6 +313,7 @@
 #include "code\_onclick\hud\screen_objects.dm"
 #include "code\_onclick\hud\screentip.dm"
 #include "code\_onclick\hud\sky.dm"
+#include "code\_onclick\hud\sky_events.dm"
 #include "code\_onclick\hud\sky_themes.dm"
 #include "code\_onclick\hud\slime_hud.dm"
 #include "code\controllers\controller.dm"
