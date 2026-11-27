@@ -116,7 +116,7 @@
 		T.ChangeTurf(turfs_before[T])
 	TEST_ASSERT(QDELETED(waves), "a pool's waves outlived its last tile")
 
-	// The water and lava effects go off for a player with none nearby, and come back on
+	// The water effects go off for a player with none nearby, and come back on
 	for(var/master_type in subtypesof(/atom/movable/screen/plane_master))
 		var/atom/movable/screen/plane_master/master = new master_type
 		if(master.water_effect)

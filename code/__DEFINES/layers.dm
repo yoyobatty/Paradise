@@ -22,13 +22,6 @@
 /// world plane is moved by it
 #define WATER_REFRACT_PLANE -24
 #define WATER_REFRACT_RENDER_TARGET "*WATER_REFRACT_RENDER_TARGET"
-/// The bright molten part of lava, in its own colours. Never shown here: blurred, and added over the lighting by the
-/// above lighting plane, so lava blooms past its edges
-#define LAVA_GLOW_PLANE -23
-#define LAVA_GLOW_RENDER_TARGET "*LAVA_GLOW_RENDER_TARGET"
-/// How strong lava's wide glow is at its faintest and its strongest, as it breathes, out of 255
-#define LAVA_GLOW_WIDE_LOW 90
-#define LAVA_GLOW_WIDE_HIGH 150
 /// Which way the water's surface slopes: a normal map, made of a pool's layers of waves, the rings of waves from
 /// anything touching it and the wakes of anyone moving through it. Never shown: the pool floor, the reflections and the
 /// foam are moved by it, so they bend under the waves, and the relief planes light the waves by it

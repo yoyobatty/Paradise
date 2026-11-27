@@ -433,24 +433,24 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 
 // MARK: Effects only near water
 
-/// How many tiles across a chunk of the map is, for finding water and lava near a player
+/// How many tiles across a chunk of the map is, for finding water near a player
 #define WATER_EFFECT_CHUNK 16
 
-/// Chunks of the map with water or lava in them, "z:x:y" = how many tiles of it
+/// Chunks of the map with water in them, "z:x:y" = how many tiles of it
 GLOBAL_LIST_EMPTY(water_effect_chunks)
 GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 
 /proc/water_effect_chunk_key(turf/T)
 	return "[T.z]:[round(T.x / WATER_EFFECT_CHUNK)]:[round(T.y / WATER_EFFECT_CHUNK)]"
 
-/// A tile of water or lava was made, so players near it get the water and lava effects
+/// A tile of water was made, so players near it get the water effects
 /proc/add_water_effect_tile(turf/T)
 	var/key = water_effect_chunk_key(T)
 	GLOB.water_effect_chunks[key] += 1
 	if(!GLOB.water_effects_watcher)
 		GLOB.water_effects_watcher = new
 
-/// A tile of water or lava is gone
+/// A tile of water is gone
 /proc/remove_water_effect_tile(turf/T)
 	var/key = water_effect_chunk_key(T)
 	var/left = GLOB.water_effect_chunks[key] - 1
@@ -459,7 +459,7 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 	else
 		GLOB.water_effect_chunks -= key
 
-/// Is there water or lava in the chunk `T` is in, or one next to it? That reaches past a player's screen
+/// Is there water in the chunk `T` is in, or one next to it? That reaches past a player's screen
 /proc/water_effects_near(turf/T)
 	var/cx = round(T.x / WATER_EFFECT_CHUNK)
 	var/cy = round(T.y / WATER_EFFECT_CHUNK)
@@ -470,9 +470,9 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 	return FALSE
 
 /**
- * Turns the water and lava effects on for players with water or lava nearby, and off for everyone else.
+ * Turns the water effects on for players with water nearby, and off for everyone else.
  *
- * The reflections, the light on the waves, the glints and the lava's bloom are full screen passes that run every
+ * The reflections, the light on the waves and the glints are full screen passes that run every
  * frame whether there's any water on screen or not, and so is every plane master on the screen. Most players are
  * nowhere near any water, so for them the passes are turned off and the water's shown planes taken off the screen.
  * A chunk next to the player's counts as near, so it's all back before any water comes into view.
@@ -515,7 +515,7 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 	if(lighting_master)
 		lighting_master.render_target = on ? LIGHTING_PLANE_RENDER_TARGET : null
 
-/// Takes the water planes that are shown off the player's screen. Nothing is on them with no water or lava nearby,
+/// Takes the water planes that are shown off the player's screen. Nothing is on them with no water nearby,
 /// and each plane master on screen costs a pass over the whole screen every frame
 /datum/hud/proc/remove_water_planes()
 	var/client/viewer = mymob?.client

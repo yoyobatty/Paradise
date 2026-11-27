@@ -5,24 +5,24 @@
 	blend_mode = BLEND_OVERLAY
 	var/show_alpha = 255
 	var/hide_alpha = 0
-	/// Are this plane's filters part of the water and lava effects, which are off for players with none nearby?
+	/// Are this plane's filters part of the water effects, which are off for players with none nearby?
 	var/water_effect = FALSE
 	/// Is the plane only drawn for those effects, so it's hidden too while they're off?
 	var/water_effect_only = FALSE
 	/// Is this a shown plane that's taken off the player's screen while the effects are off? Each plane master on
 	/// screen is a pass over the whole screen every frame, even with nothing on it
 	var/water_effect_removable = FALSE
-	/// Are the water and lava effects off for this player right now?
+	/// Are the water effects off for this player right now?
 	var/water_effects_off = FALSE
 
-// While the water and lava effects are off, nothing puts their filters back
+// While the water effects are off, nothing puts their filters back
 /atom/movable/screen/plane_master/update_filters()
 	if(water_effects_off)
 		filters = null
 		return
 	return ..()
 
-/// Turns this plane's part of the water and lava effects on or off, see /datum/water_effects_watcher
+/// Turns this plane's part of the water effects on or off, see /datum/water_effects_watcher
 /atom/movable/screen/plane_master/proc/set_water_effects(on)
 	water_effects_off = !on
 	update_filters()
@@ -50,38 +50,6 @@
 	plane = WATER_MASK_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	render_target = WATER_MASK_RENDER_TARGET
-
-/atom/movable/screen/plane_master/lava_glow
-	name = "lava glow plane master"
-	plane = LAVA_GLOW_PLANE
-	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	render_target = LAVA_GLOW_RENDER_TARGET
-	water_effect = TRUE
-	water_effect_only = TRUE
-
-/atom/movable/screen/plane_master/lava_glow/Initialize(mapload)
-	. = ..()
-	// A bright halo round the molten rock in its own colours, the way an emissive blooms: strongest at the rock's edge
-	// and fading out over a few pixels onto the crust and the floor round it
-	add_filter("bloom", 1, bloom_filter(threshold = "#000000", size = 3, offset = 2, alpha = 220))
-	// And a wider, fainter glow round that, which breathes (see update_filters())
-	add_filter("bloom_wide", 2, bloom_filter(threshold = "#000000", size = 10, offset = 1, alpha = LAVA_GLOW_WIDE_LOW))
-	// Only the halo is added. The molten rock itself is already at full brightness, it's on the emissive plane
-	add_filter("not_over_lava", 3, alpha_mask_filter(render_source = EMISSIVE_RENDER_TARGET, flags = MASK_INVERSE))
-	// And not over anything standing in or beside the lava
-	add_filter("not_over_things", 4, alpha_mask_filter(render_source = GAME_PLANE_RENDER_TARGET, flags = MASK_INVERSE))
-
-// The wide glow swells and fades slowly, like heat. Making the filters again stops that, so it's started again here
-/atom/movable/screen/plane_master/lava_glow/update_filters()
-	. = ..()
-	// With the effects off it has no filters to look for
-	if(water_effects_off)
-		return
-	var/wide_glow = get_filter("bloom_wide")
-	if(!wide_glow)
-		return
-	animate(wide_glow, alpha = LAVA_GLOW_WIDE_HIGH, time = 2.2 SECONDS, loop = -1, easing = SINE_EASING)
-	animate(alpha = LAVA_GLOW_WIDE_LOW, time = 2.2 SECONDS, easing = SINE_EASING)
 
 /atom/movable/screen/plane_master/water_ripple
 	name = "water ripple plane master"
@@ -331,7 +299,7 @@
 	// The brightest glow a little
 	add_filter("glint_bloom", 7, bloom_filter(threshold = "#D0D0D0", size = 2, offset = 0, alpha = 120))
 
-/// Things drawn over the lighting, like welding sparks and tracers. Water glints and the bloom of lava are added here too
+/// Things drawn over the lighting, like welding sparks and tracers. Water glints are added here too
 /atom/movable/screen/plane_master/above_lighting
 	name = "above lighting plane master"
 	plane = ABOVE_LIGHTING_PLANE
@@ -343,8 +311,6 @@
 /atom/movable/screen/plane_master/above_lighting/Initialize(mapload)
 	. = ..()
 	add_filter("water_glints", 1, layering_filter(render_source = WATER_SPECULAR_RENDER_TARGET, blend_mode = BLEND_ADD))
-	// And lava blooming past its edges
-	add_filter("lava_bloom", 2, layering_filter(render_source = LAVA_GLOW_RENDER_TARGET, blend_mode = BLEND_ADD))
 
 /atom/movable/screen/plane_master/water_edge_band
 	name = "water edge band plane master"
