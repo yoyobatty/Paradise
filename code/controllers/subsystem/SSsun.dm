@@ -22,6 +22,7 @@ SUBSYSTEM_DEF(sun)
 	// Solar consoles need to load after machines init, so this handles that
 	for(var/obj/machinery/power/solar_control/SC in solars)
 		SC.setup()
+	SSparallax.sun_moved()
 
 
 /datum/controller/subsystem/sun/get_stat_details()
@@ -50,3 +51,4 @@ SUBSYSTEM_DEF(sun)
 			solars.Remove(SC)
 			continue
 		SC.update()
+	SSparallax.sun_moved()

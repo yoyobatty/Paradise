@@ -205,10 +205,18 @@
 	var/parallax_throttle = 0
 	/// The direction parallax will be moved it. References parallax_move_direction on areas
 	var/parallax_movedir = 0
-	/// The amount of parallax layers that will exist on your screen. Affected by the parallax preference
-	var/parallax_layers_max = 4
-	/// Handles how parallax loops in situations like shuttles leaving. Stores the timer that handles that
-	var/parallax_animate_timer
+	/// The Parallax pref in use: a layer shows if this is at least its detail
+	var/parallax_detail = PARALLAX_HIGH
+	/// world.time until which parallax doesn't glide, while layers wind down from a shuttle flight
+	var/dont_animate_parallax = 0
+	/// Layer to the timer that starts its flight loop once it's up to speed
+	var/list/parallax_animate_timers
+	/// The sky theme the cached layers were made for
+	var/datum/sky_theme/parallax_theme
+	/// The one sky object on screen: the layers are drawn through its vis_contents
+	var/atom/movable/screen/parallax_home/parallax_home
+	/// While a shuttle flies, the angle the sky is held at; null otherwise
+	var/parallax_snapped
 	/// Used with the camera console to clear out the screen objects it adds to the client when the console is deleted
 	var/list/screen_maps = list()
 
