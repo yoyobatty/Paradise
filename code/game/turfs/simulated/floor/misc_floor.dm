@@ -112,21 +112,19 @@
 	clawfootstep = FOOTSTEP_WATER
 	heavyfootstep = FOOTSTEP_WATER
 	canSmoothWith = list(SMOOTH_GROUP_BEACH)
-	/// Which colours the pool is drawn in: "pool" for plain water, "deep" for water mapped as "seadeep".
-	/// Null for water a mapper gave any other look, which keeps its sprite and has no edges.
+	/// Pool colours: "pool" for "water" turfs, "deep" for "seadeep", null for others, which keep their sprite
 	var/water_look
-	/// What the water's edge looks like where it meets land. Mappers can set it to "coping" (a swimming pool),
-	/// "deck" (a metal pool deck), "rock" or "sand". The pool's bottom goes with it: tiles, tiles, pebbles, sand.
+	/// The pool's edge for mappers: "coping", "deck", "rock" or "sand". Each has its own pool floor
 	var/edge_style = "coping"
 	/// Which of the edge style's three versions this tile draws, so a long edge doesn't repeat
 	var/edge_variant = 1
-	/// The surface and reflection mask for the edges the water has now, so they can be swapped when its edges change
+	/// The surface, reflection mask and near edge for the current edges, swapped when they change
 	var/list/pool_edge_overlays
 	/// The darkening for how far the tile is from dry land, swapped when land nearby changes
 	var/mutable_appearance/pool_depth_underlay
-	/// The light on the pool floor this tile has on now
+	/// The light on the pool floor, swapped when the depth changes
 	var/mutable_appearance/pool_caustics
-	/// The waves of the pool this tile is part of: how rough it is and what its wave machine is doing
+	/// The waves of the pool this tile is part of
 	var/datum/pool_waves/waves
 
 /turf/simulated/floor/beach/water/Initialize(mapload)
@@ -156,10 +154,10 @@
 	setup_pool_look()
 	make_reflective(FALSE, FALSE)
 	join_pool_waves()
-	// Water dug or built after the map loaded tells the water round it to redraw its edges and depth
+	// Water made after the map loaded makes the water round it redo its edges and depth
 	if(!mapload)
 		resmooth_pool_around()
-		// And anyone already standing here is in it now, and anything lying here is under it
+		// And puts anyone or anything already here in it
 		for(var/mob/living/wader in src)
 			make_waist_deep(wader)
 		for(var/obj/item/sinking in src)
@@ -170,8 +168,7 @@
 	waves?.remove_tile(src)
 	if(water_look)
 		resmooth_pool_around()
-	// Anyone standing here when the water goes isn't in it any more, though they haven't moved. Checked once the turf
-	// has changed
+	// Anyone or anything here is out of the water now, though it didn't move. Checked once the turf has changed
 	for(var/mob/living/wader in src)
 		var/datum/component/pool_submerged/submerged = wader.GetComponent(/datum/component/pool_submerged)
 		if(submerged)
@@ -197,19 +194,15 @@
 // Where a thrown thing comes down
 /turf/simulated/floor/beach/water/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum)
 	. = ..()
-	// A throw can report where it landed twice, so only what isn't sunk yet
+	// A throw can land twice, so skip things already sunk
 	if(isitem(AM) && !AM.GetComponent(/datum/component/pool_sunk))
 		sink_item(AM, splash = TRUE)
 
-/// Things that float on a pool instead of sinking to the bottom of it
+/// Things that float on a pool instead of sinking
 GLOBAL_LIST_INIT(pool_floaters, typecacheof(list(/obj/item/beach_ball, /obj/item/bikehorn/rubberducky)))
 
-/**
- * Puts an item that's in the pool under the water, or afloat on it.
- *
- * With `splash` it has just hit the water from the air or the bank: it throws up droplets, sends rings of waves out
- * from where it went in, and goes under or bobs up. Otherwise it was already in the water and only gets the look.
- */
+/// Puts an item in the pool under the water, or afloat on it.
+/// With `splash` it has just hit the water, so it splashes, sends out rings and goes under or bobs up
 /turf/simulated/floor/beach/water/proc/sink_item(obj/item/sinking, splash = FALSE)
 	if(!water_look || sinking.loc != src)
 		return
@@ -219,7 +212,7 @@ GLOBAL_LIST_INIT(pool_floaters, typecacheof(list(/obj/item/beach_ball, /obj/item
 		in_water = sinking.AddComponent(/datum/component/pool_sunk, water_look, is_type_in_typecache(sinking, GLOB.pool_floaters), splash)
 	if(!splash)
 		return
-	// Where it meets the water, from the middle of the tile. Bigger things make more of a splash
+	// Where it meets the water. Bigger things make more of a splash
 	var/list/meets = in_water.meets_water_at()
 	var/big = sinking.w_class >= WEIGHT_CLASS_BULKY
 	stir_water(big ? 0.12 : 0.06)

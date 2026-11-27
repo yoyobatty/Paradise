@@ -1,4 +1,4 @@
-// The layers of a pool's waves, from the bottom up. Each is drawn over the ones before it
+// The layers of a pool's waves, from the bottom up
 /// The pool's ordinary waves
 #define POOL_WAVE_CHOP "chop"
 /// Small quick ripples on top of them
@@ -8,17 +8,13 @@
 /// The same swell coming back off the far wall, fainter
 #define POOL_WAVE_SWELL_BACK "swell_back"
 
-/// How stirred up a pool has to be, from 0 to 1, before it's worked out again
+/// How close to settled a pool has to get, from 0 to 1, before it stops processing
 #define POOL_WAVES_SETTLED 0.01
 /// How long a pool takes to lose half of what stirred it up
 #define POOL_WAVES_HALF_LIFE (6 SECONDS)
 
-/**
- * One layer of a pool's waves, shared by every tile of the pool that shows this piece of it.
- *
- * The tiles have it in their vis_contents, so fading it calms or roughens the whole pool at once, smoothly, without
- * touching a tile. It's on the hidden ripple plane: nobody sees it, they see what it does to the water.
- */
+/// One piece of a layer of a pool's waves, on the hidden ripple plane.
+/// Shared in the vis_contents of every tile that shows it, so one fade changes the whole pool
 /obj/effect/abstract/pool_wave_layer
 	icon = 'icons/turf/floors/pool_water.dmi'
 	plane = WATER_RIPPLE_PLANE
@@ -28,13 +24,7 @@
 	/// Which of the pool's layers this is a piece of, one of the POOL_WAVE_ layers
 	var/wave_layer
 
-/**
- * The waves of one pool: every tile of water that touches another, however it got its shape.
- *
- * The water's surface is made of layers of waves of different sizes and speeds, drawn one over another. How strongly
- * each is drawn is the pool's state: left alone it's nearly flat, people wading and things falling in stir it up and
- * it settles again, and its wave machine sends a swell down its length that comes back off the far wall.
- */
+/// The waves of one pool of connected water tiles: how stirred up it is and what its wave machine is doing
 /datum/pool_waves
 	/// The pool's tiles
 	var/list/turf/simulated/floor/beach/water/tiles = list()
@@ -44,7 +34,7 @@
 	var/machine = POOL_WAVES_OFF
 	/// The shared pieces of each layer, "[layer]|[icon state]" = /obj/effect/abstract/pool_wave_layer
 	var/list/layer_objects = list()
-	/// Which way the swell runs once the wave machine has been on: "ew" along the pool or "ns" up and down it
+	/// Which way the swell runs, "ew" or "ns", set the first time the wave machine is on
 	var/swell_axis
 
 /datum/pool_waves/Destroy()
@@ -62,7 +52,7 @@
 	tile.waves = src
 	tile.vis_contents += tile_layers(tile)
 
-/// Takes `tile` out of this pool. The last tile out takes the pool's waves with it
+/// Takes `tile` out of this pool, deleting the pool once it has no tiles
 /datum/pool_waves/proc/remove_tile(turf/simulated/floor/beach/water/tile)
 	tile.vis_contents -= tile_layers(tile)
 	tile.waves = null
@@ -70,11 +60,7 @@
 	if(!length(tiles))
 		qdel(src)
 
-/**
- * Two pools that have met become one. The bigger one takes the smaller one's tiles.
- *
- * Returns the pool that's left.
- */
+/// Merges two pools that have met into the bigger one. Returns the pool that's left
 /datum/pool_waves/proc/merge(datum/pool_waves/other)
 	if(other == src)
 		return src
@@ -90,7 +76,7 @@
 		set_machine(other_machine)
 	return src
 
-/// The pieces of the layers `tile` shows: the waves repeat every 2x2 tiles, so which piece depends on where it is
+/// The layer pieces `tile` shows, picked by its place in the 2x2 tile wave pattern
 /datum/pool_waves/proc/tile_layers(turf/simulated/floor/beach/water/tile)
 	// Rows of the sprites count from the top, and y counts up, so odd y is the top row
 	var/quarter = "[tile.x % 2][tile.y % 2 ? 0 : 1]"
@@ -125,7 +111,7 @@
 			piece.layer = TURF_LAYER + 0.03
 		if(POOL_WAVE_SWELL_BACK)
 			piece.layer = TURF_LAYER + 0.04
-			// Flipped to go the other way. Its red (or green) says which way the water slopes, and that flips too
+			// Flipped to run the other way, with its slope colour (red or green) flipped to match
 			if(swell_axis == "ew")
 				piece.transform = matrix(-1, 0, 0, 0, 1, 0)
 				piece.color = list(-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0)
@@ -135,7 +121,7 @@
 	layer_objects[key] = piece
 	return piece
 
-/// How stirred up the pool is when nothing is disturbing it: the wave machine keeps it moving
+/// How stirred up the pool stays with nothing disturbing it, from its wave machine
 /datum/pool_waves/proc/rest_energy()
 	switch(machine)
 		if(POOL_WAVES_GENTLE)
@@ -165,13 +151,13 @@
 		if(piece.alpha != new_alpha)
 			animate(piece, alpha = new_alpha, time = time)
 
-/// Something disturbed the water. `amount` is how much, out of 1: a wading step is a few hundredths, jumping in a fifth
+/// Stirs the pool up by `amount`, out of 1. A wading step is 0.03, jumping in is 0.2
 /datum/pool_waves/proc/stir(amount)
 	energy = min(1, energy + amount)
 	update_layers(0.5 SECONDS)
 	START_PROCESSING(SSprocessing, src)
 
-// The water settles, toward flat or toward what the wave machine keeps up
+// Settles the water toward flat, or toward what the wave machine keeps up
 /datum/pool_waves/process(wait)
 	var/rest = rest_energy()
 	energy = rest + (energy - rest) * 0.5 ** (wait / POOL_WAVES_HALF_LIFE)
@@ -181,7 +167,7 @@
 		return PROCESS_KILL
 	update_layers(wait)
 
-/// Turns the pool's wave machine up, down or off. The first time it's on, the swell is laid along the pool
+/// Sets the pool's wave machine. The first time it's on, the swell is added along the pool
 /datum/pool_waves/proc/set_machine(setting)
 	machine = setting
 	if(setting && !swell_axis)
@@ -195,7 +181,7 @@
 		if(istype(under) && under.waves == src)
 			afloat.bob()
 
-/// Gives the tiles the swell's layers, running the way the pool is longer
+/// Adds the swell's layers to the tiles, running along the pool's longer side
 /datum/pool_waves/proc/add_swell()
 	var/min_x = INFINITY
 	var/max_x = -INFINITY

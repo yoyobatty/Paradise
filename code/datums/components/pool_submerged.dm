@@ -3,14 +3,7 @@
 /// How many rows of a mob standing in a pool are under the water. The water sprites are drawn for this
 #define POOL_WAIST_ROW 13
 
-/**
- * Makes a mob standing in a pool look waist deep.
- *
- * Water is drawn over the mob's own pixels from the waist down, its legs look shorter through the water and bend
- * under the waves, and a ring of water sits round its waist, half behind it and half in front. A mob lying down in
- * the pool is under the water from head to toe instead. Pool water gives this to mobs that walk in, and it takes
- * itself off when they walk out.
- */
+/// Shows a mob in a pool waist deep, or all under if lying down, until it leaves the water
 /datum/component/pool_submerged
 	/// The colours of the pool the mob is in, "pool" or "deep"
 	var/look
@@ -20,7 +13,7 @@
 	var/obj/effect/abstract/waterline/front_ring
 	/// Their shadow on the pool floor
 	var/obj/effect/abstract/waterline/floor_shadow
-	/// Where the waves bend them, on the refraction plane: more the further down their legs, as deeper water does
+	/// Where the waves bend them, on the refraction plane, more toward their feet
 	var/obj/effect/abstract/waterline/refraction
 	/// Their reflection on the water in front of them, from the waist up
 	var/obj/effect/abstract/water_reflection/reflection
@@ -95,7 +88,7 @@
 	else
 		owner.vis_contents |= reflection
 	if(lying)
-		// All of them is under, and there are no legs standing in it to look shorter
+		// Fully under the water, so no leg squash
 		owner.remove_filter("pool_legs_squash")
 		owner.add_filter("pool_submerged", 20, layering_filter(icon = get_pool_filter_icon("sunk_[look]"), blend_mode = BLEND_INSET_OVERLAY))
 		return
@@ -112,17 +105,13 @@
 	if(direction && istype(old_loc, /turf/simulated/floor/beach/water))
 		new /obj/effect/temp_visual/water_wake(old_loc, direction)
 
-/**
- * Keeps the look in step with the water the mob is in. Called when it moves, and when the water under it is drained
- * or changed while it stands still.
- *
- * Returns FALSE, and takes itself off, if the mob isn't in pool water any more.
- */
+/// Matches the look to the water the mob is in, when it moves or the water under it changes.
+/// Returns FALSE, and removes this, if the mob isn't in pool water any more
 /datum/component/pool_submerged/proc/check_water()
 	var/atom/movable/owner = parent
 	var/turf/simulated/floor/beach/water/pool = owner.loc
 	if(!istype(pool) || !pool.water_look)
-		// Out of the water: dripping for a while, and leaving wet footprints if they walked out onto the floor
+		// Out onto the floor: dripping and wet footprints for a while
 		if(isturf(owner.loc))
 			owner.AddComponent(/datum/component/pool_wet)
 		qdel(src)
@@ -131,12 +120,12 @@
 		set_look(pool.water_look)
 	return TRUE
 
-/// One half of the ring of water round a mob's waist, in the mob's vis_contents.
+/// A water sprite drawn with something in the pool, in its vis_contents
 /obj/effect/abstract/waterline
 	icon = 'icons/turf/floors/pool_water.dmi'
 	invisibility = 0
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	// Drawn on the mob's plane, and clicks on it count as clicks on the mob
+	// On its owner's plane, and clicks on it go to its owner
 	vis_flags = VIS_INHERIT_PLANE | VIS_INHERIT_ID
 
 /obj/effect/abstract/waterline/Initialize(mapload, state)

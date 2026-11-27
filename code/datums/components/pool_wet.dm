@@ -1,7 +1,4 @@
-/**
- * Someone who's just climbed out of a pool: they drip for a while and leave wet footprints for their first few steps.
- * Taken off when they dry, or when they get back in.
- */
+/// Drips and wet footprints for a little while after someone climbs out of a pool
 /datum/component/pool_wet
 	/// The drips falling off them
 	var/obj/effect/abstract/particle_holder/drips

@@ -1,20 +1,16 @@
 /// How far a floating thing rises and falls on a calm pool, in pixels
 #define POOL_FLOAT_BOB 2
-/// How much lower a thing on the bottom of a pool is drawn than one on the ground
+/// How many pixels lower a thing on the pool's bottom is drawn
 #define POOL_SUNK_DROP 2
-/// Where the water sprites of a floating thing have their waterline, in rows from the bottom. They're moved to its own
+/// Waterline row of the floater sprites, from the bottom. They're moved to each thing's own waterline
 #define POOL_FLOAT_SPRITE_LINE 16
 
 /// Everything floating on a pool right now, for rings of waves to lift as they pass
 GLOBAL_LIST_EMPTY(pool_things_afloat)
 
-/**
- * Where the water comes up to on a floating thing's sprite, worked out once for each sprite from its shape.
- *
- * It floats with about the bottom third of it under the water. Returns a list: "x" and "y", how far to move the water
- * sprites drawn for a floating thing so they sit on its waterline, and "across", how many pixels wide it is there,
- * rounded up to the even widths the ring round it is drawn in.
- */
+/// Finds a floating thing's waterline, near the bottom of its sprite. Worked out once for each sprite.
+/// Returns "x" and "y", how far to move its water sprites to that line,
+/// and "across", how wide it is there, rounded up to the even widths its ring comes in
 /proc/get_float_line(obj/item/floater)
 	var/static/list/float_lines = list()
 	var/key = "[floater.icon]|[floater.icon_state]"
@@ -55,33 +51,24 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	float_lines[key] = float_line
 	return float_line
 
-/**
- * Puts an item that's in a pool under the water, or afloat on it.
- *
- * Most things sink. The water's colour is drawn over the item's own pixels, the same way it is over the legs of someone
- * standing in the pool, and the waves bend it like they bend the pool floor. A few things float instead: they ride up
- * and down on the water with a ring of it round them, only their underside is under it, and small waves spread out
- * from them. Something that lands in the water from the air goes under, or dips and bobs back up, as it arrives.
- * Pool water gives this to items that land in it, and it takes itself off when they're picked up or moved out.
- */
+/// Shows an item in a pool sunk under the water or floating on it, until it leaves the water
 /datum/component/pool_sunk
 	/// The colours of the pool the item is in, "pool" or "deep"
 	var/look
 	/// Does the item float on the water instead of lying under it?
 	var/floating = FALSE
-	/// Where the item was drawn before the water moved it up, down and sideways
+	/// The item's pixel_z and pixel_w from before it went in the water
 	var/old_pixel_z = 0
 	var/old_pixel_w = 0
-	/// What's drawn with the item while it's in the water: the rings round a floating thing, its shadow, the small
-	/// waves it makes, and where the waves bend it
+	/// Everything in the item's vis_contents while it's in the water
 	var/list/obj/effect/abstract/waterline/parts = list()
 	/// The halves of the ring of water round a floating thing
 	var/list/obj/effect/abstract/waterline/rings = list()
 	/// Where the waves bend the item, on the refraction plane
 	var/obj/effect/abstract/waterline/refraction
-	/// A floating thing's reflection on the water in front of it, of the part of it above the water
+	/// A floating thing's reflection, from its waterline up
 	var/obj/effect/abstract/water_reflection/reflection
-	/// For a floating thing, where the water comes up to on its sprite. See get_float_line()
+	/// A floating thing's waterline, see get_float_line()
 	var/list/float_line
 
 /datum/component/pool_sunk/Initialize(look, floating = FALSE, landing = FALSE)
@@ -129,7 +116,7 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 /datum/component/pool_sunk/UnregisterFromParent()
 	UnregisterSignal(parent, COMSIG_MOVABLE_MOVED)
 
-/// Makes one of the things drawn with the item. On the item's own plane, unless it's given another
+/// Adds a sprite drawn with the item, on the item's plane unless given another
 /datum/component/pool_sunk/proc/add_part(state, plane)
 	var/obj/effect/abstract/waterline/part = new(null, state)
 	if(plane)
@@ -138,12 +125,12 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	parts += part
 	return part
 
-/// What's drawn with a floating thing, all of it at its waterline
+/// Adds a floating thing's ring, refraction, small waves, shadow and reflection, all at its waterline
 /datum/component/pool_sunk/proc/add_floating_parts()
 	var/across = float_line["across"]
 	var/line_x = float_line["x"]
 	var/line_y = float_line["y"]
-	// The ring of water against its sides where it sits in the surface, half behind it and half in front
+	// The ring of water round it, half behind and half in front
 	var/obj/effect/abstract/waterline/back_ring = add_part("floater_ring_[across]_back")
 	back_ring.vis_flags |= VIS_UNDERLAY
 	rings = list(back_ring, add_part("floater_ring_[across]_front"))
@@ -153,7 +140,7 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	// The waves bend the part of it that's under the water
 	refraction = add_part("refract_float", WATER_REFRACT_PLANE)
 	refraction.pixel_y = line_y
-	// Small waves spread out from it as it bobs. On the hidden ripple plane, in a sprite 3x3 tiles big
+	// Small waves spreading out from it, on the hidden ripple plane. The sprite is 3x3 tiles
 	var/obj/effect/abstract/waterline/small_waves = add_part("float", WATER_RIPPLE_PLANE)
 	small_waves.icon = 'icons/effects/water_ripple_wave.dmi'
 	small_waves.pixel_x = line_x - 32
@@ -164,7 +151,7 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	shadow.pixel_y = line_y - 5
 	// The sprite is 18 pixels wide
 	shadow.transform = matrix(across / 18 + 0.1, 0, 0, 0, across / 18 + 0.1, 0)
-	// Its reflection, upside down about its waterline: the top of the highest row that's under the water
+	// Its reflection, flipped at its waterline
 	reflection = new(null, parent, line_y + POOL_FLOAT_SPRITE_LINE)
 	parts += reflection
 
@@ -178,19 +165,18 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	else
 		sunk.add_filter("pool_sunk", 20, layering_filter(icon = get_pool_filter_icon("sunk_[look]"), blend_mode = BLEND_INSET_OVERLAY))
 
-/// Where the item meets the water, in pixels right of and above the middle of its tile: where a splash and rings start
+/// Returns list(x, y), where the item meets the water in pixels from its tile's middle, for splashes and rings
 /datum/component/pool_sunk/proc/meets_water_at()
 	var/obj/item/sunk = parent
 	if(floating)
 		return list(sunk.pixel_x + float_line["x"], sunk.pixel_y + float_line["y"])
 	return list(sunk.pixel_x, sunk.pixel_y)
 
-/// The item has just hit the water. A floating thing dips under and bobs back up, anything else goes down
+/// Plays the item hitting the water: a floater dips and bobs back up, anything else sinks
 /datum/component/pool_sunk/proc/land()
 	var/obj/item/sunk = parent
 	if(floating)
-		// Under, back up higher than it floats, and down to rest. The water stays where it is, so the ring round it
-		// and the waterline on it go the other way
+		// Dips, pops up and settles. The ring and the waterline filter move the other way, so the water stays put
 		var/line_y = float_line["y"]
 		animate(sunk, pixel_z = old_pixel_z - 4, time = 0.15 SECONDS, easing = QUAD_EASING | EASE_OUT, flags = ANIMATION_PARALLEL)
 		animate(pixel_z = old_pixel_z + 3, time = 0.3 SECONDS, easing = SINE_EASING)
@@ -207,7 +193,7 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	// The water closes over it from the bottom up as it goes under
 	sunk.add_filter("pool_sunk", 20, layering_filter(icon = get_pool_filter_icon("sunk_[look]"), y = -26, blend_mode = BLEND_INSET_OVERLAY))
 	sunk.transition_filter("pool_sunk", 0.45 SECONDS, list("y" = 0), QUAD_EASING | EASE_OUT)
-	// It sinks to the bottom, rocking from side to side on its way down
+	// Sinks, rocking side to side on the way down
 	animate(sunk, pixel_z = old_pixel_z - POOL_SUNK_DROP, time = 0.7 SECONDS, easing = SINE_EASING | EASE_OUT, flags = ANIMATION_PARALLEL)
 	animate(sunk, pixel_w = old_pixel_w + 2, time = 0.2 SECONDS, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
 	animate(pixel_w = old_pixel_w - 1.5, time = 0.25 SECONDS, easing = SINE_EASING)
@@ -221,7 +207,7 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	bubbles.pixel_x += sunk.pixel_x
 	bubbles.pixel_y += sunk.pixel_y
 
-/// Up and down with the water and a little from side to side, each at its own pace so two things don't move as one
+/// Bobs a floating thing up and down and side to side, at a random pace so floaters don't move together
 /datum/component/pool_sunk/proc/bob()
 	var/obj/item/floater = parent
 	var/turf/simulated/floor/beach/water/pool = floater.loc
@@ -240,7 +226,7 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 		animate(ring, pixel_y = line_y + 1, time = 1.6 SECONDS, loop = -1, easing = SINE_EASING)
 		animate(pixel_y = line_y - 1, time = 1.6 SECONDS, easing = SINE_EASING)
 
-/// A ring of waves is passing under a floating thing: it's lifted over it, and goes back to bobbing
+/// Lifts a floating thing as a ring of waves passes under it, then goes back to bobbing
 /datum/component/pool_sunk/proc/ride_wave()
 	if(!floating)
 		return
@@ -254,7 +240,7 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	SIGNAL_HANDLER // COMSIG_MOVABLE_MOVED
 	check_water()
 
-/// Keeps the look in step with the water the item is in, and takes it off once the item isn't in pool water any more
+/// Matches the look to the water the item is in, or removes this once it's out of pool water
 /datum/component/pool_sunk/proc/check_water()
 	var/atom/movable/sunk = parent
 	var/turf/simulated/floor/beach/water/pool = sunk.loc

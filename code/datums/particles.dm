@@ -6,7 +6,7 @@
 	MARK: Water
 */
 
-/// Droplets thrown up when something goes into the water. One burst: the effect stops spawning after its first tick.
+/// Droplets thrown up when something goes into the water. The splash effect stops it after one burst
 /particles/water_splash
 	icon = 'icons/turf/floors/pool_water.dmi'
 	icon_state = "droplet"

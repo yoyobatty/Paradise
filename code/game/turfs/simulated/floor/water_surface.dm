@@ -5,25 +5,16 @@
 	// The reef stone around the sea is a kind of water turf
 	return !T.opacity
 
-/**
- * Sets a water turf up to reflect the world. Called by the water turfs as they are made.
- *
- * The reflection plane copies the whole world plane. This tile's mirror map tells it to show the tile above this one
- * upside down here, and its mask cuts that copy to the water. The waves on the ripple plane say which way the water
- * slopes, which bends the reflection and the pool floor under them, and says how much of a mirror the water is there.
- *
- * Arguments:
- * * whole_tile_mask - FALSE for water with edges, which puts its own mask on as it picks them
- * * still_waves - FALSE for pool water, whose waves come and go with what happens in the pool (/datum/pool_waves)
- */
+/// Sets a water turf up to reflect the world and ripple.
+/// whole_tile_mask - FALSE for water with edges, which puts on its own mask
+/// still_waves - FALSE for pool water, whose waves come from /datum/pool_waves
 /turf/simulated/floor/beach/proc/make_reflective(whole_tile_mask = TRUE, still_waves = TRUE)
 	if(whole_tile_mask)
 		overlays += get_pool_appearance("mask", WATER_MASK_PLANE)
 	overlays += get_pool_appearance("mirror_map", WATER_MIRROR_PLANE)
-	// These follow the waves, which repeat every 2x2 tiles. Rows of the sprites count from the top, and y counts up,
-	// so odd y is the top row
+	// Which quarter of the 2x2 wave sprites this tile is. Sprite rows count from the top, so odd y is the top row
 	var/quarter = "[x % 2][y % 2 ? 0 : 1]"
-	// What's mirrored here fades the higher it stands above the water's edge: a mask over the tile north of this one
+	// Fades the reflection with height, as a mask over the tile north of this one
 	var/static/mutable_appearance/mirror_fade
 	if(!mirror_fade)
 		mirror_fade = mutable_appearance('icons/turf/floors/pool_water.dmi', "mirror_fade", plane = WATER_UNMIRRORED_PLANE)
@@ -50,7 +41,7 @@ GLOBAL_LIST_INIT(pool_caustic_colours, list(
 	"deep" = list("#BEEBFF", 255),
 ))
 
-/// How much of the light on the pool floor is left under 0, 1, 2 and 3 tiles' depth of water
+/// How much of the light on the pool floor is left under 0, 1, 2 and 3 tiles of water
 GLOBAL_LIST_INIT(pool_caustic_fade, list(1, 0.86, 0.72, 0.6))
 
 /// Colour and alpha of the water's surface for each look
@@ -59,7 +50,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	"deep" = list("#3478BE", 125),
 ))
 
-/// One appearance from the pool sprites, made once and shared by every tile that uses it
+/// Gets a pool sprite appearance, made once and shared by every tile
 /proc/get_pool_appearance(state, plane = FLOAT_PLANE, layer = FLOAT_LAYER, colour = null, alpha = 255)
 	var/static/list/made = list()
 	var/key = "[state]|[plane]|[layer]|[colour]|[alpha]"
@@ -70,46 +61,44 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 		made[key] = appearance
 		. = appearance
 
-/// One state of the pool sprites as an icon for a filter, made once
+/// Gets a pool sprite state as an icon for filters, made once
 /proc/get_pool_filter_icon(state)
 	var/static/list/made = list()
 	. = made[state]
 	if(!.)
 		. = made[state] = icon('icons/turf/floors/pool_water.dmi', state)
 
-/// Picks one of the three versions of the edge for this tile. The same place always gets the same one.
+/// Picks one of three edge versions for this tile, always the same one for the same spot
 /turf/simulated/floor/beach/water/proc/pick_edge_variant()
 	return (x * 7 + y * 11) % 5 % 3 + 1
 
-/// Puts the pool bottom and its moving light under the water's edge sprite, and the ripples and glints on it
+/// Adds the pool floor, light, glints, foam, bubbles, edges and depth to this tile
 /turf/simulated/floor/beach/water/proc/setup_pool_look()
 	underlays += get_pool_appearance(GLOB.pool_edge_floors[edge_style], POOL_FLOOR_PLANE)
-	// The shafts of light coming down through the water, the colour of the light on the floor. That light is put on
-	// with the depth, see update_depth()
+	// Shafts of light down through the water. The light on the floor is added in update_depth()
 	var/list/light = GLOB.pool_caustic_colours[water_look]
 	overlays += get_pool_appearance("rays_[x % 4][3 - y % 4]", WATER_RAYS_PLANE, FLOAT_LAYER, light[1], light[2])
-	// Glints flashing here and there, which repeat every 4x4 tiles
+	// Glints, repeating every 4x4 tiles
 	overlays += get_pool_appearance("sparkle_[x % 4][3 - y % 4]", WATER_SHINE_PLANE)
-	// Flecks of foam, which only show where the foam planes let them: at the water's edges and on steep waves
+	// Foam flecks, which only show at the water's edges and on steep waves
 	overlays += get_pool_appearance("foam_[x % 4][3 - y % 4]", WATER_FOAM_PLANE)
-	// On a tile here and there, a few bubbles come up now and then
+	// Bubbles rise now and then on a few tiles
 	if((x * 13 + y * 7) % 17 == 0)
 		overlays += get_pool_appearance("bubbles_[(x + y) % 3 + 1]", WATER_SHINE_PLANE)
 	set_pool_edge_overlays(smoothing_junction || 255)
 	update_depth()
 
-/// The water's surface and reflection mask follow its edges, so they stay off the edge itself
+/// Sets the water surface, reflection mask and near edge to match this tile's edges
 /turf/simulated/floor/beach/water/proc/set_pool_edge_overlays(junction)
 	if(pool_edge_overlays)
 		overlays -= pool_edge_overlays
 	var/list/surface = GLOB.pool_surface_colours[water_look]
 	var/list/new_overlays = list(
-		// Over the pool floor and under mobs: a mob in the pool gets its own water from the waist down
+		// Over the pool floor and under mobs, who get their own water from the waist down
 		get_pool_appearance("[base_icon_state]_water-[junction]", FLOAT_PLANE, FLOAT_LAYER, surface[1], surface[2]),
 		get_pool_appearance("[base_icon_state]_water-[junction]", WATER_MASK_PLANE),
 	)
-	// With dry land south, the near side of the pool is in front of anyone standing in it and hides their legs below it.
-	// Otherwise their legs, the water on them and the ring round them would show over the edge
+	// With dry land south, the near edge is drawn over anyone in the pool so their legs don't show over it
 	if(!(junction & SOUTH))
 		new_overlays += get_pool_appearance("[base_icon_state]_lip-[junction]", GAME_PLANE, ABOVE_MOB_LAYER + 0.01)
 	overlays += new_overlays
@@ -126,13 +115,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /turf/simulated/floor/beach/water/proc/is_pool_land(turf/T)
 	return !istype(T, /turf/simulated/floor/beach/water)
 
-/**
- * Darkens the water by how far it is from dry land, so a pool gets deeper toward its middle.
- *
- * Each corner of the tile gets a depth from 0 to POOL_MAX_DEPTH: how many tiles lie between it and the nearest
- * dry land. The sprite blends between its four corners, and tiles that meet share corners, so the shade runs
- * smoothly across the pool.
- */
+/// Shades the water deeper the farther each corner is from dry land, and dims the floor light to match
 /turf/simulated/floor/beach/water/proc/update_depth()
 	// Corners in the order the sprites are named: north west, north east, south west, south east
 	var/list/corner_x = list(-1, 1, -1, 1)
@@ -144,7 +127,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 		var/dx = T.x - x
 		var/dy = T.y - y
 		for(var/i in 1 to 4)
-			// In half tiles from the corner to the near side of that tile, so it comes out a whole number of tiles
+			// Tiles from this corner to the near side of that tile, worked out in half tiles
 			var/reach = (max(abs(2 * dx - corner_x[i]), abs(2 * dy - corner_y[i])) - 1) / 2
 			if(reach < depths[i])
 				depths[i] = reach
@@ -154,8 +137,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 			underlays -= pool_depth_underlay
 		underlays += new_underlay
 		pool_depth_underlay = new_underlay
-	// The web of light the waves focus onto the bottom, fainter the deeper the water over it. An overlay, so it's over
-	// the depth's darkening. It repeats every 4x4 tiles, and rows of it count from the top
+	// Light on the floor, fainter in deeper water. An overlay, so it's drawn over the depth's darkening
 	var/depth = clamp(round((depths[1] + depths[2] + depths[3] + depths[4]) / 4, 1), 0, POOL_MAX_DEPTH)
 	var/list/light = GLOB.pool_caustic_colours[water_look]
 	var/mutable_appearance/new_caustics = get_pool_appearance("caustics_[x % 4][3 - y % 4]", POOL_FLOOR_PLANE, FLOAT_LAYER, light[1], round(light[2] * GLOB.pool_caustic_fade[depth + 1]))
@@ -165,13 +147,13 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 		overlays += new_caustics
 		pool_caustics = new_caustics
 
-/// Has the pool water near this tile pick its edges and depth again, after this tile became or stopped being water
+/// Makes nearby pool water redo its edges and depth after this tile becomes or stops being water
 /turf/simulated/floor/beach/water/proc/resmooth_pool_around()
 	for(var/turf/simulated/floor/beach/water/W in RANGE_TURFS(POOL_MAX_DEPTH, src))
 		if(W != src && W.water_look)
 			QUEUE_SMOOTH(W)
 
-/// Joins the waves of the pool this tile is part of: those of the water beside it, or new ones of its own
+/// Joins this tile to the waves of the pool beside it, or starts new ones
 /turf/simulated/floor/beach/water/proc/join_pool_waves()
 	var/datum/pool_waves/joined
 	for(var/direction in GLOB.cardinal)
@@ -184,7 +166,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 		joined = new
 	joined.add_tile(src)
 
-/// Something disturbed the water here. `amount` is how much, out of 1. Only pools get rougher for it
+/// Stirs the water here by `amount`, out of 1. Only pools do anything with it
 /turf/simulated/floor/beach/proc/stir_water(amount)
 	return
 
@@ -194,18 +176,9 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /// How long a ring of waves takes to cross a tile
 #define WAVE_RING_TILE_TIME (0.9 SECONDS)
 
-/**
- * Sends a ring of waves out from this tile.
- *
- * At the water's edge the ring bounces back. That's a second ring, starting as far the other side of the edge as
- * this one starts from it: the part of it that reaches the water is exactly the first ring's reflection.
- * Anything floating nearby rides the ring as it passes.
- *
- * Arguments:
- * * small - A smaller ring, from a step or a small thing landing
- * * offset_x - How many pixels right of the tile's middle the ring starts
- * * offset_y - And how many pixels up
- */
+/// Sends a ring of waves out from this tile, bounces it off the dry edges beside it, and lifts things afloat nearby.
+/// small - a smaller ring, from a step or a small thing landing
+/// offset_x, offset_y - how many pixels right and up of the tile's middle the ring starts
 /turf/simulated/floor/beach/proc/make_wave_ring(small = FALSE, offset_x = 0, offset_y = 0)
 	var/ring_type = small ? /obj/effect/temp_visual/ripple_wave/small : /obj/effect/temp_visual/ripple_wave
 	var/echo_type = small ? /obj/effect/temp_visual/ripple_wave/small/echo : /obj/effect/temp_visual/ripple_wave/echo
@@ -226,7 +199,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 		if(thing.z != z || !isturf(thing.loc))
 			continue
 		var/away = get_dist(src, thing)
-		// Whatever made the ring is busy landing
+		// Not things on this tile, like whatever just landed and made the ring
 		if(away >= 1 && away <= reach)
 			addtimer(CALLBACK(afloat, TYPE_PROC_REF(/datum/component/pool_sunk, ride_wave)), away * WAVE_RING_TILE_TIME)
 
@@ -236,14 +209,13 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /turf/simulated/floor/beach/proc/ripple_from(atom/movable/splasher, atom/old_loc)
 	if(!isliving(splasher))
 		return
-	// Wading on through the water. Someone waist deep leaves a wake, anyone else just sends out a small ring
+	// Wading on. Someone waist deep leaves a wake, anyone else sends out a small ring
 	if(!isturf(old_loc) || is_reflective_water(old_loc))
 		stir_water(0.03)
 		if(!splasher.GetComponent(/datum/component/pool_submerged))
 			new /obj/effect/temp_visual/ripple_wave/small(src)
 		return
-	// Stepping in from dry land: a ring round their waist, the far half behind them and the near half in front,
-	// a splash, and a big ring of waves out across the water
+	// Stepping in from dry land: a ring round their waist, a splash and a big ring of waves
 	stir_water(0.2)
 	playsound(src, 'sound/effects/slosh.ogg', 30, TRUE)
 	new /obj/effect/temp_visual/water_ripple/waist(src)
@@ -251,41 +223,34 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	new /obj/effect/temp_visual/water_splash(src)
 	make_wave_ring()
 
-/**
- * The reflection of something standing or floating in water, on the water in front of it.
- *
- * A copy of the thing turned upside down about its waterline, so the reflection starts where the thing meets the
- * water. It goes in the thing's vis_contents and follows it. On a hidden plane the reflection plane adds to the world
- * it has mirrored, so it's bent by the waves, cut to the water and as strong as the water is a mirror, like the rest.
- */
+/// Reflection of something standing or floating in water, flipped at its waterline. Goes in its vis_contents
 /obj/effect/abstract/water_reflection
 	plane = WATER_SELF_REFLECTION_PLANE
 	invisibility = 0
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	// The copy already has the thing's colour and the way it's turned
+	// The copy already has the thing's colour and transform
 	appearance_flags = KEEP_APART | RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM
-	/// Did this give the thing the render target it copies? Then it takes it off again
+	/// TRUE if this set the thing's render_target, so it clears it again
 	var/made_render_target = FALSE
 
 /obj/effect/abstract/water_reflection/Initialize(mapload, atom/movable/reflected, waterline)
 	. = ..()
-	// Mobs that block glowing things already have one, under the same name
+	// Things with their own emissive blocker already have one, with the same name
 	if(!reflected.render_target)
 		reflected.render_target = ref(reflected)
 		made_render_target = TRUE
 	render_source = reflected.render_target
-	// A little darker and bluer than the thing itself and not quite solid, like the reflections of the bank. How solid
-	// is part of the matrix: BYOND ignores changes to an object's alpha while its colour is a matrix
+	// Darker, bluer and a bit see-through. Alpha is in the matrix, BYOND ignores alpha while colour is a matrix
 	color = list(0.78, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0.86, 0, 0, 0, 0, 0.9, 0.02, 0.04, 0.08, 0)
-	// Upside down about the waterline, which is `waterline` rows up from the bottom of the thing's sprite
+	// Flipped at the waterline, `waterline` pixels up from the bottom of the sprite
 	transform = matrix(1, 0, 0, 0, -1, 2 * waterline - world.icon_size)
 
-/// The thing is out of the water: it stops being copied
+/// Takes back the render_target this gave the thing, once it's out of the water
 /obj/effect/abstract/water_reflection/proc/stop_reflecting(atom/movable/reflected)
 	if(made_render_target && !reflected.em_block)
 		reflected.render_target = null
 
-/// Makes the block that leaves something in the water out of the reflection plane's mirror, for its vis_contents
+/// Makes a block for a thing's vis_contents that keeps it out of the reflection plane's mirror
 /proc/make_unmirrored_block()
 	var/obj/effect/abstract/waterline/block = new(null, "mask")
 	block.vis_flags = VIS_INHERIT_ID
@@ -299,17 +264,12 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	layer = ABOVE_MOB_LAYER + 0.05
 	duration = 0.9 SECONDS
 	randomdir = FALSE
-	// Around the feet, not the middle, of whoever made it
+	// At the feet of whoever made it
 	pixel_y = -6
-	/// How big it has grown by the time it's gone, 1 is a tile across
+	/// Size it grows to before it's gone, 1 is a tile across
 	var/final_scale = 1.15
 
-/**
- * A ring of waves spreading out from where something touched the water.
- *
- * It's drawn on the hidden ripple plane, so it isn't seen itself. Instead it bends the pool floor, the reflections and
- * the glints as it passes over them, the way a real ripple does.
- */
+/// A ring of waves on the hidden ripple plane, which bends the floor, reflections and glints as it spreads
 /obj/effect/temp_visual/ripple_wave
 	icon = 'icons/effects/water_ripple_wave.dmi'
 	icon_state = "wave"
@@ -327,21 +287,21 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	. = ..()
 	transform = matrix(0.6, 0, 0, 0, 0.6, 0)
 
-/// A ring coming back off the water's edge, fainter than the one that hit it. See make_wave_ring()
+/// A fainter ring bounced back off the water's edge, see make_wave_ring()
 /obj/effect/temp_visual/ripple_wave/echo
 	alpha = 150
 
 /obj/effect/temp_visual/ripple_wave/small/echo
 	alpha = 150
 
-/// The ring from a thing landing in the water: smaller, and lying on the water round where it went in.
+/// Smaller ring where an item lands in the water
 /obj/effect/temp_visual/water_ripple/item
-	// On the shine plane, so it's cut to the water and the thing that made it is drawn over it
+	// On the shine plane, so it's cut to the water and under the thing that made it
 	plane = WATER_SHINE_PLANE
 	pixel_y = 0
 	final_scale = 0.75
 
-/// From something big
+/// Ring for something big
 /obj/effect/temp_visual/water_ripple/item/big
 	final_scale = 1.1
 
@@ -390,8 +350,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /obj/effect/temp_visual/water_splash/proc/stop_spawning()
 	particles?.spawning = 0
 
-/// The wake behind someone moving through the water, on the tile they left: a V of foam, and a V of waves on the
-/// hidden ripple plane that spreads and fades with it.
+/// V wake of foam and waves left on the tile someone waded out of
 /obj/effect/temp_visual/water_wake
 	icon = 'icons/turf/floors/pool_water.dmi'
 	icon_state = "wake"
@@ -403,7 +362,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 /obj/effect/temp_visual/water_wake/Initialize(mapload, direction)
 	. = ..()
 	setDir(direction)
-	// The waves ride along as an overlay, rather than being an object of their own. It follows the way this faces
+	// The waves are an overlay, so they turn with the wake
 	var/static/mutable_appearance/waves
 	if(!waves)
 		waves = mutable_appearance('icons/effects/water_ripple_wave.dmi', "wake", plane = WATER_RIPPLE_PLANE)
@@ -433,7 +392,7 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 
 // MARK: Effects only near water
 
-/// How many tiles across a chunk of the map is, for finding water near a player
+/// Size of a map chunk in tiles, for checking if a player is near water
 #define WATER_EFFECT_CHUNK 16
 
 /// Chunks of the map with water in them, "z:x:y" = how many tiles of it
@@ -443,14 +402,14 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 /proc/water_effect_chunk_key(turf/T)
 	return "[T.z]:[round(T.x / WATER_EFFECT_CHUNK)]:[round(T.y / WATER_EFFECT_CHUNK)]"
 
-/// A tile of water was made, so players near it get the water effects
+/// Counts a new water tile in its chunk
 /proc/add_water_effect_tile(turf/T)
 	var/key = water_effect_chunk_key(T)
 	GLOB.water_effect_chunks[key] += 1
 	if(!GLOB.water_effects_watcher)
 		GLOB.water_effects_watcher = new
 
-/// A tile of water is gone
+/// Takes a water tile off its chunk's count
 /proc/remove_water_effect_tile(turf/T)
 	var/key = water_effect_chunk_key(T)
 	var/left = GLOB.water_effect_chunks[key] - 1
@@ -459,7 +418,7 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 	else
 		GLOB.water_effect_chunks -= key
 
-/// Is there water in the chunk `T` is in, or one next to it? That reaches past a player's screen
+/// Is there water in the chunk `T` is in, or one next to it?
 /proc/water_effects_near(turf/T)
 	var/cx = round(T.x / WATER_EFFECT_CHUNK)
 	var/cy = round(T.y / WATER_EFFECT_CHUNK)
@@ -469,14 +428,9 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 				return TRUE
 	return FALSE
 
-/**
- * Turns the water effects on for players with water nearby, and off for everyone else.
- *
- * The reflections, the light on the waves and the glints are full screen passes that run every
- * frame whether there's any water on screen or not, and so is every plane master on the screen. Most players are
- * nowhere near any water, so for them the passes are turned off and the water's shown planes taken off the screen.
- * A chunk next to the player's counts as near, so it's all back before any water comes into view.
- */
+/// Turns the water effects on for players near water and off for everyone else.
+/// The water planes cost full screen passes every frame, even with no water on screen.
+/// Checking the chunks around the player turns them on before any water comes into view.
 /datum/water_effects_watcher
 
 /datum/water_effects_watcher/New()
@@ -506,7 +460,7 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 			mymob?.client?.screen |= master
 	if(!on)
 		remove_water_planes()
-	// The world and the light on it are only copied for the water to use, and the world only bent by its waves
+	// Only copy the world and lighting, and bend the world, while the water effects are on
 	var/atom/movable/screen/plane_master/game_world/world_master = plane_masters["[GAME_PLANE]"]
 	if(world_master)
 		world_master.render_target = on ? GAME_PLANE_RENDER_TARGET : null
@@ -515,8 +469,7 @@ GLOBAL_DATUM(water_effects_watcher, /datum/water_effects_watcher)
 	if(lighting_master)
 		lighting_master.render_target = on ? LIGHTING_PLANE_RENDER_TARGET : null
 
-/// Takes the water planes that are shown off the player's screen. Nothing is on them with no water nearby,
-/// and each plane master on screen costs a pass over the whole screen every frame
+/// Takes the shown water planes off the player's screen, since each costs a full screen pass every frame
 /datum/hud/proc/remove_water_planes()
 	var/client/viewer = mymob?.client
 	if(!viewer)

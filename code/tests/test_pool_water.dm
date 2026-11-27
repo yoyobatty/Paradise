@@ -1,4 +1,4 @@
-/// Makes sure pool water picks its edges and depth from the water round it, and picks them again when that changes
+/// Checks pool water edges, depth, waves, sunk and floating items, swimmers, and turning the water effects off
 /datum/game_test/room_test/pool_water_edges/Run()
 	var/datum/test_puppeteer/player = new(src)
 	var/turf/origin = get_turf(player.puppet)
@@ -23,7 +23,7 @@
 			has_surface = TRUE
 	TEST_ASSERT(has_surface, "the surface doesn't follow the edge")
 	TEST_ASSERT_EQUAL(top_left.plane, WATER_EDGE_PLANE, "pool water isn't drawn on the edge plane")
-	// It reflects the world: a mirror map tells the reflection plane what to show, fading with height above the water
+	// The overlays for reflections, waves and light
 	var/list/states = list()
 	for(var/mutable_appearance/MA as anything in top_left.overlays)
 		states["[MA.icon_state] [MA.plane]"] = TRUE
@@ -34,7 +34,7 @@
 	for(var/mutable_appearance/MA as anything in top_left.underlays)
 		TEST_ASSERT_EQUAL(MA.plane, POOL_FLOOR_PLANE, "part of the pool's bottom isn't on the pool floor plane")
 	TEST_ASSERT(states["caustics_[top_left.x % 4][3 - top_left.y % 4] [POOL_FLOOR_PLANE]"], "pool water has no light on its floor")
-	// The bottom row has land south, so the pool's near side goes over anyone standing in it. The top row doesn't
+	// The bottom row has land south, so it gets the near edge over swimmers. The top row doesn't
 	var/turf/simulated/floor/beach/water/bottom_left = locate(origin.x + 1, origin.y - 1, origin.z)
 	var/has_lip = FALSE
 	for(var/mutable_appearance/MA as anything in bottom_left.overlays)
@@ -45,7 +45,7 @@
 	// Its north corners touch land, its south ones are a tile from it
 	TEST_ASSERT_EQUAL(top_middle.pool_depth_underlay?.icon_state, "depth-0011", "the water in the middle of the pool has the wrong depth")
 
-	// The pool has one set of waves, in layers on every tile, and they follow what happens in it
+	// One set of waves for the whole pool, which stirs up, settles and follows the wave machine
 	var/datum/pool_waves/waves = top_left.waves
 	TEST_ASSERT_NOTNULL(waves, "pool water has no waves")
 	TEST_ASSERT_EQUAL(length(waves.tiles), 6, "the pool's tiles don't all share its waves")
@@ -63,7 +63,7 @@
 	TEST_ASSERT(waves.energy > 0.5, "a strong wave machine doesn't keep the pool rough")
 	waves.set_machine(POOL_WAVES_OFF)
 
-	// Things lying in the pool look sunk and bend under the waves, and stop when they're taken out
+	// Items in the pool look sunk until they're taken out
 	var/obj/item/wrench/wrench = allocate(/obj/item/wrench, top_middle)
 	var/datum/component/pool_sunk/sunk = wrench.GetComponent(/datum/component/pool_sunk)
 	TEST_ASSERT_NOTNULL(sunk, "an item made in the pool doesn't look sunk")
@@ -76,7 +76,7 @@
 	TEST_ASSERT_EQUAL(length(wrench.vis_contents), 0, "an item taken out of the pool still has the water's parts drawn with it")
 	TEST_ASSERT_EQUAL(wrench.pixel_z, 0, "an item taken out of the pool is still drawn as low as on its bottom")
 
-	// A beach ball floats: a ring of water round it and only its underside under the water
+	// A beach ball floats, with a ring round it and its own reflection
 	var/obj/item/beach_ball/ball = allocate(/obj/item/beach_ball, top_middle)
 	var/datum/component/pool_sunk/afloat = ball.GetComponent(/datum/component/pool_sunk)
 	TEST_ASSERT(afloat?.floating, "a beach ball in the pool doesn't float")
@@ -88,12 +88,12 @@
 	TEST_ASSERT_EQUAL(afloat.reflection?.render_source, ball.render_target, "a floating beach ball has no reflection of its own")
 	TEST_ASSERT_NULL(sunk.reflection, "an item on the pool's bottom is reflected on top of the water")
 	TEST_ASSERT(afloat.float_line["across"] >= 16, "the ring of water round a beach ball isn't as wide as the ball")
-	// Hitting the water from the air makes a splash and a ring where it went in
+	// Dropping an item in makes a ring and bubbles
 	var/obj/item/wrench/dropped = allocate(/obj/item/wrench, origin)
 	dropped.forceMove(top_left)
 	TEST_ASSERT_NOTNULL(locate(/obj/effect/temp_visual/water_ripple/item) in top_left, "an item dropped into the pool made no ring")
 	TEST_ASSERT_NOTNULL(locate(/obj/effect/temp_visual/sink_bubbles) in top_left, "an item going under sent up no bubbles")
-	// A mob standing in the pool has its legs bent by the waves
+	// A mob in the pool gets bent legs and its own reflection
 	var/mob/living/carbon/human/swimmer = allocate(/mob/living/carbon/human, top_left)
 	var/datum/component/pool_submerged/waist_deep = swimmer.GetComponent(/datum/component/pool_submerged)
 	TEST_ASSERT_EQUAL(waist_deep?.refraction?.icon_state, "refract_legs", "the waves don't bend the legs of someone standing in the pool")
@@ -116,7 +116,7 @@
 		T.ChangeTurf(turfs_before[T])
 	TEST_ASSERT(QDELETED(waves), "a pool's waves outlived its last tile")
 
-	// The water effects go off for a player with none nearby, and come back on
+	// The water effects turn off and back on
 	for(var/master_type in subtypesof(/atom/movable/screen/plane_master))
 		var/atom/movable/screen/plane_master/master = new master_type
 		if(master.water_effect)
