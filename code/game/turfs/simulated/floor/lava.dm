@@ -1,3 +1,6 @@
+/// How many different heat hazes there are, so neighbouring tiles don't ripple in step
+#define LAVA_HAZE_KINDS 4
+
 /**
  * Lava turf, burns things that are on it.
  * Currently a subtype of floor so that footsteps work on it.
@@ -26,8 +29,13 @@
 	floor_tile = null
 	real_layer = PLATING_LAYER
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
+	/// Does the air over it ripple with the heat? See get_lava_heat_haze()
+	var/hazy = TRUE
 
-
+/turf/simulated/floor/lava/Initialize(mapload)
+	. = ..()
+	if(hazy)
+		add_overlay(get_lava_heat_haze((x * 7 + y * 13) % LAVA_HAZE_KINDS))
 
 /turf/simulated/floor/lava/ex_act()
 	return
@@ -195,6 +203,7 @@
 	icon_state = "liquidplasma-255"
 	base_icon_state = "liquidplasma"
 	baseturf = /turf/simulated/floor/lava/lava_land_surface/plasma
+	hazy = FALSE
 
 	light_range = 3
 	light_color = LIGHT_COLOR_PINK
@@ -302,6 +311,7 @@
 	icon_state = "liquidplasma-255"
 	base_icon_state = "liquidplasma"
 	baseturf = /turf/simulated/floor/lava/plasma
+	hazy = FALSE
 	light_range = 3
 	light_color = LIGHT_COLOR_PINK
 
@@ -325,3 +335,23 @@
 	. = ..()
 	if(SSmapping.lavaland_theme?.primary_turf_type)
 		ChangeTurf(SSmapping.lavaland_theme.primary_turf_type, ignore_air = TRUE)
+
+/**
+ * The heat haze over lava, `kind` 0 to LAVA_HAZE_KINDS - 1, made once and shared.
+ *
+ * Heat distortion, not fumes: ripples rising off the lava, half a tile wider than the tile each side and two tiles
+ * above it, so a lake's tiles overlap into one haze. It's drawn where the game's own warp reads it (red pushes
+ * sideways, green up and down, mid grey not at all) and never seen itself: the lava and whatever is over and behind it
+ * ripple a pixel or two, mostly sideways, as hot air does.
+ */
+/proc/get_lava_heat_haze(kind)
+	var/static/list/made = list()
+	. = made["[kind]"]
+	if(.)
+		return
+	var/mutable_appearance/shimmer = mutable_appearance('icons/effects/lava_haze.dmi', "shimmer-[kind]", plane = GRAVITY_PULSE_PLANE, appearance_flags = KEEP_APART | RESET_COLOR)
+	shimmer.pixel_x = -16
+	. = shimmer
+	made["[kind]"] = .
+
+#undef LAVA_HAZE_KINDS
