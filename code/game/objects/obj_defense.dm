@@ -78,6 +78,9 @@
 
 /obj/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum)
 	..()
+	// Junk a singularity pulls in gets thrown at whatever's in its way every pull, like the engine's own rad collectors
+	if(istype(locateUID(throwingdatum?.initial_target_uid), /obj/singularity))
+		return
 	take_damage(AM.throwforce, BRUTE, MELEE, 1, get_dir(src, AM))
 
 /obj/ex_act(severity)
