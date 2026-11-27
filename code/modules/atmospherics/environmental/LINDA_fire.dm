@@ -65,23 +65,11 @@
 	var/flame_draft = 0
 
 /obj/effect/hotspot/proc/update_visuals(fuel_burnt)
-	// Only the light takes the heat's colour. The flames have theirs drawn in, and changing ours would send every
-	// burning tile to every client watching each update.
-	var/heat_colour = heat2color(temperature)
-	var/list/rgb = rgb2num(heat_colour)
-	if(isnull(light_color))
-		light_color = heat_colour
-		set_light(l_color = heat_colour)
-	else
-		var/list/light_rgb = rgb2num(light_color)
-		var/r_delta = abs(rgb[1] - light_rgb[1])
-		var/g_delta = abs(rgb[2] - light_rgb[2])
-		var/b_delta = abs(rgb[3] - light_rgb[3])
-		if(r_delta > 10 || g_delta > 10 || b_delta > 10)
-			set_light(l_color = heat_colour)
-
+	// The flames have their colours drawn in; changing ours would send every burning tile to every client watching
+	// each update. Our light follows our flames' size and heat (see merged_flames.dm).
 	set_flame_fuel(fuel_burnt)
 	flames_tick()
+	flame_light()
 
 
 /obj/effect/hotspot/Initialize(mapload)
@@ -110,8 +98,8 @@
 	flame_tell_neighbours(T)
 
 /obj/effect/hotspot/proc/recolor()
-	set_light(l_color = heat2color(temperature))
 	set_flame_size(flame_size)
+	flame_light()
 
 // TODO: Vestigal, kept temporarily to avoid a merge conflict.
 /obj/effect/hotspot/proc/DestroyTurf()

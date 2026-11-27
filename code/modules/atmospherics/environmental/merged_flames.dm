@@ -40,8 +40,8 @@
 #define FLAME_HOT_START 5000
 #define FLAME_HOT_END 4500
 /// How far the light round the flames is blurred, and how strong it is (0 to 255)
-#define FLAME_GLOW_BLUR 10
-#define FLAME_GLOW_ALPHA 160
+#define FLAME_GLOW_BLUR 16
+#define FLAME_GLOW_ALPHA 170
 /// How many pixels the surge pushes the flames about at most
 #define FLAME_SURGE 7
 /// How many seconds the surge noise takes to scroll a whole screen of it up
@@ -146,10 +146,12 @@
 	// them look out of focus
 	add_filter("behind", 5, alpha_mask_filter(render_source = FIRE_RENDER_TARGET, flags = MASK_INVERSE))
 	// It flickers, unevenly. On the alpha, not a filter, as rebuilding the filters would start it over.
-	animate(src, alpha = FLAME_GLOW_ALPHA + 20, time = 4, loop = -1, easing = SINE_EASING)
-	animate(alpha = FLAME_GLOW_ALPHA - 25, time = 3, easing = SINE_EASING)
-	animate(alpha = FLAME_GLOW_ALPHA + 10, time = 5, easing = SINE_EASING)
-	animate(alpha = FLAME_GLOW_ALPHA - 10, time = 2, easing = SINE_EASING)
+	// Firelight pulses: the walls and floor round a fire brighten and dim with it
+	animate(src, alpha = FLAME_GLOW_ALPHA + 40, time = 3, loop = -1, easing = SINE_EASING)
+	animate(alpha = FLAME_GLOW_ALPHA - 50, time = 4, easing = SINE_EASING)
+	animate(alpha = FLAME_GLOW_ALPHA + 25, time = 2, easing = SINE_EASING)
+	animate(alpha = FLAME_GLOW_ALPHA - 30, time = 3, easing = SINE_EASING)
+	animate(alpha = FLAME_GLOW_ALPHA + 10, time = 2, easing = SINE_EASING)
 
 /// The bed's texture, shown through its soft blobs, under the flames on the fire plane
 /atom/movable/screen/fire_bed_relay
@@ -368,6 +370,20 @@
 	feel_wind()
 	if(flame_dirty && world.time >= flame_drawn_at + FLAME_REDRAW_GAP)
 		update_flames()
+
+/// Lights the room round us as a fire does: warm orange, yellower, brighter and further for bigger and hotter
+/// flames. It follows our size and heat look, which already hold steady near their lines, so the lighting is redone
+/// when the flames change, not with every flicker of the gas's temperature.
+/obj/effect/hotspot/proc/flame_light()
+	var/static/list/colours = list("#FF8A3C", "#FFA04A", "#FFB45A")
+	var/static/list/ranges = list(2, 3, 3)
+	var/static/list/powers = list(0.9, 1.1, 1.3)
+	var/colour = flame_hot ? "#FFD69C" : colours[flame_size]
+	var/power = powers[flame_size] + (flame_hot ? 0.2 : 0)
+	var/range = ranges[flame_size]
+	if(colour == light_color && range == light_range && power == light_power)
+		return
+	set_light(range, power, colour)
 
 /// Leans our flames with the wind on our turf, if there is one, from what the air already told the turf this tick
 /obj/effect/hotspot/proc/feel_wind()
