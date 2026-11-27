@@ -1,3 +1,8 @@
+/// How many different heat hazes there are, so neighbouring tiles don't ripple in step
+#define LAVA_HAZE_KINDS 4
+/// How many tiles across a chunk of the map is, for finding lava near a player
+#define LAVA_EFFECT_CHUNK 16
+
 /**
  * Lava turf, burns things that are on it.
  * Currently a subtype of floor so that footsteps work on it.
@@ -26,8 +31,38 @@
 	floor_tile = null
 	real_layer = PLATING_LAYER
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
+	/// Does the air over it ripple with the heat? See get_lava_heat_haze()
+	var/hazy = TRUE
+	/// The glow over the molten part of the sprite, see update_lava_glow()
+	var/list/lava_glow_overlays
 
+/turf/simulated/floor/lava/Initialize(mapload)
+	. = ..()
+	update_lava_glow()
+	add_lava_effect_tile(src)
+	if(hazy)
+		add_overlay(get_lava_heat_haze((x * 7 + y * 13) % LAVA_HAZE_KINDS))
 
+/turf/simulated/floor/lava/Destroy()
+	remove_lava_effect_tile(src)
+	return ..()
+
+/turf/simulated/floor/lava/set_smoothed_icon_state(new_junction)
+	. = ..()
+	update_lava_glow()
+
+/**
+ * Makes the molten part of the lava glow, to match the sprite it has now.
+ *
+ * On the emissive plane the lighting doesn't darken it, so molten lava shines at full brightness even in the dark. On
+ * the lava glow plane it blooms, and the halo is added over the lighting, round its edges onto the crust and the floor.
+ * Both keep only the molten pixels, so the dark crust round the edges doesn't glow.
+ */
+/turf/simulated/floor/lava/proc/update_lava_glow()
+	if(lava_glow_overlays)
+		cut_overlay(lava_glow_overlays)
+	lava_glow_overlays = list(get_lava_glow(icon, icon_state, EMISSIVE_PLANE), get_lava_glow(icon, icon_state, LAVA_GLOW_PLANE))
+	add_overlay(lava_glow_overlays)
 
 /turf/simulated/floor/lava/ex_act()
 	return
@@ -195,6 +230,7 @@
 	icon_state = "liquidplasma-255"
 	base_icon_state = "liquidplasma"
 	baseturf = /turf/simulated/floor/lava/lava_land_surface/plasma
+	hazy = FALSE
 
 	light_range = 3
 	light_color = LIGHT_COLOR_PINK
@@ -302,6 +338,7 @@
 	icon_state = "liquidplasma-255"
 	base_icon_state = "liquidplasma"
 	baseturf = /turf/simulated/floor/lava/plasma
+	hazy = FALSE
 	light_range = 3
 	light_color = LIGHT_COLOR_PINK
 
@@ -325,3 +362,127 @@
 	. = ..()
 	if(SSmapping.lavaland_theme?.primary_turf_type)
 		ChangeTurf(SSmapping.lavaland_theme.primary_turf_type, ignore_air = TRUE)
+
+/**
+ * The heat haze over lava, `kind` 0 to LAVA_HAZE_KINDS - 1, made once and shared.
+ *
+ * Heat distortion, not fumes: ripples rising off the lava, half a tile wider than the tile each side and two tiles
+ * above it, so a lake's tiles overlap into one haze. It's drawn where the game's own warp reads it (red pushes
+ * sideways, green up and down, mid grey not at all) and never seen itself: the lava and whatever is over and behind it
+ * ripple a pixel or two, mostly sideways, as hot air does.
+ */
+/proc/get_lava_heat_haze(kind)
+	var/static/list/made = list()
+	. = made["[kind]"]
+	if(.)
+		return
+	var/mutable_appearance/shimmer = mutable_appearance('icons/effects/lava_haze.dmi', "shimmer-[kind]", plane = GRAVITY_PULSE_PLANE, appearance_flags = KEEP_APART | RESET_COLOR)
+	shimmer.pixel_x = -16
+	. = shimmer
+	made["[kind]"] = .
+
+/**
+ * The bright molten part of a lava sprite on `plane`, made once and shared by every lava tile with that sprite.
+ *
+ * How bright each pixel is decides how much of it glows: 6 * (0.5 red + 0.4 green + 0.1 blue - 0.24). The grey crust
+ * comes out at nothing, the dull red of cooling rock at a little, and the molten rock at full. On the emissive plane
+ * it's white, on the lava glow plane it keeps its own colour for the bloom.
+ */
+/proc/get_lava_glow(icon, icon_state, plane)
+	var/static/list/made = list()
+	var/key = "[icon]|[icon_state]|[plane]"
+	. = made[key]
+	if(.)
+		return
+	var/mutable_appearance/glow = mutable_appearance(icon, icon_state, plane = plane)
+	if(plane == EMISSIVE_PLANE)
+		glow.color = list(0, 0, 0, 3, 0, 0, 0, 2.4, 0, 0, 0, 0.6, 0, 0, 0, 0, 1, 1, 1, -1.44)
+	else
+		glow.color = list(1, 0, 0, 3, 0, 1, 0, 2.4, 0, 0, 1, 0.6, 0, 0, 0, 0, 0, 0, 0, -1.44)
+	made[key] = glow
+	return glow
+
+// MARK: Bloom only near lava
+
+/// Chunks of the map with lava in them, "z:x:y" = how many lava tiles
+GLOBAL_LIST_EMPTY(lava_effect_chunks)
+GLOBAL_DATUM(lava_effects_watcher, /datum/lava_effects_watcher)
+
+/proc/lava_effect_chunk_key(turf/T)
+	return "[T.z]:[round(T.x / LAVA_EFFECT_CHUNK)]:[round(T.y / LAVA_EFFECT_CHUNK)]"
+
+/// A tile of lava was made, so players near it get lava's bloom
+/proc/add_lava_effect_tile(turf/T)
+	GLOB.lava_effect_chunks[lava_effect_chunk_key(T)] += 1
+	if(!GLOB.lava_effects_watcher)
+		GLOB.lava_effects_watcher = new
+
+/// A tile of lava is gone
+/proc/remove_lava_effect_tile(turf/T)
+	var/key = lava_effect_chunk_key(T)
+	var/left = GLOB.lava_effect_chunks[key] - 1
+	if(left > 0)
+		GLOB.lava_effect_chunks[key] = left
+	else
+		GLOB.lava_effect_chunks -= key
+
+/// Is there lava in the chunk `T` is in, or one next to it? That reaches past a player's screen
+/proc/lava_effects_near(turf/T)
+	var/cx = round(T.x / LAVA_EFFECT_CHUNK)
+	var/cy = round(T.y / LAVA_EFFECT_CHUNK)
+	for(var/dx in -1 to 1)
+		for(var/dy in -1 to 1)
+			if(GLOB.lava_effect_chunks["[T.z]:[cx + dx]:[cy + dy]"])
+				return TRUE
+	return FALSE
+
+/**
+ * Turns lava's bloom on for players with lava nearby, and off for everyone else.
+ *
+ * The bloom is a few passes over the whole screen every frame, whether there's lava on screen or not, and so is its
+ * plane master over the lighting. Most players are nowhere near lava, so for them it's off and that plane master is
+ * off the screen. A chunk next to the player's counts as near, so it's back on before any lava comes into view.
+ */
+/datum/lava_effects_watcher
+
+/datum/lava_effects_watcher/New()
+	START_PROCESSING(SSprocessing, src)
+
+/datum/lava_effects_watcher/process()
+	for(var/client/C as anything in GLOB.clients)
+		var/datum/hud/hud = C.mob?.hud_used
+		if(!hud)
+			continue
+		var/turf/T = get_turf(C.eye)
+		var/near = !!(T && lava_effects_near(T))
+		if(near != hud.lava_effects_on)
+			hud.set_lava_effects(near)
+
+/datum/hud/proc/set_lava_effects(on)
+	lava_effects_on = on
+	for(var/plane in plane_masters)
+		var/atom/movable/screen/plane_master/master = plane_masters[plane]
+		if(!master.lava_effect)
+			continue
+		master.set_lava_effects(on)
+		if(on)
+			mymob?.client?.screen |= master
+	if(!on)
+		remove_lava_planes()
+	// The world is only copied for the bloom to keep off things standing in the lava
+	var/atom/movable/screen/plane_master/world_master = plane_masters["[GAME_PLANE]"]
+	if(world_master)
+		world_master.render_target = on ? GAME_PLANE_RENDER_TARGET : null
+
+/// Takes lava's plane masters off the player's screen, while there's no lava nearby
+/datum/hud/proc/remove_lava_planes()
+	var/client/viewer = mymob?.client
+	if(!viewer)
+		return
+	for(var/plane in plane_masters)
+		var/atom/movable/screen/plane_master/master = plane_masters[plane]
+		if(master.lava_effect)
+			viewer.screen -= master
+
+#undef LAVA_HAZE_KINDS
+#undef LAVA_EFFECT_CHUNK

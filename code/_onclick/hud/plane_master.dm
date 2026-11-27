@@ -5,6 +5,10 @@
 	blend_mode = BLEND_OVERLAY
 	var/show_alpha = 255
 	var/hide_alpha = 0
+	/// Is this plane master only for lava's bloom, which is off for players with no lava nearby?
+	var/lava_effect = FALSE
+	/// Is lava's bloom off for this player right now? It starts off: see /datum/lava_effects_watcher
+	var/lava_effects_off = TRUE
 
 /atom/movable/screen/plane_master/proc/Show(override)
 	alpha = override || show_alpha
@@ -207,3 +211,72 @@
 	if(enabled)
 		add_filter("add_lamps_to_glare", 1, layering_filter(render_source = target_rendering, blend_mode = BLEND_ADD))
 		add_filter("lamps_glare", 1, radial_blur_filter(size = 0.035))
+
+/**
+ * The bright molten part of lava, in its own colours. Never shown itself: the above lighting plane master adds it
+ * over the lighting, so lava blooms past its edges. Off, with no filters, for players with no lava nearby: see
+ * /datum/lava_effects_watcher.
+ */
+/atom/movable/screen/plane_master/lava_glow
+	name = "lava glow plane master"
+	plane = LAVA_GLOW_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = LAVA_GLOW_RENDER_TARGET
+	lava_effect = TRUE
+	alpha = 0
+
+/atom/movable/screen/plane_master/lava_glow/Initialize(mapload)
+	. = ..()
+	// A bright halo round the molten rock in its own colours, the way an emissive blooms: strongest at the rock's edge
+	// and fading out over a few pixels onto the crust and the floor round it
+	add_filter("bloom", 1, bloom_filter(threshold = "#000000", size = 3, offset = 2, alpha = 220))
+	// And a wider, fainter glow round that, which breathes (see update_filters())
+	add_filter("bloom_wide", 2, bloom_filter(threshold = "#000000", size = 10, offset = 1, alpha = LAVA_GLOW_WIDE_LOW))
+	// Only the halo is added. The molten rock itself is already at full brightness, it's on the emissive plane
+	add_filter("not_over_lava", 3, alpha_mask_filter(render_source = EMISSIVE_RENDER_TARGET, flags = MASK_INVERSE))
+	// And not over anything standing in or beside the lava
+	add_filter("not_over_things", 4, alpha_mask_filter(render_source = GAME_PLANE_RENDER_TARGET, flags = MASK_INVERSE))
+
+// The wide glow swells and fades slowly, like heat. Making the filters again stops that, so it's started again here
+/atom/movable/screen/plane_master/lava_glow/update_filters()
+	. = ..()
+	// With the bloom off it has no filters to look for
+	if(lava_effects_off)
+		return
+	var/wide_glow = get_filter("bloom_wide")
+	if(!wide_glow)
+		return
+	animate(wide_glow, alpha = LAVA_GLOW_WIDE_HIGH, time = 2.2 SECONDS, loop = -1, easing = SINE_EASING)
+	animate(alpha = LAVA_GLOW_WIDE_LOW, time = 2.2 SECONDS, easing = SINE_EASING)
+
+/atom/movable/screen/plane_master/lava_glow/set_lava_effects(on)
+	. = ..()
+	alpha = on ? 255 : 0
+
+/**
+ * Things drawn over the lighting, like welding sparks and tracers, with lava's bloom added. Only on the screen while
+ * there's lava nearby: each plane master on the screen is a pass over the whole screen every frame. Away from it the
+ * plane is drawn the way it always was, with no plane master.
+ */
+/atom/movable/screen/plane_master/above_lighting
+	name = "above lighting plane master"
+	plane = ABOVE_LIGHTING_PLANE
+	// Only a plane master, so these still take the client's colour like they did without one
+	appearance_flags = PLANE_MASTER
+	lava_effect = TRUE
+
+/atom/movable/screen/plane_master/above_lighting/Initialize(mapload)
+	. = ..()
+	add_filter("lava_bloom", 1, layering_filter(render_source = LAVA_GLOW_RENDER_TARGET, blend_mode = BLEND_ADD))
+
+// While lava's bloom is off, nothing puts its filters back
+/atom/movable/screen/plane_master/update_filters()
+	if(lava_effect && lava_effects_off)
+		filters = null
+		return
+	return ..()
+
+/// Turns this plane master's part of lava's bloom on or off, see /datum/lava_effects_watcher
+/atom/movable/screen/plane_master/proc/set_lava_effects(on)
+	lava_effects_off = !on
+	update_filters()

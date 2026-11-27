@@ -6,6 +6,8 @@
 
 /datum/hud
 	var/mob/mymob
+	/// Is lava's bloom on for this hud? It starts off, see /datum/lava_effects_watcher
+	var/lava_effects_on = FALSE
 
 	/// Used for the HUD toggle (F12)
 	var/hud_shown = TRUE
@@ -256,6 +258,8 @@
 		var/atom/movable/screen/plane_master/PM = plane_masters[thing]
 		PM.backdrop(mymob)
 		mymob.client?.screen += PM
+	if(!lava_effects_on)
+		remove_lava_planes()
 
 /datum/hud/human/show_hud(version = 0, mob/viewmob)
 	. = ..()
