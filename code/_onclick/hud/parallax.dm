@@ -392,8 +392,8 @@
 	blend_mode = BLEND_ADD
 	plane = PLANE_SPACE_PARALLAX
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	// No RESET_TRANSFORM: a layer turns with the sky holding it
-	appearance_flags = RESET_COLOR | NO_CLIENT_COLOR | PIXEL_SCALE
+	// No RESET_TRANSFORM: a layer turns with the sky holding it; no PIXEL_SCALE: smooth when turned
+	appearance_flags = RESET_COLOR | NO_CLIENT_COLOR
 	/// Carries the layer at the screen middle and slides it by its transform, so the sky's turn swings every layer as one
 	var/atom/movable/screen/parallax_holder/holder
 	/// Pixels the holder has the layer slid by
