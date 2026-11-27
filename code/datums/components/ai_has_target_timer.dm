@@ -74,6 +74,6 @@
 	var/mob/living/living_parent = parent
 	living_parent.ai_controller.set_blackboard_key(increment_key, time_on_target)
 
-/datum/component/ai_target_timer/process(seconds_per_tick)
-	time_on_target += seconds_per_tick SECONDS
+/datum/component/ai_target_timer/process(wait) // SSdcs passes its wait, in deciseconds
+	time_on_target += wait
 	store_current_time()
