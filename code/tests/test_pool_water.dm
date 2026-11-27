@@ -23,14 +23,13 @@
 			has_surface = TRUE
 	TEST_ASSERT(has_surface, "the surface doesn't follow the edge")
 	TEST_ASSERT_EQUAL(top_left.plane, WATER_EDGE_PLANE, "pool water isn't drawn on the edge plane")
-	// It reflects the world: a mirror map tells the reflection plane what to show, and a shimmer mask breaks it up
+	// It reflects the world: a mirror map tells the reflection plane what to show, fading with height above the water
 	var/list/states = list()
 	for(var/mutable_appearance/MA as anything in top_left.overlays)
 		states["[MA.icon_state] [MA.plane]"] = TRUE
-	var/quarter = "[top_left.x % 2][top_left.y % 2 ? 0 : 1]"
 	TEST_ASSERT(states["mirror_map [WATER_MIRROR_PLANE]"], "pool water has no mirror map, so it won't reflect anything")
 	TEST_ASSERT(states["wave_flat [WATER_RIPPLE_PLANE]"], "pool water has no flat water for its waves to be drawn over")
-	TEST_ASSERT(states["reflection_breakup_[quarter] [WATER_SHIMMER_PLANE]"], "pool water has no shimmer mask")
+	TEST_ASSERT(states["mirror_fade [WATER_UNMIRRORED_PLANE]"], "what pool water mirrors doesn't fade with its height above the water")
 	TEST_ASSERT(states["rays_[top_left.x % 4][3 - top_left.y % 4] [WATER_RAYS_PLANE]"], "pool water has no shafts of light")
 	for(var/mutable_appearance/MA as anything in top_left.underlays)
 		TEST_ASSERT_EQUAL(MA.plane, POOL_FLOOR_PLANE, "part of the pool's bottom isn't on the pool floor plane")
@@ -85,7 +84,10 @@
 	TEST_ASSERT_NOTNULL(ball.get_filter("pool_afloat"), "a floating beach ball has no water drawn over its underside")
 	TEST_ASSERT_EQUAL(length(afloat.rings), 2, "a floating beach ball has no ring of water round it")
 	TEST_ASSERT(afloat in GLOB.pool_things_afloat, "a floating beach ball isn't known to the waves that should lift it")
-	TEST_ASSERT_EQUAL(afloat.float_line["size"], "large", "the water's sprites for a beach ball aren't the size of its sprite")
+	TEST_ASSERT_NOTNULL(ball.render_target, "a floating beach ball has nothing for its reflection to copy")
+	TEST_ASSERT_EQUAL(afloat.reflection?.render_source, ball.render_target, "a floating beach ball has no reflection of its own")
+	TEST_ASSERT_NULL(sunk.reflection, "an item on the pool's bottom is reflected on top of the water")
+	TEST_ASSERT(afloat.float_line["across"] >= 16, "the ring of water round a beach ball isn't as wide as the ball")
 	// Hitting the water from the air makes a splash and a ring where it went in
 	var/obj/item/wrench/dropped = allocate(/obj/item/wrench, origin)
 	dropped.forceMove(top_left)
@@ -95,9 +97,12 @@
 	var/mob/living/carbon/human/swimmer = allocate(/mob/living/carbon/human, top_left)
 	var/datum/component/pool_submerged/waist_deep = swimmer.GetComponent(/datum/component/pool_submerged)
 	TEST_ASSERT_EQUAL(waist_deep?.refraction?.icon_state, "refract_legs", "the waves don't bend the legs of someone standing in the pool")
+	TEST_ASSERT_EQUAL(waist_deep.reflection?.render_source, swimmer.render_target, "someone standing in the pool has no reflection at their waist")
+	TEST_ASSERT_EQUAL(waist_deep.unmirrored?.plane, WATER_UNMIRRORED_PLANE, "someone standing in the pool is still mirrored a tile below them")
 	swimmer.forceMove(origin)
 	ball.forceMove(origin)
 	TEST_ASSERT(!(afloat in GLOB.pool_things_afloat), "a beach ball taken out of the pool is still afloat")
+	TEST_ASSERT_NULL(ball.render_target, "a beach ball taken out of the pool is still being copied for a reflection")
 	dropped.forceMove(origin)
 
 	// Filling in a corner gives the water next to it an edge

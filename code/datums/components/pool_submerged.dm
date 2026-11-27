@@ -1,5 +1,7 @@
 /// How far the squash map can move a row of a mob's legs, in pixels. The map is drawn for this
 #define POOL_LEG_SQUASH 4
+/// How many rows of a mob standing in a pool are under the water. The water sprites are drawn for this
+#define POOL_WAIST_ROW 13
 
 /**
  * Makes a mob standing in a pool look waist deep.
@@ -20,6 +22,10 @@
 	var/obj/effect/abstract/waterline/floor_shadow
 	/// Where the waves bend them, on the refraction plane: more the further down their legs, as deeper water does
 	var/obj/effect/abstract/waterline/refraction
+	/// Their reflection on the water in front of them, from the waist up
+	var/obj/effect/abstract/water_reflection/reflection
+	/// Leaves them out of the reflection plane's mirror, which would put their reflection a tile too low
+	var/obj/effect/abstract/waterline/unmirrored
 	/// Is the mob lying down in the water? Then all of it is under, not only its legs
 	var/lying = FALSE
 
@@ -39,7 +45,9 @@
 	refraction = new(null, "refract_legs")
 	refraction.vis_flags = VIS_INHERIT_ID
 	refraction.plane = WATER_REFRACT_PLANE
-	owner.vis_contents += list(back_ring, front_ring, floor_shadow, refraction)
+	reflection = new(null, owner, POOL_WAIST_ROW)
+	unmirrored = make_unmirrored_block()
+	owner.vis_contents += list(back_ring, front_ring, floor_shadow, refraction, reflection, unmirrored)
 	// The water rises and falls a little round them
 	for(var/obj/effect/abstract/waterline/ring in list(back_ring, front_ring))
 		animate(ring, pixel_y = 1, time = 1.6 SECONDS, loop = -1, easing = SINE_EASING)
@@ -49,11 +57,14 @@
 
 /datum/component/pool_submerged/Destroy(force)
 	var/mob/living/owner = parent
-	owner.vis_contents -= list(back_ring, front_ring, floor_shadow, refraction)
+	owner.vis_contents -= list(back_ring, front_ring, floor_shadow, refraction, reflection, unmirrored)
+	reflection.stop_reflecting(owner)
 	QDEL_NULL(back_ring)
 	QDEL_NULL(front_ring)
 	QDEL_NULL(floor_shadow)
 	QDEL_NULL(refraction)
+	QDEL_NULL(reflection)
+	QDEL_NULL(unmirrored)
 	owner.remove_filter(list("pool_submerged", "pool_legs_squash"))
 	return ..()
 
@@ -78,6 +89,11 @@
 	front_ring.alpha = lying ? 0 : 255
 	// The waves bend all of someone lying under the water, and only the legs of someone standing in it
 	refraction.icon_state = lying ? "refract_all" : "refract_legs"
+	// And someone under the water isn't reflected on top of it
+	if(lying)
+		owner.vis_contents -= reflection
+	else
+		owner.vis_contents |= reflection
 	if(lying)
 		// All of them is under, and there are no legs standing in it to look shorter
 		owner.remove_filter("pool_legs_squash")
@@ -128,3 +144,4 @@
 	icon_state = state
 
 #undef POOL_LEG_SQUASH
+#undef POOL_WAIST_ROW

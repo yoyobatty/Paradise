@@ -92,8 +92,7 @@
  * Things under the water draw where they are on this plane: a swimmer from the waist down, a thing lying on the bottom,
  * the underside of a floating one. There the plane comes out as the ripple map, and everywhere else as nothing, which
  * bends nothing. The world plane is moved by it, so legs and sunk things bend under each wave the way the pool floor
- * does, and nothing above the water is touched. The reflection plane reads it too: what's under the water isn't
- * mirrored on top of it.
+ * does, and nothing above the water is touched.
  */
 /atom/movable/screen/plane_master/water_refract
 	name = "water refraction plane master"
@@ -110,17 +109,83 @@
 	// The ripple map, kept only where those things are
 	add_filter("waves", 2, layering_filter(render_source = WATER_RIPPLE_RENDER_TARGET, blend_mode = BLEND_INSET_OVERLAY))
 
+/**
+ * Where the things in the water are, for the reflection plane to leave out.
+ *
+ * That plane mirrors the world a tile at a time: each water tile shows the tile above it upside down. That's right for
+ * what stands on the bank, whose feet are at the water's edge. Something standing or floating in the water meets it at
+ * its own waterline, part way up its tile, so mirrored that way its reflection would be most of a tile too low. It gets
+ * a reflection of its own instead, see /obj/effect/abstract/water_reflection, and draws a block here to be left out.
+ */
+/atom/movable/screen/plane_master/water_unmirrored
+	name = "water unmirrored plane master"
+	plane = WATER_UNMIRRORED_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_UNMIRRORED_RENDER_TARGET
+	water_effect = TRUE
+	water_effect_only = TRUE
+
 /atom/movable/screen/plane_master/water_mirror
 	name = "water mirror plane master"
 	plane = WATER_MIRROR_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	render_target = WATER_MIRROR_RENDER_TARGET
 
-/atom/movable/screen/plane_master/water_shimmer
-	name = "water shimmer plane master"
-	plane = WATER_SHIMMER_PLANE
+/**
+ * How much of a mirror the water is at each pixel, the way real water decides between reflecting and being seen through.
+ *
+ * Light meeting water partly bounces off and partly goes in, and how much does which depends on the angle. Seen from
+ * the game's angle, flat water reflects a little. The side of a wave sloping away from the viewer is met at a shallow
+ * angle and is nearly a mirror, and the side sloping toward them is met head on and is clear down to the bottom. This
+ * plane reads that slope off the ripple map, so reflections and the view of the pool floor trade places wave by wave,
+ * for every wave on the water: a pool's own, the rings from a splash, a swimmer's wake.
+ */
+/atom/movable/screen/plane_master/water_fresnel
+	name = "water fresnel plane master"
+	plane = WATER_FRESNEL_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	render_target = WATER_SHIMMER_RENDER_TARGET
+	render_target = WATER_FRESNEL_RENDER_TARGET
+	water_effect = TRUE
+	water_effect_only = TRUE
+
+/atom/movable/screen/plane_master/water_fresnel/Initialize(mapload)
+	. = ..()
+	add_filter("normals", 1, layering_filter(render_source = WATER_RIPPLE_RENDER_TARGET))
+	// 0.55 + 1.5 * (how far the water slopes away from the viewer, which is up the screen). The ripple map's green is
+	// 0.502 + 0.498 * (how far it slopes down the screen)
+	add_filter("reflectance", 2, color_matrix_filter(list(0, 0, 0, 0, 0, 0, 0, -3.012, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2.062)))
+
+/// The reflections of the things in the water themselves, see /obj/effect/abstract/water_reflection
+/atom/movable/screen/plane_master/water_self_reflection
+	name = "water self reflection plane master"
+	plane = WATER_SELF_REFLECTION_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	render_target = WATER_SELF_REFLECTION_RENDER_TARGET
+	water_effect = TRUE
+	water_effect_only = TRUE
+
+/**
+ * The water's reflections again, over what's under the water.
+ *
+ * A swimmer's legs and a thing on the bottom are on the world plane, which is drawn over every water plane, so they'd
+ * cover the reflections lying on the surface above them. This puts those reflections back over them, as strongly as
+ * they're under the water.
+ */
+/atom/movable/screen/plane_master/water_over
+	name = "water over plane master"
+	plane = WATER_OVER_PLANE
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	water_effect = TRUE
+	water_effect_only = TRUE
+	water_effect_removable = TRUE
+
+/atom/movable/screen/plane_master/water_over/Initialize(mapload)
+	. = ..()
+	add_filter("reflections", 1, layering_filter(render_source = WATER_REFLECTION_RENDER_TARGET))
+	// Only where something is under the water, more the deeper it is
+	add_filter("underwater", 2, alpha_mask_filter(render_source = WATER_REFRACT_RENDER_TARGET))
+	// And only over the things themselves. The water round them has its reflections already
+	add_filter("over_things", 3, alpha_mask_filter(render_source = GAME_PLANE_RENDER_TARGET))
 
 /atom/movable/screen/plane_master/pool_floor
 	name = "pool floor plane master"
@@ -165,6 +230,8 @@
 	water_effect = TRUE
 	water_effect_removable = TRUE
 	water_effect_only = TRUE
+	// The water over plane puts the reflections over what's under the water as well
+	render_target = WATER_REFLECTION_RENDER_TARGET
 
 /atom/movable/screen/plane_master/water_reflection/Initialize(mapload)
 	. = ..()
@@ -172,18 +239,20 @@
 	add_filter("world", 1, layering_filter(render_source = GAME_PLANE_RENDER_TARGET))
 	// Lamps and lit screens, added on so they reflect as bright spots
 	add_filter("lamps", 2, layering_filter(render_source = LIGHTING_LAMPS_RENDER_TARGET, blend_mode = BLEND_ADD))
-	// What's under the water isn't mirrored on top of it: a thing on the bottom, or a swimmer's legs
-	add_filter("not_underwater", 2.5, alpha_mask_filter(render_source = WATER_REFRACT_RENDER_TARGET, flags = MASK_INVERSE))
+	// Not what's in the water. It has its own reflection at its waterline, or none if it's on the bottom
+	add_filter("not_in_water", 2.5, alpha_mask_filter(render_source = WATER_UNMIRRORED_RENDER_TARGET, flags = MASK_INVERSE))
 	// A reflection is a little darker and bluer than the thing itself
-	add_filter("reflection_tone", 3, color_matrix_filter(list(0.78, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0.86, 0, 0, 0, 0, 0.62, 0.02, 0.04, 0.08, 0)))
+	add_filter("reflection_tone", 3, color_matrix_filter(list(0.78, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0.86, 0, 0, 0, 0, 0.9, 0.02, 0.04, 0.08, 0)))
 	// Every water tile moves its pixels so it shows the tile above it upside down
 	add_filter("mirror", 4, displacement_map_filter(render_source = WATER_MIRROR_RENDER_TARGET, size = POOL_MIRROR_REACH))
+	// The reflections of the things in the water are already the right way up and in the right place
+	add_filter("in_water", 4.5, layering_filter(render_source = WATER_SELF_REFLECTION_RENDER_TARGET))
 	// Then the waves bend it
 	add_filter("ripples", 5, displacement_map_filter(render_source = WATER_RIPPLE_RENDER_TARGET, size = POOL_REFLECTION_RIPPLE))
 	// A reflection only shows where there is water under it
 	add_filter("water_mask", 6, alpha_mask_filter(render_source = WATER_MASK_RENDER_TARGET))
-	// And the ripples break it up as they pass
-	add_filter("water_shimmer", 7, alpha_mask_filter(render_source = WATER_SHIMMER_RENDER_TARGET))
+	// And only as much as the water is a mirror there: the sides of the waves sloping away from the viewer
+	add_filter("fresnel", 7, alpha_mask_filter(render_source = WATER_FRESNEL_RENDER_TARGET))
 	// Bright things in it, like lamps, glow
 	add_filter("reflection_bloom", 8, bloom_filter(threshold = "#A0A0A0", size = 3, offset = 1, alpha = 170))
 

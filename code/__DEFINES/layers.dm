@@ -9,6 +9,14 @@
 #define PLANE_SPACE -95
 #define PLANE_SPACE_PARALLAX -90
 
+/// The reflections of the things standing or floating in water themselves, each upside down about its own waterline.
+/// Never shown: the reflection plane adds them to the world it has mirrored
+#define WATER_SELF_REFLECTION_PLANE -26
+#define WATER_SELF_REFLECTION_RENDER_TARGET "*WATER_SELF_REFLECTION_RENDER_TARGET"
+/// Where the things standing, floating or lying in water are. Never shown: the reflection plane leaves them out of
+/// the world it mirrors, because they have reflections of their own
+#define WATER_UNMIRRORED_PLANE -25
+#define WATER_UNMIRRORED_RENDER_TARGET "*WATER_UNMIRRORED_RENDER_TARGET"
 /// How much the waves bend each pixel of the world: the ripple map where something is under the water, a swimmer's
 /// legs or a thing on the bottom, and flat everywhere else. Drawn on it is where those things are. Never shown, the
 /// world plane is moved by it
@@ -36,9 +44,11 @@
 #define WATER_MIRROR_RENDER_TARGET "*WATER_MIRROR_RENDER_TARGET"
 /// How many pixels a mirror map can move a pixel each way. A tile mirrors the one above it, so up to 63
 #define POOL_MIRROR_REACH 64
-/// Where the ripples break reflections up. Never shown, the reflection plane reads it as a second mask
-#define WATER_SHIMMER_PLANE -20
-#define WATER_SHIMMER_RENDER_TARGET "*WATER_SHIMMER_RENDER_TARGET"
+/// How much of a mirror the water is at each pixel, worked out from the ripple map: a wave's side sloping away from the
+/// viewer reflects, one sloping toward them is seen through. Nothing is drawn on it, and it's never shown: the
+/// reflection plane reads it as a second mask
+#define WATER_FRESNEL_PLANE -20
+#define WATER_FRESNEL_RENDER_TARGET "*WATER_FRESNEL_RENDER_TARGET"
 /// Where there is water for things to be mirrored in. Never shown, only used to cut reflections to the water's shape
 #define WATER_MASK_PLANE -19
 #define WATER_MASK_RENDER_TARGET "*WATER_MASK_RENDER_TARGET"
@@ -62,6 +72,8 @@
 /// Reflections in water: a mirrored copy of the world plane, cut to the water. Over the water's colour, so they're
 /// as clear as on real water
 #define WATER_REFLECTION_PLANE -12
+/// No * at the front, so the plane is still drawn as well. The water over plane reads it
+#define WATER_REFLECTION_RENDER_TARGET "WATER_REFLECTION_RENDER_TARGET"
 /// The sides of the waves facing away from the light, darkened. Made from the ripple map, nothing is drawn on it
 #define WATER_RELIEF_SHADE_PLANE -11
 /// The sides of the waves facing the light, brightened. Made from the ripple map, nothing is drawn on it
@@ -96,6 +108,9 @@
 #define BLACKNESS_PLANE 0 //To keep from conflicts with SEE_BLACKNESS internals
 
 #define AREA_PLANE 1
+/// The water's reflections again, over what's under the water: a swimmer's legs or a thing on the bottom. Those are on
+/// the world plane, over every water plane, and the surface with its reflections is above them
+#define WATER_OVER_PLANE 2
 
 #define SPACE_LAYER 1.5
 #define GRASS_UNDER_LAYER 1.6

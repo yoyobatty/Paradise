@@ -9,8 +9,8 @@
  * Sets a water turf up to reflect the world. Called by the water turfs as they are made.
  *
  * The reflection plane copies the whole world plane. This tile's mirror map tells it to show the tile above this one
- * upside down here, and its mask and shimmer cut that copy to the water and break it up where the ripples are. The
- * waves on the ripple plane say which way the water slopes, which bends the reflection and the pool floor under them.
+ * upside down here, and its mask cuts that copy to the water. The waves on the ripple plane say which way the water
+ * slopes, which bends the reflection and the pool floor under them, and says how much of a mirror the water is there.
  *
  * Arguments:
  * * whole_tile_mask - FALSE for water with edges, which puts its own mask on as it picks them
@@ -23,7 +23,12 @@
 	// These follow the waves, which repeat every 2x2 tiles. Rows of the sprites count from the top, and y counts up,
 	// so odd y is the top row
 	var/quarter = "[x % 2][y % 2 ? 0 : 1]"
-	overlays += get_pool_appearance("reflection_breakup_[quarter]", WATER_SHIMMER_PLANE)
+	// What's mirrored here fades the higher it stands above the water's edge: a mask over the tile north of this one
+	var/static/mutable_appearance/mirror_fade
+	if(!mirror_fade)
+		mirror_fade = mutable_appearance('icons/turf/floors/pool_water.dmi', "mirror_fade", plane = WATER_UNMIRRORED_PLANE)
+		mirror_fade.pixel_y = world.icon_size
+	overlays += mirror_fade
 	// Flat water for the waves to be drawn over
 	overlays += get_pool_appearance("wave_flat", WATER_RIPPLE_PLANE)
 	if(still_waves)
@@ -245,6 +250,47 @@ GLOBAL_LIST_INIT(pool_surface_colours, list(
 	new /obj/effect/temp_visual/water_ripple/waist/back(src)
 	new /obj/effect/temp_visual/water_splash(src)
 	make_wave_ring()
+
+/**
+ * The reflection of something standing or floating in water, on the water in front of it.
+ *
+ * A copy of the thing turned upside down about its waterline, so the reflection starts where the thing meets the
+ * water. It goes in the thing's vis_contents and follows it. On a hidden plane the reflection plane adds to the world
+ * it has mirrored, so it's bent by the waves, cut to the water and as strong as the water is a mirror, like the rest.
+ */
+/obj/effect/abstract/water_reflection
+	plane = WATER_SELF_REFLECTION_PLANE
+	invisibility = 0
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	// The copy already has the thing's colour and the way it's turned
+	appearance_flags = KEEP_APART | RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM
+	/// Did this give the thing the render target it copies? Then it takes it off again
+	var/made_render_target = FALSE
+
+/obj/effect/abstract/water_reflection/Initialize(mapload, atom/movable/reflected, waterline)
+	. = ..()
+	// Mobs that block glowing things already have one, under the same name
+	if(!reflected.render_target)
+		reflected.render_target = ref(reflected)
+		made_render_target = TRUE
+	render_source = reflected.render_target
+	// A little darker and bluer than the thing itself and not quite solid, like the reflections of the bank. How solid
+	// is part of the matrix: BYOND ignores changes to an object's alpha while its colour is a matrix
+	color = list(0.78, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0.86, 0, 0, 0, 0, 0.9, 0.02, 0.04, 0.08, 0)
+	// Upside down about the waterline, which is `waterline` rows up from the bottom of the thing's sprite
+	transform = matrix(1, 0, 0, 0, -1, 2 * waterline - world.icon_size)
+
+/// The thing is out of the water: it stops being copied
+/obj/effect/abstract/water_reflection/proc/stop_reflecting(atom/movable/reflected)
+	if(made_render_target && !reflected.em_block)
+		reflected.render_target = null
+
+/// Makes the block that leaves something in the water out of the reflection plane's mirror, for its vis_contents
+/proc/make_unmirrored_block()
+	var/obj/effect/abstract/waterline/block = new(null, "mask")
+	block.vis_flags = VIS_INHERIT_ID
+	block.plane = WATER_UNMIRRORED_PLANE
+	return block
 
 /// A ring spreading out on water where something touched it.
 /obj/effect/temp_visual/water_ripple

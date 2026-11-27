@@ -12,7 +12,8 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
  * Where the water comes up to on a floating thing's sprite, worked out once for each sprite from its shape.
  *
  * It floats with about the bottom third of it under the water. Returns a list: "x" and "y", how far to move the water
- * sprites drawn for a floating thing so they sit on its waterline, and "size", which size of them fits it there.
+ * sprites drawn for a floating thing so they sit on its waterline, and "across", how many pixels wide it is there,
+ * rounded up to the even widths the ring round it is drawn in.
  */
 /proc/get_float_line(obj/item/floater)
 	var/static/list/float_lines = list()
@@ -42,20 +43,15 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 		top = y
 	// Nothing drawn at all: as if it filled the middle of its tile
 	if(!bottom)
-		float_line = list("x" = 0, "y" = 0, "size" = "medium")
+		float_line = list("x" = 0, "y" = 0, "across" = 16)
 		float_lines[key] = float_line
 		return float_line
 	// The highest row that's under the water, and how wide the thing is there
 	var/wet_row = bottom + clamp(round((top - bottom + 1) * 0.3, 1), 2, 7) - 1
 	var/left = row_left["[wet_row]"]
 	var/right = row_right["[wet_row]"]
-	var/across = right - left + 1
-	var/size = "large"
-	if(across <= 9)
-		size = "small"
-	else if(across <= 15)
-		size = "medium"
-	float_line = list("x" = round((left + right) / 2 - (width + 1) / 2, 1), "y" = wet_row - POOL_FLOAT_SPRITE_LINE, "size" = size)
+	var/across = clamp(CEILING(right - left + 1, 2), 4, 26)
+	float_line = list("x" = round((left + right) / 2 - (width + 1) / 2, 1), "y" = wet_row - POOL_FLOAT_SPRITE_LINE, "across" = across)
 	float_lines[key] = float_line
 	return float_line
 
@@ -83,6 +79,8 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	var/list/obj/effect/abstract/waterline/rings = list()
 	/// Where the waves bend the item, on the refraction plane
 	var/obj/effect/abstract/waterline/refraction
+	/// A floating thing's reflection on the water in front of it, of the part of it above the water
+	var/obj/effect/abstract/water_reflection/reflection
 	/// For a floating thing, where the water comes up to on its sprite. See get_float_line()
 	var/list/float_line
 
@@ -100,6 +98,8 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	else
 		// All of it is under the water, so the waves bend all of it
 		refraction = add_part("refract_all", WATER_REFRACT_PLANE)
+	// Left out of the reflection plane's mirror, which would put its reflection a tile too low
+	parts += make_unmirrored_block()
 	sunk.vis_contents += parts
 	set_look(look)
 	if(landing)
@@ -115,6 +115,8 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	sunk.vis_contents -= parts
 	rings.Cut()
 	refraction = null
+	reflection?.stop_reflecting(sunk)
+	reflection = null
 	QDEL_LIST_CONTENTS(parts)
 	sunk.remove_filter(list("pool_sunk", "pool_afloat"))
 	// Back to where it was drawn before, which stops it bobbing too
@@ -138,13 +140,13 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 
 /// What's drawn with a floating thing, all of it at its waterline
 /datum/component/pool_sunk/proc/add_floating_parts()
-	var/size = float_line["size"]
+	var/across = float_line["across"]
 	var/line_x = float_line["x"]
 	var/line_y = float_line["y"]
-	// The ring of water round it where it sits in the surface, half behind it and half in front
-	var/obj/effect/abstract/waterline/back_ring = add_part("floater_ring_[size]_back")
+	// The ring of water against its sides where it sits in the surface, half behind it and half in front
+	var/obj/effect/abstract/waterline/back_ring = add_part("floater_ring_[across]_back")
 	back_ring.vis_flags |= VIS_UNDERLAY
-	rings = list(back_ring, add_part("floater_ring_[size]_front"))
+	rings = list(back_ring, add_part("floater_ring_[across]_front"))
 	for(var/obj/effect/abstract/waterline/ring as anything in rings)
 		ring.pixel_x = line_x
 		ring.pixel_y = line_y
@@ -160,8 +162,11 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	var/obj/effect/abstract/waterline/shadow = add_part("floater_shadow", POOL_FLOOR_PLANE)
 	shadow.pixel_x = line_x + 3
 	shadow.pixel_y = line_y - 5
-	var/static/list/shadow_sizes = list("small" = 0.55, "medium" = 0.8, "large" = 1.15)
-	shadow.transform = matrix(shadow_sizes[size], 0, 0, 0, shadow_sizes[size], 0)
+	// The sprite is 18 pixels wide
+	shadow.transform = matrix(across / 18 + 0.1, 0, 0, 0, across / 18 + 0.1, 0)
+	// Its reflection, upside down about its waterline: the top of the highest row that's under the water
+	reflection = new(null, parent, line_y + POOL_FLOAT_SPRITE_LINE)
+	parts += reflection
 
 /// Draws the water over the item in the colours of the pool it's in
 /datum/component/pool_sunk/proc/set_look(new_look)
@@ -229,6 +234,11 @@ GLOBAL_LIST_EMPTY(pool_things_afloat)
 	animate(pixel_z = old_pixel_z, time = pace, easing = SINE_EASING)
 	animate(floater, pixel_w = old_pixel_w + 1, time = pace * 1.3, loop = -1, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
 	animate(pixel_w = old_pixel_w - 1, time = pace * 1.3, easing = SINE_EASING)
+	// The water rises and falls a little round it
+	var/line_y = float_line["y"]
+	for(var/obj/effect/abstract/waterline/ring as anything in rings)
+		animate(ring, pixel_y = line_y + 1, time = 1.6 SECONDS, loop = -1, easing = SINE_EASING)
+		animate(pixel_y = line_y - 1, time = 1.6 SECONDS, easing = SINE_EASING)
 
 /// A ring of waves is passing under a floating thing: it's lifted over it, and goes back to bobbing
 /datum/component/pool_sunk/proc/ride_wave()
