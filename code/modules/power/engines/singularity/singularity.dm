@@ -323,6 +323,9 @@ GLOBAL_VAR_INIT(global_singulo_id, 1)
 /obj/singularity/proc/show_swallow(atom/A)
 	if(current_size < STAGE_THREE || A.invisibility || !A.alpha || iseffect(A))
 		return
+	// eat() consumes every turf in reach each fire, so space it already ate would spiral in too
+	if(isspaceturf(A))
+		return
 	var/second = world.time - (world.time % 10)
 	if(second != swallow_second)
 		swallow_second = second
