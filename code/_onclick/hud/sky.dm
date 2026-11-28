@@ -82,15 +82,21 @@
 	var/list/deep_sky = list()
 	/// The real sun's bearing as the sky turns: list(degrees clockwise from north, at world.time, degrees per decisecond)
 	var/list/turn_line
+	/// When the turn animations set going at the line's last start run out (sky_turn_plan() caps their steps)
+	var/turn_armed_until = 0
 
-/// Follows SSsun: lines the sky's turn up with the real sun again when they've drifted over a degree apart
+/// Follows SSsun: turns everyone's sky again when it's over a degree off the sun or its turn animations are running out
 /datum/controller/subsystem/parallax/proc/sun_moved(time = world.time)
 	if(!isnum(SSsun.angle))
 		return
 	var/rate = SSsun.rate * 6 / SSsun.wait
-	if(turn_line && turn_line[3] == rate && abs(closer_angle_difference(turn_line[1] + rate * (time - turn_line[2]), SSsun.angle)) <= 1)
+	var/on_line = turn_line && turn_line[3] == rate && abs(closer_angle_difference(turn_line[1] + rate * (time - turn_line[2]), SSsun.angle)) <= 1
+	if(on_line && time + SSsun.wait < turn_armed_until)
 		return
-	turn_line = list(SSsun.angle, time, rate)
+	if(!on_line)
+		turn_line = list(SSsun.angle, time, rate)
+	var/list/plan = sky_turn_plan()
+	turn_armed_until = plan[3] ? time + plan[2] * plan[3] : INFINITY
 	for(var/client/C as anything in GLOB.clients)
 		if(C.mob?.hud_used && isnull(C.parallax_snapped))
 			C.mob.hud_used.turn_sky(C)

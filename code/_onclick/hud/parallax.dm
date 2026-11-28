@@ -2,6 +2,8 @@
 
 /// The sky's turn is animated a quarter turn per animate() step
 #define SKY_TURN_STEP 90
+/// Most animate() steps one sky turn queues; SSparallax.sun_moved() starts it again before they run out
+#define SKY_TURN_MAX_STEPS 100
 /// How long the sky swings to a quarter turn when a shuttle sets off
 #define SKY_SNAP_TIME 30
 /// How long the sky swings back to its turn when a shuttle stops
@@ -24,19 +26,21 @@
 		return 0
 	return line[1] + line[3] * (time - line[2]) - (90 - arctan(sun[1], sun[2]))
 
-/// The painted sun's bearing on screen at `time`, degrees clockwise from north like SSsun.angle
+/// The painted sun's bearing on screen at `time`, degrees clockwise from north like SSsun.angle; null with no sun painted
 /proc/sky_sun_bearing(time = world.time)
 	var/list/sun = SSparallax.body_places["sun"]
+	if(!sun)
+		return null
 	return SIMPLIFY_DEGREES(90 - arctan(sun[1], sun[2]) + sky_turn_angle(time))
 
-/// How the sky's turn is animated: list(degrees a step, deciseconds a step, steps) covering 12 hours
+/// How the sky's turn is animated: list(degrees a step, deciseconds a step, steps), up to 12 hours or SKY_TURN_MAX_STEPS
 /proc/sky_turn_plan()
 	var/list/line = SSparallax.turn_line
 	var/rate = line ? line[3] : 0
 	if(!rate)
 		return list(0, 0, 0)
 	var/step_time = SKY_TURN_STEP / abs(rate)
-	return list(SKY_TURN_STEP * SIGN(rate), step_time, ceil(12 HOURS / step_time) + 1)
+	return list(SKY_TURN_STEP * SIGN(rate), step_time, min(ceil(12 HOURS / step_time) + 1, SKY_TURN_MAX_STEPS))
 
 /// A matrix turned clockwise by `angle` degrees
 /proc/sky_turned(angle)
@@ -64,6 +68,10 @@
 	plane = PLANE_SPACE_PARALLAX
 	screen_loc = "CENTER-7,CENTER-7"
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+
+/atom/movable/screen/parallax_home/Destroy()
+	vis_contents.Cut()
+	return ..()
 
 /datum/hud/proc/create_parallax(mob/viewmob)
 	var/mob/screenmob = viewmob || mymob

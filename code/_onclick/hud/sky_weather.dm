@@ -12,6 +12,9 @@
 	var/list/caelus_art
 	/// The radiation storm's shimmer while it lasts
 	var/atom/movable/screen/sky_art/piece/rad_art
+	/// The ash storms and radiation storms blowing now that put their art in the sky
+	var/list/ash_storms = list()
+	var/list/rad_storms = list()
 	/// Holds weather right at the station, drawn over every celestial body
 	var/atom/movable/screen/sky_art/flyby/near_weather
 
@@ -44,6 +47,26 @@
 	for(var/client/C as anything in GLOB.clients)
 		for(var/atom/movable/screen/parallax_layer/body/planet/L in C.parallax_layers_cached)
 			L.vis_contents -= A
+
+/// Weather W has begun: its kind shows in the sky
+/datum/controller/subsystem/parallax/proc/weather_began(datum/weather/W)
+	if(istype(W, /datum/weather/ash_storm))
+		ash_storms |= W
+		lavaland_ash_storm(TRUE)
+	else if(istype(W, /datum/weather/rad_storm))
+		rad_storms |= W
+		rad_storm_sky(TRUE)
+
+/// Weather W is over or deleted: its kind leaves the sky once no other storm of that kind that began is still blowing
+/datum/controller/subsystem/parallax/proc/weather_over(datum/weather/W)
+	if(W in ash_storms)
+		ash_storms -= W
+		if(!length(ash_storms))
+			lavaland_ash_storm(FALSE)
+	if(W in rad_storms)
+		rad_storms -= W
+		if(!length(rad_storms))
+			rad_storm_sky(FALSE)
 
 /// Fades `art` out over SKY_WEATHER_FADE, then deletes it
 /datum/controller/subsystem/parallax/proc/fade_out_art(list/art)
@@ -155,5 +178,10 @@
 
 /atom/movable/screen/parallax_layer/near_weather/set_quality(quality)
 	vis_contents = carry(list(SSparallax.near_weather_art()))
+
+/// Only seen from the station's level, where the aurora and the radiation storm are
+/atom/movable/screen/parallax_layer/near_weather/update_status(mob/M)
+	var/turf/T = get_turf(M)
+	invisibility = (T && is_station_level(T.z)) ? 0 : INVISIBILITY_ABSTRACT
 
 #undef SKY_WEATHER_NUDGE

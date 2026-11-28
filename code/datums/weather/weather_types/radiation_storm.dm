@@ -71,15 +71,19 @@
 
 		domutcheck(human, MUTCHK_FORCED)
 
+/datum/weather/rad_storm/Destroy()
+	SSparallax.weather_over(src)
+	return ..()
+
 /datum/weather/rad_storm/start()
 	. = ..()
 	if(stage == WEATHER_MAIN_STAGE)
-		SSparallax.rad_storm_sky(TRUE)
+		SSparallax.weather_began(src)
 
 /datum/weather/rad_storm/end()
 	if(..())
 		return
-	SSparallax.rad_storm_sky(FALSE)
+	SSparallax.weather_over(src)
 
 	status_alarm(FALSE)
 	if(!pre_maint_all_access)

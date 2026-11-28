@@ -498,6 +498,14 @@
 	if(obj_window)
 		QDEL_NULL(obj_window)
 
+	// Sky layers and their holders point at each other, which BYOND never frees by itself
+	for(var/layer in parallax_animate_timers)
+		deltimer(parallax_animate_timers[layer])
+	parallax_animate_timers = null
+	parallax_layers = null
+	QDEL_NULL(parallax_home)
+	QDEL_LIST_CONTENTS(parallax_layers_cached)
+
 	SSmouse_entered.hovers -= src
 	SSambience.ambience_listening_clients -= src
 	SSinput.processing -= src

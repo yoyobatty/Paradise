@@ -36,11 +36,15 @@
 /datum/weather/ash_storm/start()
 	. = ..()
 	if(stage == WEATHER_MAIN_STAGE)
-		SSparallax.lavaland_ash_storm(TRUE)
+		SSparallax.weather_began(src)
 
 /datum/weather/ash_storm/end()
 	. = ..()
-	SSparallax.lavaland_ash_storm(FALSE)
+	SSparallax.weather_over(src)
+
+/datum/weather/ash_storm/Destroy()
+	SSparallax.weather_over(src)
+	return ..()
 
 /datum/weather/ash_storm/update_eligible_areas()
 	. = ..()
