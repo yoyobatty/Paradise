@@ -236,8 +236,9 @@
  * Smooth random red and green, three times its size so it covers the whole screen, scrolling up for ever.
  *
  * In a displace filter red pushes a pixel sideways and green up or down, and mid grey leaves it be.
- * The sheet is the same square twice, one above the other, so after scrolling one square's height it jumps back to
+ * The square is drawn twice, one above the other, so after scrolling one square's height it jumps back to
  * where it started without that showing.
+ * The copy above is an overlay moved by its transform: a screen sprite taller than the view grows everyone's map.
  */
 /atom/movable/screen/fire_noise
 	icon = 'icons/effects/flame_noise.dmi'
@@ -245,15 +246,19 @@
 	screen_loc = "SOUTHWEST"
 	plane = FIRE_NOISE_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	// Scaling is about the sheet's middle, so this puts its left edge back at the screen's
+	// Scaling is about the square's middle, so this puts its left edge back at the screen's and the pair where it was
 	pixel_x = 256
-	pixel_y = -256
+	pixel_y = -512
 
 /atom/movable/screen/fire_noise/Initialize(mapload)
 	. = ..()
+	var/mutable_appearance/above = mutable_appearance(icon, icon_state)
+	above.appearance_flags = NO_CLIENT_COLOR
+	above.transform = matrix(1, 0, 0, 0, 1, 256)
+	add_overlay(above)
 	transform = matrix().Scale(3)
-	animate(src, pixel_y = 512, time = FLAME_SURGE_TIME SECONDS, loop = -1)
-	animate(pixel_y = -256, time = 0)
+	animate(src, pixel_y = 256, time = FLAME_SURGE_TIME SECONDS, loop = -1)
+	animate(pixel_y = -512, time = 0)
 
 // MARK: The flames
 
